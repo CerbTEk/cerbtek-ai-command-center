@@ -49,11 +49,10 @@ body:before{
 .auth-card.wide{width:min(580px,92vw)}
 .brand{display:flex;gap:12px;align-items:center}
 .brand-mark{
-  width:40px;height:40px;border-radius:10px;
-  display:grid;place-items:center;
-  background:linear-gradient(145deg,#7b5310,#f2cd73 45%,#a56e16 75%,#4f350c);
-  color:#090909;font-weight:900;font-size:18px;
-  box-shadow:0 0 18px rgba(255,212,128,.18),inset 0 0 0 1px rgba(255,255,255,.15);
+  width:42px;height:42px;border-radius:10px;
+  object-fit:cover;display:block;
+  border:1px solid rgba(212,175,55,.45);
+  box-shadow:0 0 20px rgba(255,212,128,.14);
 }
 .brand div:last-child{display:flex;flex-direction:column}
 .brand strong{font-size:17px;letter-spacing:.02em;color:var(--champagne)}
