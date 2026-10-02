@@ -653,3 +653,77 @@ textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.09
   .approval-row{align-items:flex-start;flex-direction:column}
   .approval-actions{justify-content:flex-start}
 }
+
+
+.policy-form,.workflow-builder{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.policy-form label,.workflow-builder label{
+  display:grid;
+  gap:6px;
+  font-size:12px;
+  font-weight:700;
+  color:#d8c8a6;
+}
+.policy-form .toggle-line{
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  gap:8px;
+}
+.toggle-line input{width:auto;accent-color:#d4af37}
+.workflow-builder .span-2{grid-column:span 2}
+.workflow-builder-actions{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.workflow-builder-actions span{font-size:11px;color:#95866b}
+.compact-list{display:grid;margin-top:14px}
+.compact-row{
+  padding:11px 0;
+  border-bottom:1px solid rgba(212,175,55,.09);
+}
+.compact-row:last-child{border:0}
+.compact-row>div{display:flex;flex-direction:column;gap:3px}
+.compact-row b{color:#e9d7b1;font-size:12px}
+.compact-row span{color:#7d725f;font-size:10px}
+.orchestration-list{display:grid;gap:8px}
+.orchestration-row{
+  display:grid;
+  grid-template-columns:1.4fr .75fr auto;
+  align-items:center;
+  gap:14px;
+  padding:13px;
+  border:1px solid rgba(212,175,55,.10);
+  background:#0c0c0c;
+  border-radius:10px;
+}
+.orchestration-row>div:first-child{display:flex;flex-direction:column;gap:3px}
+.orchestration-row b{color:#ead9b6}
+.orchestration-row span{font-size:11px;color:#7f7462}
+.orchestration-status{display:flex;align-items:center;gap:8px}
+.orchestration-status em{font-style:normal;font-size:10px;color:#8b806d}
+.workflow-state{
+  display:inline-flex;
+  width:max-content;
+  border:1px solid rgba(212,175,55,.18);
+  padding:5px 8px;
+  border-radius:999px;
+  text-transform:uppercase;
+  font-size:9px!important;
+  letter-spacing:.08em;
+}
+.workflow-state.active{background:linear-gradient(180deg,#e2bb5e,#a7781d);color:#0d0903!important;border-color:#e8c76f}
+.workflow-state.paused{background:#17130d;color:#b49c64!important}
+.workflow-state.draft{background:#101010;color:#867b68!important}
+.orchestration-actions{display:flex;gap:7px;justify-content:flex-end}
+@media(max-width:900px){
+  .policy-form,.workflow-builder{grid-template-columns:1fr}
+  .workflow-builder .span-2{grid-column:auto}
+  .orchestration-row{grid-template-columns:1fr}
+  .orchestration-actions{justify-content:flex-start}
+}
