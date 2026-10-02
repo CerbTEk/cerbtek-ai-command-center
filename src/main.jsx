@@ -30,7 +30,8 @@ function App() {
   const [staff, setStaff] = useState(null)
   const [data, setData] = useState({
     systems: [], workflows: [], opps: [], integrations: [], agents: [],
-    policies: [], blueprints: [], audit: [], onboarding: null, readiness: null, oauth: [], integrationRuns: [], actionRequests: []
+    policies: [], blueprints: [], audit: [], onboarding: null, readiness: null, oauth: [], integrationRuns: [], actionRequests: [],
+    workflowDefinitions: [], workflowRuns: [], approvalPolicies: []
   })
 
   useEffect(() => {
@@ -64,7 +65,7 @@ function App() {
   }
 
   async function loadOrg(orgId) {
-    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth, integrationRuns, actionRequests] = await Promise.all([
+    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth, integrationRuns, actionRequests, workflowDefinitions, workflowRuns, approvalPolicies] = await Promise.all([
       supabase.from('systems').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('workflows').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('ai_opportunities').select('*').eq('organization_id', orgId).order('opportunity_score', { ascending: false }),
@@ -78,6 +79,9 @@ function App() {
       supabase.from('oauth_connections').select('*').eq('organization_id', orgId),
       supabase.from('integration_runs').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(20),
       supabase.from('action_requests').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(20),
+      supabase.from('workflow_definitions').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}),
+      supabase.from('workflow_runs').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(30),
+      supabase.from('approval_policies').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}),
     ])
     setData({
       systems: systems.data || [],
@@ -92,7 +96,10 @@ function App() {
       readiness: readiness.data || null,
       oauth: oauth.data || [],
       integrationRuns: integrationRuns.data || [],
-      actionRequests: actionRequests.data || []
+      actionRequests: actionRequests.data || [],
+      workflowDefinitions: workflowDefinitions.data || [],
+      workflowRuns: workflowRuns.data || [],
+      approvalPolicies: approvalPolicies.data || []
     })
   }
 
@@ -132,7 +139,7 @@ function App() {
         {active === 'Onboarding' && <Onboarding org={org} session={session} current={data.onboarding} reload={() => loadOrg(org.id)}/>}
         {active === 'AI Readiness' && <Readiness org={org} session={session} data={data} reload={() => loadOrg(org.id)}/>}
         {active === 'Systems' && <Systems org={org} session={session} rows={data.systems} reload={() => loadOrg(org.id)}/>}
-        {active === 'Workflows' && <Workflows org={org} session={session} rows={data.workflows} reload={() => loadOrg(org.id)}/>}
+        {active === 'Workflows' && <Workflows org={org} session={session} rows={data.workflows} definitions={data.workflowDefinitions} runs={data.workflowRuns} approvalPolicies={data.approvalPolicies} reload={() => loadOrg(org.id)}/>} 
         {active === 'Opportunities' && <Opportunities org={org} session={session} workflows={data.workflows} rows={data.opps} reload={() => loadOrg(org.id)}/>}
         {active === 'Integrations' && <Integrations org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} runs={data.integrationRuns} requests={data.actionRequests} reload={() => loadOrg(org.id)}/>}
         {active === 'Agents' && <Agents org={org} session={session} rows={data.agents} integrations={data.integrations} reload={() => loadOrg(org.id)}/>}
@@ -386,10 +393,20 @@ function Systems({org,session,rows,reload}) {
   </Panel>
 }
 
-function Workflows({org,session,rows,reload}) {
+function Workflows({org,session,rows,definitions,runs,approvalPolicies,reload}) {
   const [name,setName]=useState('')
   const [department,setDepartment]=useState('')
   const [risk,setRisk]=useState('Moderate')
+  const [automationName,setAutomationName]=useState('')
+  const [automationDescription,setAutomationDescription]=useState('')
+  const [stepType,setStepType]=useState('microsoft.health')
+  const [emailTo,setEmailTo]=useState('')
+  const [emailSubject,setEmailSubject]=useState('')
+  const [emailMessage,setEmailMessage]=useState('')
+  const [workflowMessage,setWorkflowMessage]=useState('')
+  const [policyName,setPolicyName]=useState('')
+  const [autoExecute,setAutoExecute]=useState(false)
+
   async function save(e) {
     e.preventDefault()
     const {error}=await supabase.from('workflows').insert({
@@ -397,15 +414,134 @@ function Workflows({org,session,rows,reload}) {
     })
     if(!error){setName('');setDepartment('');reload()}
   }
-  return <Panel title="Workflow inventory">
-    <form className="inline-form four" onSubmit={save}>
-      <input placeholder="Workflow" value={name} onChange={e=>setName(e.target.value)} required/>
-      <input placeholder="Department" value={department} onChange={e=>setDepartment(e.target.value)}/>
-      <select value={risk} onChange={e=>setRisk(e.target.value)}><option>Low</option><option>Moderate</option><option>High</option><option>Critical</option></select>
-      <button className="primary small">Add</button>
-    </form>
-    <Rows rows={rows} secondary={r => [r.department,r.current_risk_level].filter(Boolean).join(' • ')} table="workflows" reload={reload}/>
-  </Panel>
+
+  async function savePolicy(e){
+    e.preventDefault()
+    const {error}=await supabase.from('approval_policies').insert({
+      organization_id:org.id,
+      name:policyName,
+      action_type:'send_email',
+      required_roles:['owner','admin','consultant'],
+      require_approval:true,
+      auto_execute_after_approval:autoExecute,
+      active:true,
+      created_by:session.user.id
+    })
+    setWorkflowMessage(error?error.message:'Approval policy created')
+    if(!error){setPolicyName('');reload()}
+  }
+
+  async function createAutomation(e){
+    e.preventDefault()
+    const steps=[]
+    if(stepType==='microsoft.health') steps.push({type:'microsoft.health'})
+    if(stepType==='microsoft.profile') steps.push({type:'microsoft.profile'})
+    if(stepType==='microsoft.inbox-status') steps.push({type:'microsoft.inbox-status'})
+    if(stepType==='microsoft.calendar-next') steps.push({type:'microsoft.calendar-next'})
+    if(stepType==='approval.email') steps.push({type:'approval.email',to:emailTo,subject:emailSubject,message:emailMessage})
+    const {error}=await supabase.from('workflow_definitions').insert({
+      organization_id:org.id,
+      name:automationName,
+      description:automationDescription||null,
+      status:'Draft',
+      trigger_type:'Manual',
+      steps,
+      default_approval_policy_id:approvalPolicies.find(p=>p.action_type==='send_email'&&p.active)?.id||null,
+      created_by:session.user.id
+    })
+    setWorkflowMessage(error?error.message:'Workflow created as draft')
+    if(!error){
+      setAutomationName('');setAutomationDescription('');setEmailTo('');setEmailSubject('');setEmailMessage('')
+      reload()
+    }
+  }
+
+  async function setWorkflowStatus(id,status){
+    const {error}=await supabase.from('workflow_definitions').update({status}).eq('id',id)
+    setWorkflowMessage(error?error.message:('Workflow '+status.toLowerCase()))
+    if(!error) reload()
+  }
+
+  async function runWorkflow(id){
+    setWorkflowMessage('Running workflow…')
+    const {data,error}=await supabase.functions.invoke('workflow-runner',{body:{workflow_id:id,context:{}}})
+    if(error) setWorkflowMessage(error.message)
+    else if(data?.error) setWorkflowMessage(data.error)
+    else setWorkflowMessage(data?.status==='Waiting Approval'?'Workflow paused for approval':'Workflow completed')
+    reload()
+  }
+
+  return <>
+    <Panel title="Business workflow inventory">
+      <form className="inline-form four" onSubmit={save}>
+        <input placeholder="Workflow" value={name} onChange={e=>setName(e.target.value)} required/>
+        <input placeholder="Department" value={department} onChange={e=>setDepartment(e.target.value)}/>
+        <select value={risk} onChange={e=>setRisk(e.target.value)}><option>Low</option><option>Moderate</option><option>High</option><option>Critical</option></select>
+        <button className="primary small">Add</button>
+      </form>
+      <Rows rows={rows} secondary={r => [r.department,r.current_risk_level].filter(Boolean).join(' • ')} table="workflows" reload={reload}/>
+    </Panel>
+
+    <div className="grid two">
+      <Panel title="Approval policies">
+        <p>Define reusable human-control rules for high-impact workflow actions.</p>
+        <form className="policy-form" onSubmit={savePolicy}>
+          <label>Policy name<input value={policyName} onChange={e=>setPolicyName(e.target.value)} placeholder="Outbound communication approval" required/></label>
+          <label className="toggle-line"><input type="checkbox" checked={autoExecute} onChange={e=>setAutoExecute(e.target.checked)}/><span>Execute automatically after approval</span></label>
+          <button className="primary small">Create policy</button>
+        </form>
+        <div className="compact-list">{approvalPolicies.length?approvalPolicies.map(p=>
+          <div className="compact-row" key={p.id}><div><b>{p.name}</b><span>{p.action_type.replaceAll('_',' ')} • {p.require_approval?'Approval required':'No approval'} • {p.active?'Active':'Inactive'}</span></div></div>
+        ):<div className="empty">No approval policies yet.</div>}</div>
+      </Panel>
+
+      <Panel title="Workflow builder">
+        <p>Build a governed automation from safe Microsoft actions or an approval-gated outbound email.</p>
+        <form className="workflow-builder" onSubmit={createAutomation}>
+          <label>Name<input value={automationName} onChange={e=>setAutomationName(e.target.value)} required/></label>
+          <label>Description<input value={automationDescription} onChange={e=>setAutomationDescription(e.target.value)}/></label>
+          <label>First step<select value={stepType} onChange={e=>setStepType(e.target.value)}>
+            <option value="microsoft.health">Microsoft health check</option>
+            <option value="microsoft.profile">Verify Microsoft profile</option>
+            <option value="microsoft.inbox-status">Read inbox status</option>
+            <option value="microsoft.calendar-next">Read upcoming calendar</option>
+            <option value="approval.email">Approval-gated email</option>
+          </select></label>
+          {stepType==='approval.email' && <>
+            <label>Recipient<input type="email" value={emailTo} onChange={e=>setEmailTo(e.target.value)} required/></label>
+            <label>Subject<input value={emailSubject} onChange={e=>setEmailSubject(e.target.value)} required/></label>
+            <label className="span-2">Message<textarea value={emailMessage} onChange={e=>setEmailMessage(e.target.value)} required/></label>
+          </>}
+          <div className="span-2 workflow-builder-actions"><span>{workflowMessage}</span><button className="primary">Save workflow</button></div>
+        </form>
+      </Panel>
+    </div>
+
+    <Panel title="Orchestrated workflows">
+      <div className="orchestration-list">{definitions.length?definitions.map(w=>{
+        const latest=runs.find(r=>r.workflow_id===w.id)
+        return <div className="orchestration-row" key={w.id}>
+          <div><b>{w.name}</b><span>{w.description||'No description'} • {Array.isArray(w.steps)?w.steps.length:0} step(s)</span></div>
+          <div className="orchestration-status"><span className={'workflow-state '+w.status.toLowerCase().replace(' ','-')}>{w.status}</span>{latest&&<em>Last: {latest.status}</em>}</div>
+          <div className="orchestration-actions">
+            {w.status==='Draft' && <button className="secondary" onClick={()=>setWorkflowStatus(w.id,'Active')}>Activate</button>}
+            {w.status==='Active' && <><button className="primary small" onClick={()=>runWorkflow(w.id)}>Run</button><button className="secondary" onClick={()=>setWorkflowStatus(w.id,'Paused')}>Pause</button></>}
+            {w.status==='Paused' && <button className="secondary" onClick={()=>setWorkflowStatus(w.id,'Active')}>Resume</button>}
+          </div>
+        </div>
+      }):<div className="empty">No orchestrated workflows yet.</div>}</div>
+    </Panel>
+
+    <Panel title="Workflow run history">
+      <div className="run-list">{runs.length?runs.map(r=>
+        <div className="run-row" key={r.id}>
+          <span className={r.status==='Success'?'run-dot success':r.status==='Error'?'run-dot error':'run-dot'}></span>
+          <div><b>{definitions.find(w=>w.id===r.workflow_id)?.name||'Workflow'}</b><span>{r.summary||r.error_message||r.status} • {new Date(r.created_at).toLocaleString()}</span></div>
+          <em>{r.status}</em>
+        </div>
+      ):<div className="empty">No workflow runs yet.</div>}</div>
+    </Panel>
+  </>
 }
 
 function Opportunities({org,session,workflows,rows,reload}) {
