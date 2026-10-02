@@ -95,7 +95,7 @@ function App() {
       supabase.from('agent_run_requests').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(30),
       supabase.from('workflow_schedules').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}),
       supabase.from('ops_alerts').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(50),
-      supabase.rpc('get_organization_members',{p_organization_id:orgId}),
+      supabase.functions.invoke('organization-members',{body:{organization_id:orgId}}),
       supabase.from('organization_invitations').select('*').eq('organization_id',orgId).order('created_at',{ascending:false}),
     ])
     setData({
@@ -119,7 +119,7 @@ function App() {
       agentRunRequests: agentRunRequests.data || [],
       workflowSchedules: workflowSchedules.data || [],
       opsAlerts: opsAlerts.data || [],
-      members: members.data || [],
+      members: members.data?.members || [],
       invitations: invitations.data || []
     })
   }
