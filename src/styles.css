@@ -612,3 +612,44 @@ textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.09
   .execution-strip{align-items:flex-start;flex-direction:column}
   .execution-actions{justify-content:flex-start}
 }
+
+
+.approval-email-form{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-bottom:16px;
+  padding:16px;
+  background:#0b0b0b;
+  border:1px solid rgba(212,175,55,.11);
+  border-radius:11px;
+}
+.approval-email-form label{
+  display:grid;
+  gap:7px;
+  font-size:12px;
+  font-weight:700;
+  color:#d8c8a6;
+}
+.approval-email-form .span-2{grid-column:span 2}
+.approval-list{display:grid;gap:8px}
+.approval-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:12px;
+  border:1px solid rgba(212,175,55,.10);
+  border-radius:10px;
+  background:#0d0d0d;
+}
+.approval-row>div:first-child{display:flex;flex-direction:column;gap:3px}
+.approval-row b{color:#ead9b7}
+.approval-row span{font-size:11px;color:#807562}
+.approval-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:800px){
+  .approval-email-form{grid-template-columns:1fr}
+  .approval-email-form .span-2{grid-column:auto}
+  .approval-row{align-items:flex-start;flex-direction:column}
+  .approval-actions{justify-content:flex-start}
+}
