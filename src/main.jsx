@@ -30,7 +30,7 @@ function App() {
   const [staff, setStaff] = useState(null)
   const [data, setData] = useState({
     systems: [], workflows: [], opps: [], integrations: [], agents: [],
-    policies: [], blueprints: [], audit: [], onboarding: null, readiness: null, oauth: []
+    policies: [], blueprints: [], audit: [], onboarding: null, readiness: null, oauth: [], integrationRuns: []
   })
 
   useEffect(() => {
@@ -64,7 +64,7 @@ function App() {
   }
 
   async function loadOrg(orgId) {
-    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth] = await Promise.all([
+    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth, integrationRuns] = await Promise.all([
       supabase.from('systems').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('workflows').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('ai_opportunities').select('*').eq('organization_id', orgId).order('opportunity_score', { ascending: false }),
@@ -76,6 +76,7 @@ function App() {
       supabase.from('organization_onboarding').select('*').eq('organization_id', orgId).maybeSingle(),
       supabase.from('readiness_assessments').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('oauth_connections').select('*').eq('organization_id', orgId),
+      supabase.from('integration_runs').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(20),
     ])
     setData({
       systems: systems.data || [],
@@ -88,7 +89,8 @@ function App() {
       audit: audit.data || [],
       onboarding: onboarding.data || null,
       readiness: readiness.data || null,
-      oauth: oauth.data || []
+      oauth: oauth.data || [],
+      integrationRuns: integrationRuns.data || []
     })
   }
 
@@ -130,7 +132,7 @@ function App() {
         {active === 'Systems' && <Systems org={org} session={session} rows={data.systems} reload={() => loadOrg(org.id)}/>}
         {active === 'Workflows' && <Workflows org={org} session={session} rows={data.workflows} reload={() => loadOrg(org.id)}/>}
         {active === 'Opportunities' && <Opportunities org={org} session={session} workflows={data.workflows} rows={data.opps} reload={() => loadOrg(org.id)}/>}
-        {active === 'Integrations' && <Integrations org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} reload={() => loadOrg(org.id)}/>}
+        {active === 'Integrations' && <Integrations org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} runs={data.integrationRuns} reload={() => loadOrg(org.id)}/>}
         {active === 'Agents' && <Agents org={org} session={session} rows={data.agents} integrations={data.integrations} reload={() => loadOrg(org.id)}/>}
         {active === 'Governance' && <Governance org={org} session={session} rows={data.policies} reload={() => loadOrg(org.id)}/>}
         {active === 'Blueprints' && <Blueprints org={org} session={session} data={data} reload={() => loadOrg(org.id)}/>}
@@ -480,7 +482,7 @@ function Opportunities({org,session,workflows,rows,reload}) {
   </>
 }
 
-function Integrations({org,session,systems,rows,oauth,reload}) {
+function Integrations({org,session,systems,rows,oauth,runs,reload}) {
   const [name,setName]=useState('')
   const [provider,setProvider]=useState('')
   const [type,setType]=useState('API')
@@ -491,6 +493,8 @@ function Integrations({org,session,systems,rows,oauth,reload}) {
   const [clientSecret,setClientSecret]=useState('')
   const [scopeFlags,setScopeFlags]=useState({mail:false,calendar:false,files:false})
   const [connectMessage,setConnectMessage]=useState('')
+  const [runMessage,setRunMessage]=useState('')
+  const [runningAction,setRunningAction]=useState('')
   const microsoft=oauth.find(x=>x.provider==='microsoft')
 
   async function save(e){
@@ -517,6 +521,17 @@ function Integrations({org,session,systems,rows,oauth,reload}) {
     if(data?.authorize_url) window.location.assign(data.authorize_url)
   }
 
+  async function executeMicrosoft(action){
+    setRunningAction(action)
+    setRunMessage('Running '+action.replaceAll('-',' ')+'…')
+    const {data,error}=await supabase.functions.invoke('microsoft-execute',{body:{organization_id:org.id,action}})
+    if(error) setRunMessage(error.message)
+    else if(data?.error) setRunMessage(data.error)
+    else setRunMessage(data?.summary||'Execution completed')
+    setRunningAction('')
+    reload()
+  }
+
   return <>
     <Panel title="Microsoft 365 / Graph">
       <div className="integration-hero">
@@ -527,11 +542,23 @@ function Integrations({org,session,systems,rows,oauth,reload}) {
         </div>
         <div className={microsoft?.status==='Connected'?'connection-badge connected':'connection-badge'}>{microsoft?.status||'Not Connected'}</div>
       </div>
-      {microsoft?.status==='Connected' ? <div className="connected-details">
+      {microsoft?.status==='Connected' ? <>
+      <div className="connected-details">
         <div><span>Account</span><b>{microsoft.external_account_name||'Microsoft account connected'}</b></div>
         <div><span>Scopes</span><b>{(microsoft.scopes||[]).join(', ')}</b></div>
         <div><span>Connected</span><b>{microsoft.last_connected_at?new Date(microsoft.last_connected_at).toLocaleString():'—'}</b></div>
-      </div> :
+      </div>
+      <div className="execution-strip">
+        <div><span>Safe live actions</span><b>Read-only Microsoft Graph execution</b></div>
+        <div className="execution-actions">
+          <button className="secondary" disabled={!!runningAction} onClick={()=>executeMicrosoft('health')}>Health check</button>
+          <button className="secondary" disabled={!!runningAction} onClick={()=>executeMicrosoft('profile')}>Verify profile</button>
+          <button className="secondary" disabled={!!runningAction || !(microsoft.scopes||[]).includes('Mail.Read')} onClick={()=>executeMicrosoft('inbox-status')}>Inbox status</button>
+          <button className="secondary" disabled={!!runningAction || !(microsoft.scopes||[]).includes('Calendars.Read')} onClick={()=>executeMicrosoft('calendar-next')}>Upcoming calendar</button>
+        </div>
+      </div>
+      {runMessage && <div className="message">{runMessage}</div>}
+      </> :
       <form className="microsoft-form" onSubmit={connectMicrosoft}>
         <label>Tenant ID or domain<input value={tenantId} onChange={e=>setTenantId(e.target.value)} placeholder="organizations or tenant GUID"/></label>
         <label>Application (client) ID<input value={clientId} onChange={e=>setClientId(e.target.value)} required/></label>
@@ -544,6 +571,16 @@ function Integrations({org,session,systems,rows,oauth,reload}) {
         </div>
         <div className="span-2 connect-actions"><span>{connectMessage}</span><button className="primary">Connect Microsoft 365</button></div>
       </form>}
+    </Panel>
+
+    <Panel title="Recent integration runs">
+      <div className="run-list">{runs?.length ? runs.map(r=>
+        <div className="run-row" key={r.id}>
+          <span className={r.status==='Success'?'run-dot success':'run-dot error'}></span>
+          <div><b>{r.action.replaceAll('-',' ')}</b><span>{r.summary||r.error_message||'No summary'} • {new Date(r.created_at).toLocaleString()}</span></div>
+          <em>{r.duration_ms==null?'—':r.duration_ms+' ms'}</em>
+        </div>
+      ) : <div className="empty">No integration runs yet.</div>}</div>
     </Panel>
 
     <Panel title="Integration inventory">
