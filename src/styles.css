@@ -460,3 +460,11 @@ textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.09
   .opportunity-business-form{grid-template-columns:1fr}
   .business-case-metrics{grid-template-columns:1fr 1fr}
 }
+
+.password-hint{
+  color:#8f816a;
+  font-size:10px;
+  font-weight:500;
+  letter-spacing:.02em;
+  line-height:1.4;
+}
