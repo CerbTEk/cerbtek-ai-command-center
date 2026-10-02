@@ -9,6 +9,7 @@ import './styles.css'
 
 const baseNav = [
   ['Overview', Gauge],
+  ['Team Access', Users],
   ['Onboarding', Building2],
   ['AI Readiness', Sparkles],
   ['Systems', ServerCog],
@@ -33,7 +34,7 @@ function App() {
     systems: [], workflows: [], opps: [], integrations: [], agents: [],
     policies: [], blueprints: [], audit: [], onboarding: null, readiness: null, oauth: [], integrationRuns: [], actionRequests: [],
     workflowDefinitions: [], workflowRuns: [], approvalPolicies: [], agentWorkflows: [], agentRunRequests: [],
-    workflowSchedules: [], opsAlerts: []
+    workflowSchedules: [], opsAlerts: [], members: [], invitations: []
   })
 
   useEffect(() => {
@@ -48,7 +49,13 @@ function App() {
   useEffect(() => {
     if (!session) return
     loadStaff()
-    loadOrgs()
+    const invite=new URLSearchParams(window.location.search).get('invite')
+    if(invite){
+      supabase.functions.invoke('organization-invite',{body:{op:'accept',token:invite}}).then(({data,error})=>{
+        if(!error && !data?.error) window.history.replaceState({},'',window.location.pathname)
+        loadOrgs()
+      })
+    } else loadOrgs()
   }, [session])
 
   useEffect(() => {
@@ -67,7 +74,7 @@ function App() {
   }
 
   async function loadOrg(orgId) {
-    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth, integrationRuns, actionRequests, workflowDefinitions, workflowRuns, approvalPolicies, agentWorkflows, agentRunRequests, workflowSchedules, opsAlerts] = await Promise.all([
+    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth, integrationRuns, actionRequests, workflowDefinitions, workflowRuns, approvalPolicies, agentWorkflows, agentRunRequests, workflowSchedules, opsAlerts, members, invitations] = await Promise.all([
       supabase.from('systems').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('workflows').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('ai_opportunities').select('*').eq('organization_id', orgId).order('opportunity_score', { ascending: false }),
@@ -88,6 +95,8 @@ function App() {
       supabase.from('agent_run_requests').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(30),
       supabase.from('workflow_schedules').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}),
       supabase.from('ops_alerts').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(50),
+      supabase.rpc('get_organization_members',{p_organization_id:orgId}),
+      supabase.from('organization_invitations').select('*').eq('organization_id',orgId).order('created_at',{ascending:false}),
     ])
     setData({
       systems: systems.data || [],
@@ -109,7 +118,9 @@ function App() {
       agentWorkflows: agentWorkflows.data || [],
       agentRunRequests: agentRunRequests.data || [],
       workflowSchedules: workflowSchedules.data || [],
-      opsAlerts: opsAlerts.data || []
+      opsAlerts: opsAlerts.data || [],
+      members: members.data || [],
+      invitations: invitations.data || []
     })
   }
 
@@ -146,6 +157,7 @@ function App() {
       </header>
       <section className="content">
         {active === 'Overview' && <Overview data={data} onGo={setActive}/>}
+        {active === 'Team Access' && <TeamAccess org={org} session={session} members={data.members} invitations={data.invitations} reload={() => loadOrg(org.id)}/>}
         {active === 'Onboarding' && <Onboarding org={org} session={session} current={data.onboarding} reload={() => loadOrg(org.id)}/>}
         {active === 'AI Readiness' && <Readiness org={org} session={session} data={data} reload={() => loadOrg(org.id)}/>}
         {active === 'Systems' && <Systems org={org} session={session} rows={data.systems} reload={() => loadOrg(org.id)}/>}
@@ -278,6 +290,97 @@ const readinessQuestions = [
   ['integration','int_monitoring','Integration failures can be monitored, alerted, and remediated.'],
 ]
 const readinessLabels = {technology:'Technology',workflow:'Workflow',data:'Data',governance:'Governance',workforce:'Workforce',integration:'Integration'}
+function TeamAccess({org,session,members,invitations,reload}) {
+  const [email,setEmail]=useState('')
+  const [role,setRole]=useState('member')
+  const [inviteLink,setInviteLink]=useState('')
+  const [message,setMessage]=useState('')
+
+  async function createInvite(e){
+    e.preventDefault()
+    setMessage('Creating secure invitation…')
+    const {data,error}=await supabase.functions.invoke('organization-invite',{body:{
+      op:'create',organization_id:org.id,email,role
+    }})
+    if(error) setMessage(error.message)
+    else if(data?.error) setMessage(data.error)
+    else{
+      setInviteLink(data.invite_url||'')
+      setMessage('Invitation created')
+      setEmail('')
+      reload()
+    }
+  }
+
+  async function updateRole(userId,newRole){
+    const {error}=await supabase.from('organization_members').update({role:newRole}).eq('organization_id',org.id).eq('user_id',userId)
+    setMessage(error?error.message:'Member role updated')
+    if(!error) reload()
+  }
+
+  async function revokeMember(userId){
+    const member=members.find(m=>m.user_id===userId)
+    if(member?.role==='owner'){setMessage('The organization owner cannot be removed here.');return}
+    const {error}=await supabase.from('organization_members').delete().eq('organization_id',org.id).eq('user_id',userId)
+    setMessage(error?error.message:'Member access removed')
+    if(!error) reload()
+  }
+
+  async function revokeInvite(id){
+    const {error}=await supabase.from('organization_invitations').update({status:'Revoked'}).eq('id',id)
+    setMessage(error?error.message:'Invitation revoked')
+    if(!error) reload()
+  }
+
+  async function copyInvite(){
+    if(!inviteLink)return
+    try{await navigator.clipboard.writeText(inviteLink);setMessage('Invite link copied')}catch{setMessage('Copy the invitation link shown below')}
+  }
+
+  return <>
+    <div className="metrics">
+      <Metric label="Team members" value={members.length}/>
+      <Metric label="Pending invites" value={invitations.filter(i=>i.status==='Pending').length}/>
+      <Metric label="Admins" value={members.filter(m=>m.role==='owner'||m.role==='admin').length}/>
+      <Metric label="Tenant isolation" value="RLS"/>
+    </div>
+
+    <Panel title="Invite team member">
+      <p>Create a seven-day tenant invitation. The recipient must sign in using the invited email address before access is granted.</p>
+      <form className="team-invite-form" onSubmit={createInvite}>
+        <label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label>
+        <label>Role<select value={role} onChange={e=>setRole(e.target.value)}><option value="admin">Admin</option><option value="consultant">Consultant</option><option value="member">Member</option><option value="viewer">Viewer</option></select></label>
+        <button className="primary">Create secure invite</button>
+      </form>
+      {inviteLink&&<div className="invite-link-box"><input value={inviteLink} readOnly/><button className="secondary" onClick={copyInvite}>Copy link</button></div>}
+      {message&&<div className="message">{message}</div>}
+    </Panel>
+
+    <Panel title="Organization members">
+      <div className="member-list">{members.length?members.map(m=>
+        <div className="member-row" key={m.user_id}>
+          <div><b>{m.email}</b><span>Joined {new Date(m.created_at).toLocaleDateString()}</span></div>
+          <select value={m.role} disabled={m.role==='owner'} onChange={e=>updateRole(m.user_id,e.target.value)}>
+            {m.role==='owner'&&<option value="owner">Owner</option>}
+            <option value="admin">Admin</option><option value="consultant">Consultant</option><option value="member">Member</option><option value="viewer">Viewer</option>
+          </select>
+          <button className="secondary" disabled={m.role==='owner'} onClick={()=>revokeMember(m.user_id)}>Remove</button>
+        </div>
+      ):<div className="empty">No team members yet.</div>}</div>
+    </Panel>
+
+    <Panel title="Invitations">
+      <div className="member-list">{invitations.length?invitations.map(i=>
+        <div className="member-row" key={i.id}>
+          <div><b>{i.email}</b><span>{i.role} • {i.status} • expires {new Date(i.expires_at).toLocaleString()}</span></div>
+          <span className="status-text">{i.status}</span>
+          {i.status==='Pending'?<button className="secondary" onClick={()=>revokeInvite(i.id)}>Revoke</button>:<span></span>}
+        </div>
+      ):<div className="empty">No invitations yet.</div>}</div>
+    </Panel>
+  </>
+}
+
 
 function Onboarding({org,session,current,reload}) {
   const [form,setForm]=useState({
