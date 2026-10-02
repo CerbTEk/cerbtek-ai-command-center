@@ -468,3 +468,109 @@ textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.09
   letter-spacing:.02em;
   line-height:1.4;
 }
+
+
+.integration-hero{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:18px;
+  margin-bottom:18px;
+}
+.integration-hero h4{margin:5px 0 8px;font-size:22px;color:#f1dfb8}
+.integration-hero p:not(.eyebrow){max-width:760px}
+.connection-badge{
+  flex:0 0 auto;
+  border:1px solid rgba(212,175,55,.22);
+  background:#14110d;
+  color:#b39b65;
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.connection-badge.connected{
+  color:#0b1009;
+  background:linear-gradient(180deg,#e5c46e,#a9791d);
+  border-color:#edcd7a;
+  font-weight:800;
+}
+.microsoft-form{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  padding:16px;
+  background:#0b0b0b;
+  border:1px solid rgba(212,175,55,.11);
+  border-radius:11px;
+}
+.microsoft-form label{
+  display:grid;
+  gap:7px;
+  font-size:12px;
+  font-weight:700;
+  color:#d8c8a6;
+}
+.microsoft-form .span-2{grid-column:span 2}
+.permission-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+}
+.permission{
+  display:flex!important;
+  grid-template-columns:none!important;
+  flex-direction:row!important;
+  align-items:flex-start;
+  gap:9px!important;
+  padding:11px;
+  border:1px solid rgba(212,175,55,.13);
+  border-radius:9px;
+  background:#0f0f0f;
+}
+.permission input{width:auto;margin-top:2px;accent-color:#d4af37}
+.permission span{display:flex;flex-direction:column;gap:2px}
+.permission b{font-size:12px;color:#ead9b6}
+.permission em{font-style:normal;font-size:10px;color:#827765}
+.permission.locked{opacity:.8}
+.connect-actions{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding-top:4px;
+}
+.connect-actions>span{font-size:11px;color:#9b8d72}
+.connected-details{
+  display:grid;
+  grid-template-columns:1fr 1.6fr 1fr;
+  gap:10px;
+}
+.connected-details>div{
+  padding:12px;
+  border:1px solid rgba(212,175,55,.12);
+  border-radius:9px;
+  background:#0b0b0b;
+}
+.connected-details span{
+  display:block;
+  color:#806f55;
+  font-size:9px;
+  text-transform:uppercase;
+  letter-spacing:.1em;
+}
+.connected-details b{
+  display:block;
+  margin-top:5px;
+  color:#e5d4af;
+  font-size:12px;
+  word-break:break-word;
+}
+@media(max-width:900px){
+  .integration-hero{flex-direction:column}
+  .microsoft-form{grid-template-columns:1fr}
+  .microsoft-form .span-2{grid-column:auto}
+  .permission-grid{grid-template-columns:1fr 1fr}
+  .connected-details{grid-template-columns:1fr}
+}
