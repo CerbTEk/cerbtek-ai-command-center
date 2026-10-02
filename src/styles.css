@@ -889,3 +889,44 @@ textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.09
   .alert-row{align-items:flex-start;flex-direction:column}
   .alert-actions{justify-content:flex-start}
 }
+
+
+.team-invite-form{
+  display:grid;
+  grid-template-columns:1.4fr .7fr auto;
+  gap:8px;
+  align-items:end;
+}
+.team-invite-form label{
+  display:grid;
+  gap:6px;
+  font-size:12px;
+  font-weight:700;
+  color:#d8c8a6;
+}
+.invite-link-box{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:8px;
+  margin-top:12px;
+}
+.member-list{display:grid;gap:8px}
+.member-row{
+  display:grid;
+  grid-template-columns:1fr .7fr auto;
+  gap:10px;
+  align-items:center;
+  padding:12px;
+  border:1px solid rgba(212,175,55,.10);
+  background:#0c0c0c;
+  border-radius:10px;
+}
+.member-row>div{display:flex;flex-direction:column;gap:3px}
+.member-row b{color:#ead9b7;font-size:12px}
+.member-row span{font-size:10px;color:#7f7462}
+.member-row select{padding:8px 9px;font-size:12px}
+.member-row button:disabled,.member-row select:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:800px){
+  .team-invite-form{grid-template-columns:1fr}
+  .member-row{grid-template-columns:1fr}
+}
