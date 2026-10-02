@@ -6,6 +6,8 @@ import {
 } from 'lucide-react'
 import { supabase } from './supabase'
 import './styles.css'
+import { FundingWorkspace } from './FundingWorkspace'
+import { canManageFunding } from './funding-model'
 
 const baseNav = [
   ['Overview', Gauge],
@@ -27,6 +29,7 @@ function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [active, setActive] = useState('Overview')
+  const [fundingDirty, setFundingDirty] = useState(false)
   const [orgs, setOrgs] = useState([])
   const [org, setOrg] = useState(null)
   const [staff, setStaff] = useState(null)
@@ -48,7 +51,7 @@ function App() {
 
   useEffect(() => {
     if (!session) return
-    loadStaff()
+    loadStaff(session.user.id)
     const invite=new URLSearchParams(window.location.search).get('invite')
     if(invite){
       supabase.functions.invoke('organization-invite',{body:{op:'accept',token:invite}}).then(({data,error})=>{
@@ -62,8 +65,8 @@ function App() {
     if (org) loadOrg(org.id)
   }, [org])
 
-  async function loadStaff() {
-    const { data } = await supabase.from('staff_accounts').select('*').maybeSingle()
+  async function loadStaff(userId) {
+    const { data } = await supabase.from('staff_accounts').select('*').eq('user_id', userId).eq('active', true).maybeSingle()
     setStaff(data || null)
   }
 
@@ -128,9 +131,11 @@ function App() {
 
   if (loading) return <div className="center">Loading CerbTek…</div>
   if (!session) return <Auth />
-  if (!orgs.length) return <CreateOrganization session={session} onCreated={loadOrgs} />
+  const fundingAllowed = canManageFunding(staff, session.user.id)
+  if (active === 'Funding' && fundingAllowed) return <div className="funding-shell"><div className="funding-shell-nav"><button className="secondary" onClick={() => { if (!fundingDirty || window.confirm('Leave the funding workspace and discard unsaved changes?')) setActive('Overview') }}>Back to command center</button><button className="secondary" onClick={() => { if (!fundingDirty || window.confirm('Sign out and discard unsaved funding changes?')) supabase.auth.signOut() }}>Sign out</button></div><FundingWorkspace session={session} staff={staff} onDirtyChange={setFundingDirty}/></div>
+  if (!orgs.length) return <>{fundingAllowed && <div className="funding-shell-nav"><button className="secondary" onClick={() => setActive('Funding')}>Internal funding workspace</button></div>}<CreateOrganization session={session} onCreated={loadOrgs} /></>
 
-  const nav = staff ? [...baseNav, ['CerbTek Staff', Users]] : baseNav
+  const nav = staff ? [...baseNav, ['CerbTek Staff', Users], ...(fundingAllowed ? [['Funding', Building2]] : [])] : baseNav
 
   return <div className="app">
     <aside className="sidebar">
@@ -211,6 +216,7 @@ function Auth() {
     <button className="link" onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}>
       {mode === 'signin' ? 'Need an account? Create one' : 'Already have an account? Sign in'}
     </button>
+    <a className="auth-investor-link" href="/investors/">Investors & strategic partners →</a>
   </div></div>
 }
 
