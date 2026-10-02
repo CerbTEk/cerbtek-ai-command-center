@@ -30,7 +30,7 @@ function App() {
   const [staff, setStaff] = useState(null)
   const [data, setData] = useState({
     systems: [], workflows: [], opps: [], integrations: [], agents: [],
-    policies: [], blueprints: [], audit: [], onboarding: null, readiness: null, oauth: [], integrationRuns: []
+    policies: [], blueprints: [], audit: [], onboarding: null, readiness: null, oauth: [], integrationRuns: [], actionRequests: []
   })
 
   useEffect(() => {
@@ -64,7 +64,7 @@ function App() {
   }
 
   async function loadOrg(orgId) {
-    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth, integrationRuns] = await Promise.all([
+    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth, integrationRuns, actionRequests] = await Promise.all([
       supabase.from('systems').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('workflows').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('ai_opportunities').select('*').eq('organization_id', orgId).order('opportunity_score', { ascending: false }),
@@ -77,6 +77,7 @@ function App() {
       supabase.from('readiness_assessments').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('oauth_connections').select('*').eq('organization_id', orgId),
       supabase.from('integration_runs').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(20),
+      supabase.from('action_requests').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(20),
     ])
     setData({
       systems: systems.data || [],
@@ -90,7 +91,8 @@ function App() {
       onboarding: onboarding.data || null,
       readiness: readiness.data || null,
       oauth: oauth.data || [],
-      integrationRuns: integrationRuns.data || []
+      integrationRuns: integrationRuns.data || [],
+      actionRequests: actionRequests.data || []
     })
   }
 
@@ -132,7 +134,7 @@ function App() {
         {active === 'Systems' && <Systems org={org} session={session} rows={data.systems} reload={() => loadOrg(org.id)}/>}
         {active === 'Workflows' && <Workflows org={org} session={session} rows={data.workflows} reload={() => loadOrg(org.id)}/>}
         {active === 'Opportunities' && <Opportunities org={org} session={session} workflows={data.workflows} rows={data.opps} reload={() => loadOrg(org.id)}/>}
-        {active === 'Integrations' && <Integrations org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} runs={data.integrationRuns} reload={() => loadOrg(org.id)}/>}
+        {active === 'Integrations' && <Integrations org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} runs={data.integrationRuns} requests={data.actionRequests} reload={() => loadOrg(org.id)}/>}
         {active === 'Agents' && <Agents org={org} session={session} rows={data.agents} integrations={data.integrations} reload={() => loadOrg(org.id)}/>}
         {active === 'Governance' && <Governance org={org} session={session} rows={data.policies} reload={() => loadOrg(org.id)}/>}
         {active === 'Blueprints' && <Blueprints org={org} session={session} data={data} reload={() => loadOrg(org.id)}/>}
@@ -482,7 +484,7 @@ function Opportunities({org,session,workflows,rows,reload}) {
   </>
 }
 
-function Integrations({org,session,systems,rows,oauth,runs,reload}) {
+function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
   const [name,setName]=useState('')
   const [provider,setProvider]=useState('')
   const [type,setType]=useState('API')
@@ -491,7 +493,7 @@ function Integrations({org,session,systems,rows,oauth,runs,reload}) {
   const [tenantId,setTenantId]=useState('organizations')
   const [clientId,setClientId]=useState('')
   const [clientSecret,setClientSecret]=useState('')
-  const [scopeFlags,setScopeFlags]=useState({mail:false,calendar:false,files:false})
+  const [scopeFlags,setScopeFlags]=useState({mail:false,sendMail:false,calendar:false,files:false})
   const [connectMessage,setConnectMessage]=useState('')
   const [runMessage,setRunMessage]=useState('')
   const [runningAction,setRunningAction]=useState('')
@@ -511,6 +513,7 @@ function Integrations({org,session,systems,rows,oauth,runs,reload}) {
     setConnectMessage('Preparing Microsoft consent…')
     const scopes=['openid','profile','offline_access','User.Read']
     if(scopeFlags.mail) scopes.push('Mail.Read')
+    if(scopeFlags.sendMail) scopes.push('Mail.Send')
     if(scopeFlags.calendar) scopes.push('Calendars.Read')
     if(scopeFlags.files) scopes.push('Files.Read.All')
     const {data,error}=await supabase.functions.invoke('microsoft-connect',{
@@ -519,6 +522,35 @@ function Integrations({org,session,systems,rows,oauth,runs,reload}) {
     if(error){setConnectMessage(error.message);return}
     if(data?.error){setConnectMessage(data.error);return}
     if(data?.authorize_url) window.location.assign(data.authorize_url)
+  }
+
+  const [emailTo,setEmailTo]=useState('')
+  const [emailSubject,setEmailSubject]=useState('')
+  const [emailMessage,setEmailMessage]=useState('')
+  const [approvalMessage,setApprovalMessage]=useState('')
+
+  async function queueEmail(e){
+    e.preventDefault()
+    setApprovalMessage('Submitting for approval…')
+    const {data,error}=await supabase.functions.invoke('microsoft-action',{body:{
+      op:'queue-email',organization_id:org.id,to:emailTo,subject:emailSubject,message:emailMessage
+    }})
+    if(error) setApprovalMessage(error.message)
+    else if(data?.error) setApprovalMessage(data.error)
+    else {
+      setApprovalMessage('Email queued for human approval')
+      setEmailTo('');setEmailSubject('');setEmailMessage('')
+      reload()
+    }
+  }
+
+  async function actOnRequest(op,requestId){
+    setApprovalMessage(op==='execute'?'Executing approved action…':(op==='approve'?'Approving…':'Rejecting…'))
+    const {data,error}=await supabase.functions.invoke('microsoft-action',{body:{op,request_id:requestId}})
+    if(error) setApprovalMessage(error.message)
+    else if(data?.error) setApprovalMessage(data.error)
+    else setApprovalMessage(data?.summary||('Request '+op+'d'))
+    reload()
   }
 
   async function executeMicrosoft(action){
@@ -566,12 +598,34 @@ function Integrations({org,session,systems,rows,oauth,runs,reload}) {
         <div className="span-2 permission-grid">
           <label className="permission locked"><input type="checkbox" checked readOnly/><span><b>Profile</b><em>User.Read</em></span></label>
           <label className="permission"><input type="checkbox" checked={scopeFlags.mail} onChange={e=>setScopeFlags({...scopeFlags,mail:e.target.checked})}/><span><b>Email read</b><em>Mail.Read</em></span></label>
+          <label className="permission"><input type="checkbox" checked={scopeFlags.sendMail} onChange={e=>setScopeFlags({...scopeFlags,sendMail:e.target.checked})}/><span><b>Email send</b><em>Mail.Send</em></span></label>
           <label className="permission"><input type="checkbox" checked={scopeFlags.calendar} onChange={e=>setScopeFlags({...scopeFlags,calendar:e.target.checked})}/><span><b>Calendar read</b><em>Calendars.Read</em></span></label>
           <label className="permission"><input type="checkbox" checked={scopeFlags.files} onChange={e=>setScopeFlags({...scopeFlags,files:e.target.checked})}/><span><b>Files read</b><em>Files.Read.All</em></span></label>
         </div>
         <div className="span-2 connect-actions"><span>{connectMessage}</span><button className="primary">Connect Microsoft 365</button></div>
       </form>}
     </Panel>
+
+    {microsoft?.status==='Connected' && (microsoft.scopes||[]).includes('Mail.Send') && <Panel title="Controlled Microsoft email">
+      <p>Create an email action, require human approval, then execute it through Microsoft Graph. Nothing is sent at request time.</p>
+      <form className="approval-email-form" onSubmit={queueEmail}>
+        <label>Recipient<input type="email" value={emailTo} onChange={e=>setEmailTo(e.target.value)} required/></label>
+        <label>Subject<input value={emailSubject} onChange={e=>setEmailSubject(e.target.value)} required/></label>
+        <label className="span-2">Message<textarea value={emailMessage} onChange={e=>setEmailMessage(e.target.value)} required/></label>
+        <div className="span-2 connect-actions"><span>{approvalMessage}</span><button className="primary">Submit for approval</button></div>
+      </form>
+      <div className="approval-list">{requests?.length ? requests.filter(r=>r.action_type==='send_email').map(r=>
+        <div className="approval-row" key={r.id}>
+          <div><b>{r.payload?.subject||r.title}</b><span>To {r.payload?.to||'—'} • {r.status} • {new Date(r.created_at).toLocaleString()}</span></div>
+          <div className="approval-actions">
+            {r.status==='Pending' && <><button className="secondary" onClick={()=>actOnRequest('approve',r.id)}>Approve</button><button className="secondary" onClick={()=>actOnRequest('reject',r.id)}>Reject</button></>}
+            {r.status==='Approved' && <button className="primary small" onClick={()=>actOnRequest('execute',r.id)}>Send approved email</button>}
+            {r.status==='Executed' && <span className="status-text">Executed</span>}
+            {r.status==='Failed' && <span className="status-text">Failed</span>}
+          </div>
+        </div>
+      ) : <div className="empty">No controlled email actions yet.</div>}</div>
+    </Panel>}
 
     <Panel title="Recent integration runs">
       <div className="run-list">{runs?.length ? runs.map(r=>
