@@ -4,6 +4,9 @@ import { supabase } from './supabase'
 import { CATEGORIES, DEADLINES, FUNDING_COLUMNS, FUNDING_TABLE, MAX_LENGTHS, READINESS, STATUSES, VENTURES, canManageFunding, deadlineLabel, emptyOpportunity, filterOpportunities, officialUrl, opportunityPayload, validateOpportunity } from './funding-model'
 import './investment.css'
 
+// Webflow mount paths may omit the trailing slash.
+const APP_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/`
+
 // No funding records are bundled in public assets or persisted in browser storage.
 export function FundingWorkspace({ session, staff, client = supabase, onDirtyChange }) {
   const allowed = canManageFunding(staff, session?.user?.id)
@@ -42,7 +45,7 @@ function FundingTracker({ client, onDirtyChange }) {
     setEditor(null); setNotice('Opportunity saved to the private CerbTek funding workspace.')
   }
   return <div className="funding-workspace">
-    <section className="panel funding-intro"><div className="panel-head"><div><p className="eyebrow">CERBTEK LLC · INTERNAL</p><h2><LockKeyhole size={20}/> Funding opportunities</h2></div><a className="secondary" href={`${import.meta.env.BASE_URL}investors/`} target="_blank" rel="noopener noreferrer">Public investor page <ArrowUpRight size={15}/></a></div><p>Track research, readiness and next steps. This company-wide pipeline is separate from client organizations and is available only to active platform administrators.</p><div className="funding-caution"><b>One legal company, coordinated applications.</b> CerbTek AI Enablement and ForgeCIF are tracked as distinct ventures here. Check program rules at the CerbTek LLC level before applying. For example, NC IDEA permits one MICRO-or-SEED application per company per cycle. A listing is not a funding commitment or confirmation of eligibility.</div></section>
+    <section className="panel funding-intro"><div className="panel-head"><div><p className="eyebrow">CERBTEK LLC · INTERNAL</p><h2><LockKeyhole size={20}/> Funding opportunities</h2></div><a className="secondary" href={`${APP_BASE}investors/`} target="_blank" rel="noopener noreferrer">Public investor page <ArrowUpRight size={15}/></a></div><p>Track research, readiness and next steps. This company-wide pipeline is separate from client organizations and is available only to active platform administrators.</p><div className="funding-caution"><b>One legal company, coordinated applications.</b> CerbTek AI Enablement and ForgeCIF are tracked as distinct ventures here. Check program rules at the CerbTek LLC level before applying. For example, NC IDEA permits one MICRO-or-SEED application per company per cycle. A listing is not a funding commitment or confirmation of eligibility.</div></section>
     {notice && <p className="message" role="status">{notice}</p>}
     {editor ? <OpportunityEditor key={editor.id} initial={editor} client={client} onDirtyChange={onDirtyChange} onSaved={saved} onCancel={() => setEditor(null)}/> : <>
       <div className="funding-toolbar"><label>Search<input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Opportunity, provider, owner…"/></label><label>Status<select value={status} onChange={e => setStatus(e.target.value)}><option>All</option>{STATUSES.map(x => <option key={x}>{x}</option>)}</select></label><label>Venture<select value={venture} onChange={e => setVenture(e.target.value)}><option>All</option>{VENTURES.map(x => <option key={x}>{x}</option>)}</select></label><button className="secondary" onClick={load} disabled={loading}><RefreshCw size={15}/> Refresh</button><button className="primary" disabled={loading || Boolean(error)} onClick={() => { setNotice(''); setEditor(emptyOpportunity(crypto.randomUUID())) }}><Plus size={16}/> Add opportunity</button></div>

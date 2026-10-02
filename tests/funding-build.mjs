@@ -7,7 +7,8 @@ const scripts=[...html.matchAll(/(?:src|href)="(\/assets\/[^\"]+\.js)"/g)].map(m
 assert.ok(scripts.length)
 for(const name of scripts){const source=await readFile(new URL(`../dist${name}`,import.meta.url),'utf8');assert.doesNotMatch(source,/cerbtek_funding_opportunities|suohuogalotxhsnkumvy|sb_publishable|staff_accounts|Funding opportunities|Cofounders Capital|Veteran Fund|NSF 26-510/)}
 const appSource=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8')
-assert.ok(appSource.includes('import.meta.env.BASE_URL}investors/'))
+assert.ok(appSource.includes('APP_BASE}investors/'))
+assert.ok(appSource.includes("import.meta.env.BASE_URL.replace(/\\/$/, '')"))
 assert.match(appSource,/canManageFunding\(staff, session.user.id\)/)
 assert.match(appSource,/\.eq\('user_id', userId\)\.eq\('active', true\)/)
 const publicFiles=await readdir(new URL('../public/',import.meta.url))

@@ -4,12 +4,15 @@ import { ArrowUpRight, Layers, Route, Search, Target } from 'lucide-react'
 import './styles.css'
 import './investment.css'
 
+// Webflow mount paths may omit the trailing slash.
+const APP_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/`
+
 export function InvestorPage() {
   return <div className="investor-page">
     <a className="skip-link" href="#investment-overview">Skip to content</a>
     <header className="investor-nav">
-      <a href={import.meta.env.BASE_URL} className="brand investor-brand" aria-label="CerbTek AI Enablement home"><img className="brand-mark" src={`${import.meta.env.BASE_URL}cerbtek-logo.png`} alt="" width="42" height="42"/><div><strong>CerbTek</strong><span>AI Enablement</span></div></a>
-      <nav aria-label="Investor page"><a href="#approach">Our approach</a><a href="#stage">Stage & evidence</a><a href={import.meta.env.BASE_URL}>Client sign-in <ArrowUpRight size={14}/></a></nav>
+      <a href={APP_BASE} className="brand investor-brand" aria-label="CerbTek AI Enablement home"><img className="brand-mark" src={`${APP_BASE}cerbtek-logo.png`} alt="" width="42" height="42"/><div><strong>CerbTek</strong><span>AI Enablement</span></div></a>
+      <nav aria-label="Investor page"><a href="#approach">Our approach</a><a href="#stage">Stage & evidence</a><a href={APP_BASE}>Client sign-in <ArrowUpRight size={14}/></a></nav>
     </header>
     <main id="investment-overview">
       <section className="investor-hero">
@@ -25,7 +28,7 @@ export function InvestorPage() {
       <section className="investor-section investor-evidence" id="stage"><div><p className="eyebrow">STAGE & EVIDENCE</p><h2>A working foundation.<br/>A focused validation path.</h2><p>CerbTek is developing an AI Enablement as a Service offering around its command-center MVP. Investment and partnership conversations can support the next stage of product and customer validation.</p></div><div className="evidence-list"><article><span>01 / TODAY</span><h3>Command-center MVP</h3><p>The product includes organization workspaces, readiness assessments, system and workflow inventories, opportunity scoring and blueprint generation.</p></article><article><span>02 / NEXT MILESTONES</span><h3>Evidence-led development</h3><p>Priorities include validating use cases with prospective customers, documenting delivery outcomes and continuing product and operational assurance work.</p></article><article><span>03 / DUE DILIGENCE</span><h3>Facts before forecasts</h3><p>Customer traction, revenue, funding targets and investment terms are not represented on this page. Current evidence and any proposed terms should be reviewed directly with CerbTek.</p></article></div></section>
       <section className="investor-contact"><Layers size={30}/><p className="eyebrow">BUILD THE NEXT STAGE WITH US</p><h2>Let’s discuss the fit.</h2><p>For investment, strategic partnerships or a product conversation, contact Tim Gill at CerbTek.</p><a href="mailto:tim.gill@cerbtek.com?subject=CerbTek%20AI%20Enablement%20investment%20conversation" className="primary">tim.gill@cerbtek.com <ArrowUpRight size={17}/></a></section>
     </main>
-    <footer className="investor-footer"><span>CerbTek LLC · AI Enablement</span><p>Company and product information for discussion only. This page is not an offer to sell securities or a solicitation to invest. No investment returns or funding availability are promised.</p><a href={import.meta.env.BASE_URL}>Client sign-in</a></footer>
+    <footer className="investor-footer"><span>CerbTek LLC · AI Enablement</span><p>Company and product information for discussion only. This page is not an offer to sell securities or a solicitation to invest. No investment returns or funding availability are promised.</p><a href={APP_BASE}>Client sign-in</a></footer>
   </div>
 }
 if (document.getElementById('investor-root')) createRoot(document.getElementById('investor-root')).render(<InvestorPage />)

@@ -9,6 +9,9 @@ import './styles.css'
 import { FundingWorkspace } from './FundingWorkspace'
 import { canManageFunding } from './funding-model'
 
+// Webflow mount paths may omit the trailing slash.
+const APP_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/`
+
 const baseNav = [
   ['Overview', Gauge],
   ['Team Access', Users],
@@ -139,7 +142,7 @@ function App() {
 
   return <div className="app">
     <aside className="sidebar">
-      <div className="brand"><img className="brand-mark" src={`${import.meta.env.BASE_URL}cerbtek-logo.png`} alt="CerbTek Cerberus" width="42" height="42" /><div><strong>CerbTek</strong><span>AI Enablement</span></div></div>
+      <div className="brand"><img className="brand-mark" src={`${APP_BASE}cerbtek-logo.png`} alt="CerbTek Cerberus" width="42" height="42" /><div><strong>CerbTek</strong><span>AI Enablement</span></div></div>
       <div className="org-switcher">
         <span>Client organization</span>
         <select value={org?.id || ''} onChange={e => setOrg(orgs.find(x => x.id === e.target.value))}>
@@ -204,7 +207,7 @@ function Auth() {
     else if (mode === 'signup') setMessage('Account created. Check your email if confirmation is enabled.')
   }
   return <div className="auth-shell"><div className="auth-card">
-    <div className="brand auth-brand"><img className="brand-mark" src={`${import.meta.env.BASE_URL}cerbtek-logo.png`} alt="CerbTek Cerberus" width="42" height="42" /><div><strong>CerbTek</strong><span>AI Enablement</span></div></div>
+    <div className="brand auth-brand"><img className="brand-mark" src={`${APP_BASE}cerbtek-logo.png`} alt="CerbTek Cerberus" width="42" height="42" /><div><strong>CerbTek</strong><span>AI Enablement</span></div></div>
     <h1>{mode === 'signin' ? 'Sign in' : 'Create account'}</h1>
     <p>Secure access to the AI Enablement Command Center.</p>
     <form onSubmit={submit}>
@@ -216,7 +219,7 @@ function Auth() {
     <button className="link" onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}>
       {mode === 'signin' ? 'Need an account? Create one' : 'Already have an account? Sign in'}
     </button>
-    <a className="auth-investor-link" href={`${import.meta.env.BASE_URL}investors/`}>Investors & strategic partners →</a>
+    <a className="auth-investor-link" href={`${APP_BASE}investors/`}>Investors & strategic partners →</a>
   </div></div>
 }
 
