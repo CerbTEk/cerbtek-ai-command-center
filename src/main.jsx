@@ -30,7 +30,7 @@ function App() {
   const [staff, setStaff] = useState(null)
   const [data, setData] = useState({
     systems: [], workflows: [], opps: [], integrations: [], agents: [],
-    policies: [], blueprints: [], audit: [], onboarding: null, readiness: null
+    policies: [], blueprints: [], audit: [], onboarding: null, readiness: null, oauth: []
   })
 
   useEffect(() => {
@@ -64,7 +64,7 @@ function App() {
   }
 
   async function loadOrg(orgId) {
-    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness] = await Promise.all([
+    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth] = await Promise.all([
       supabase.from('systems').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('workflows').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('ai_opportunities').select('*').eq('organization_id', orgId).order('opportunity_score', { ascending: false }),
@@ -75,6 +75,7 @@ function App() {
       supabase.from('audit_events').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(100),
       supabase.from('organization_onboarding').select('*').eq('organization_id', orgId).maybeSingle(),
       supabase.from('readiness_assessments').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('oauth_connections').select('*').eq('organization_id', orgId),
     ])
     setData({
       systems: systems.data || [],
@@ -86,7 +87,8 @@ function App() {
       blueprints: blueprints.data || [],
       audit: audit.data || [],
       onboarding: onboarding.data || null,
-      readiness: readiness.data || null
+      readiness: readiness.data || null,
+      oauth: oauth.data || []
     })
   }
 
@@ -128,7 +130,7 @@ function App() {
         {active === 'Systems' && <Systems org={org} session={session} rows={data.systems} reload={() => loadOrg(org.id)}/>}
         {active === 'Workflows' && <Workflows org={org} session={session} rows={data.workflows} reload={() => loadOrg(org.id)}/>}
         {active === 'Opportunities' && <Opportunities org={org} session={session} workflows={data.workflows} rows={data.opps} reload={() => loadOrg(org.id)}/>}
-        {active === 'Integrations' && <Integrations org={org} session={session} systems={data.systems} rows={data.integrations} reload={() => loadOrg(org.id)}/>}
+        {active === 'Integrations' && <Integrations org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} reload={() => loadOrg(org.id)}/>}
         {active === 'Agents' && <Agents org={org} session={session} rows={data.agents} integrations={data.integrations} reload={() => loadOrg(org.id)}/>}
         {active === 'Governance' && <Governance org={org} session={session} rows={data.policies} reload={() => loadOrg(org.id)}/>}
         {active === 'Blueprints' && <Blueprints org={org} session={session} data={data} reload={() => loadOrg(org.id)}/>}
@@ -478,12 +480,19 @@ function Opportunities({org,session,workflows,rows,reload}) {
   </>
 }
 
-function Integrations({org,session,systems,rows,reload}) {
+function Integrations({org,session,systems,rows,oauth,reload}) {
   const [name,setName]=useState('')
   const [provider,setProvider]=useState('')
   const [type,setType]=useState('API')
   const [system,setSystem]=useState('')
   const [classification,setClassification]=useState('Internal')
+  const [tenantId,setTenantId]=useState('organizations')
+  const [clientId,setClientId]=useState('')
+  const [clientSecret,setClientSecret]=useState('')
+  const [scopeFlags,setScopeFlags]=useState({mail:false,calendar:false,files:false})
+  const [connectMessage,setConnectMessage]=useState('')
+  const microsoft=oauth.find(x=>x.provider==='microsoft')
+
   async function save(e){
     e.preventDefault()
     const {error}=await supabase.from('integrations').insert({
@@ -492,17 +501,63 @@ function Integrations({org,session,systems,rows,reload}) {
     })
     if(!error){setName('');setProvider('');reload()}
   }
-  return <Panel title="Integrations">
-    <form className="inline-form integration-form" onSubmit={save}>
-      <input placeholder="Integration name" value={name} onChange={e=>setName(e.target.value)} required/>
-      <input placeholder="Provider" value={provider} onChange={e=>setProvider(e.target.value)}/>
-      <select value={type} onChange={e=>setType(e.target.value)}><option>API</option><option>OAuth</option><option>MCP</option><option>Webhook</option><option>Database</option><option>File</option><option>Other</option></select>
-      <select value={system} onChange={e=>setSystem(e.target.value)}><option value="">No linked system</option>{systems.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select>
-      <select value={classification} onChange={e=>setClassification(e.target.value)}><DataClassOptions/></select>
-      <button className="primary small">Add</button>
-    </form>
-    <Rows rows={rows} secondary={r => [r.provider,r.integration_type,r.status,r.data_classification].filter(Boolean).join(' • ')} table="integrations" reload={reload}/>
-  </Panel>
+
+  async function connectMicrosoft(e){
+    e.preventDefault()
+    setConnectMessage('Preparing Microsoft consent…')
+    const scopes=['openid','profile','offline_access','User.Read']
+    if(scopeFlags.mail) scopes.push('Mail.Read')
+    if(scopeFlags.calendar) scopes.push('Calendars.Read')
+    if(scopeFlags.files) scopes.push('Files.Read.All')
+    const {data,error}=await supabase.functions.invoke('microsoft-connect',{
+      body:{organization_id:org.id,tenant_id:tenantId,client_id:clientId,client_secret:clientSecret,scopes}
+    })
+    if(error){setConnectMessage(error.message);return}
+    if(data?.error){setConnectMessage(data.error);return}
+    if(data?.authorize_url) window.location.assign(data.authorize_url)
+  }
+
+  return <>
+    <Panel title="Microsoft 365 / Graph">
+      <div className="integration-hero">
+        <div>
+          <p className="eyebrow">FIRST PRODUCTION CONNECTOR</p>
+          <h4>Microsoft 365</h4>
+          <p>Connect an authorized Microsoft Entra application using OAuth 2.0. Client secrets and refresh tokens are stored server-side in Supabase Vault, never in the browser database.</p>
+        </div>
+        <div className={microsoft?.status==='Connected'?'connection-badge connected':'connection-badge'}>{microsoft?.status||'Not Connected'}</div>
+      </div>
+      {microsoft?.status==='Connected' ? <div className="connected-details">
+        <div><span>Account</span><b>{microsoft.external_account_name||'Microsoft account connected'}</b></div>
+        <div><span>Scopes</span><b>{(microsoft.scopes||[]).join(', ')}</b></div>
+        <div><span>Connected</span><b>{microsoft.last_connected_at?new Date(microsoft.last_connected_at).toLocaleString():'—'}</b></div>
+      </div> :
+      <form className="microsoft-form" onSubmit={connectMicrosoft}>
+        <label>Tenant ID or domain<input value={tenantId} onChange={e=>setTenantId(e.target.value)} placeholder="organizations or tenant GUID"/></label>
+        <label>Application (client) ID<input value={clientId} onChange={e=>setClientId(e.target.value)} required/></label>
+        <label className="span-2">Client secret<input type="password" value={clientSecret} onChange={e=>setClientSecret(e.target.value)} required autoComplete="off"/></label>
+        <div className="span-2 permission-grid">
+          <label className="permission locked"><input type="checkbox" checked readOnly/><span><b>Profile</b><em>User.Read</em></span></label>
+          <label className="permission"><input type="checkbox" checked={scopeFlags.mail} onChange={e=>setScopeFlags({...scopeFlags,mail:e.target.checked})}/><span><b>Email read</b><em>Mail.Read</em></span></label>
+          <label className="permission"><input type="checkbox" checked={scopeFlags.calendar} onChange={e=>setScopeFlags({...scopeFlags,calendar:e.target.checked})}/><span><b>Calendar read</b><em>Calendars.Read</em></span></label>
+          <label className="permission"><input type="checkbox" checked={scopeFlags.files} onChange={e=>setScopeFlags({...scopeFlags,files:e.target.checked})}/><span><b>Files read</b><em>Files.Read.All</em></span></label>
+        </div>
+        <div className="span-2 connect-actions"><span>{connectMessage}</span><button className="primary">Connect Microsoft 365</button></div>
+      </form>}
+    </Panel>
+
+    <Panel title="Integration inventory">
+      <form className="inline-form integration-form" onSubmit={save}>
+        <input placeholder="Integration name" value={name} onChange={e=>setName(e.target.value)} required/>
+        <input placeholder="Provider" value={provider} onChange={e=>setProvider(e.target.value)}/>
+        <select value={type} onChange={e=>setType(e.target.value)}><option>API</option><option>OAuth</option><option>MCP</option><option>Webhook</option><option>Database</option><option>File</option><option>Other</option></select>
+        <select value={system} onChange={e=>setSystem(e.target.value)}><option value="">No linked system</option>{systems.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select>
+        <select value={classification} onChange={e=>setClassification(e.target.value)}><DataClassOptions/></select>
+        <button className="primary small">Add</button>
+      </form>
+      <Rows rows={rows} secondary={r => [r.provider,r.integration_type,r.status,r.data_classification].filter(Boolean).join(' • ')} table="integrations" reload={reload}/>
+    </Panel>
+  </>
 }
 
 function Agents({org,session,rows,integrations,reload}) {
