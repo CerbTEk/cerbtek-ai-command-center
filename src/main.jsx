@@ -32,7 +32,8 @@ function App() {
   const [data, setData] = useState({
     systems: [], workflows: [], opps: [], integrations: [], agents: [],
     policies: [], blueprints: [], audit: [], onboarding: null, readiness: null, oauth: [], integrationRuns: [], actionRequests: [],
-    workflowDefinitions: [], workflowRuns: [], approvalPolicies: [], agentWorkflows: [], agentRunRequests: []
+    workflowDefinitions: [], workflowRuns: [], approvalPolicies: [], agentWorkflows: [], agentRunRequests: [],
+    workflowSchedules: [], opsAlerts: []
   })
 
   useEffect(() => {
@@ -66,7 +67,7 @@ function App() {
   }
 
   async function loadOrg(orgId) {
-    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth, integrationRuns, actionRequests, workflowDefinitions, workflowRuns, approvalPolicies, agentWorkflows, agentRunRequests] = await Promise.all([
+    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth, integrationRuns, actionRequests, workflowDefinitions, workflowRuns, approvalPolicies, agentWorkflows, agentRunRequests, workflowSchedules, opsAlerts] = await Promise.all([
       supabase.from('systems').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('workflows').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('ai_opportunities').select('*').eq('organization_id', orgId).order('opportunity_score', { ascending: false }),
@@ -85,6 +86,8 @@ function App() {
       supabase.from('approval_policies').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}),
       supabase.from('agent_workflows').select('*'),
       supabase.from('agent_run_requests').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(30),
+      supabase.from('workflow_schedules').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}),
+      supabase.from('ops_alerts').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(50),
     ])
     setData({
       systems: systems.data || [],
@@ -104,7 +107,9 @@ function App() {
       workflowRuns: workflowRuns.data || [],
       approvalPolicies: approvalPolicies.data || [],
       agentWorkflows: agentWorkflows.data || [],
-      agentRunRequests: agentRunRequests.data || []
+      agentRunRequests: agentRunRequests.data || [],
+      workflowSchedules: workflowSchedules.data || [],
+      opsAlerts: opsAlerts.data || []
     })
   }
 
@@ -144,7 +149,7 @@ function App() {
         {active === 'Onboarding' && <Onboarding org={org} session={session} current={data.onboarding} reload={() => loadOrg(org.id)}/>}
         {active === 'AI Readiness' && <Readiness org={org} session={session} data={data} reload={() => loadOrg(org.id)}/>}
         {active === 'Systems' && <Systems org={org} session={session} rows={data.systems} reload={() => loadOrg(org.id)}/>}
-        {active === 'Workflows' && <Workflows org={org} session={session} rows={data.workflows} definitions={data.workflowDefinitions} runs={data.workflowRuns} approvalPolicies={data.approvalPolicies} reload={() => loadOrg(org.id)}/>} 
+        {active === 'Workflows' && <Workflows org={org} session={session} rows={data.workflows} definitions={data.workflowDefinitions} runs={data.workflowRuns} approvalPolicies={data.approvalPolicies} schedules={data.workflowSchedules} reload={() => loadOrg(org.id)}/>} 
         {active === 'Opportunities' && <Opportunities org={org} session={session} workflows={data.workflows} rows={data.opps} reload={() => loadOrg(org.id)}/>}
         {active === 'Integrations' && <Integrations org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} runs={data.integrationRuns} requests={data.actionRequests} reload={() => loadOrg(org.id)}/>}
         {active === 'Agents' && <Agents org={org} session={session} rows={data.agents} integrations={data.integrations} workflows={data.workflowDefinitions} mappings={data.agentWorkflows} requests={data.agentRunRequests} reload={() => loadOrg(org.id)}/>}
@@ -399,7 +404,7 @@ function Systems({org,session,rows,reload}) {
   </Panel>
 }
 
-function Workflows({org,session,rows,definitions,runs,approvalPolicies,reload}) {
+function Workflows({org,session,rows,definitions,runs,approvalPolicies,schedules,reload}) {
   const [name,setName]=useState('')
   const [department,setDepartment]=useState('')
   const [risk,setRisk]=useState('Moderate')
@@ -412,6 +417,10 @@ function Workflows({org,session,rows,definitions,runs,approvalPolicies,reload}) 
   const [workflowMessage,setWorkflowMessage]=useState('')
   const [policyName,setPolicyName]=useState('')
   const [autoExecute,setAutoExecute]=useState(false)
+  const [scheduleWorkflow,setScheduleWorkflow]=useState('')
+  const [scheduleName,setScheduleName]=useState('')
+  const [scheduleCadence,setScheduleCadence]=useState('hourly')
+  const [firstRun,setFirstRun]=useState('')
 
   async function save(e) {
     e.preventDefault()
@@ -460,6 +469,37 @@ function Workflows({org,session,rows,definitions,runs,approvalPolicies,reload}) 
       setAutomationName('');setAutomationDescription('');setEmailTo('');setEmailSubject('');setEmailMessage('')
       reload()
     }
+  }
+
+  function cadenceCron(cadence){
+    if(cadence==='daily') return '0 13 * * *'
+    if(cadence==='weekly') return '0 13 * * 1'
+    return '0 * * * *'
+  }
+
+  async function createSchedule(e){
+    e.preventDefault()
+    const workflow=definitions.find(w=>w.id===scheduleWorkflow)
+    if(!workflow){setWorkflowMessage('Select an active workflow');return}
+    const next=firstRun?new Date(firstRun).toISOString():new Date(Date.now()+3600000).toISOString()
+    const {error}=await supabase.from('workflow_schedules').insert({
+      organization_id:org.id,
+      workflow_id:scheduleWorkflow,
+      name:scheduleName||workflow.name+' schedule',
+      cron_expression:cadenceCron(scheduleCadence),
+      timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',
+      active:true,
+      next_run_at:next,
+      created_by:session.user.id
+    })
+    setWorkflowMessage(error?error.message:'Schedule created')
+    if(!error){setScheduleName('');setFirstRun('');reload()}
+  }
+
+  async function toggleSchedule(id,active){
+    const {error}=await supabase.from('workflow_schedules').update({active}).eq('id',id)
+    setWorkflowMessage(error?error.message:(active?'Schedule resumed':'Schedule paused'))
+    if(!error) reload()
   }
 
   async function setWorkflowStatus(id,status){
@@ -536,6 +576,24 @@ function Workflows({org,session,rows,definitions,runs,approvalPolicies,reload}) 
           </div>
         </div>
       }):<div className="empty">No orchestrated workflows yet.</div>}</div>
+    </Panel>
+
+    <Panel title="Workflow schedules">
+      <p>Run active workflows automatically. Scheduled approval steps still pause for a human before any write action executes.</p>
+      <form className="schedule-form" onSubmit={createSchedule}>
+        <label>Workflow<select value={scheduleWorkflow} onChange={e=>setScheduleWorkflow(e.target.value)} required><option value="">Select active workflow</option>{definitions.filter(w=>w.status==='Active').map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+        <label>Schedule name<input value={scheduleName} onChange={e=>setScheduleName(e.target.value)} placeholder="Daily operations check"/></label>
+        <label>Cadence<select value={scheduleCadence} onChange={e=>setScheduleCadence(e.target.value)}><option value="hourly">Hourly</option><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
+        <label>First run<input type="datetime-local" value={firstRun} onChange={e=>setFirstRun(e.target.value)}/></label>
+        <button className="primary small">Create schedule</button>
+      </form>
+      <div className="schedule-list">{schedules.length?schedules.map(s=>
+        <div className="schedule-row" key={s.id}>
+          <div><b>{s.name}</b><span>{definitions.find(w=>w.id===s.workflow_id)?.name||'Workflow'} • {s.active?'Active':'Paused'}</span></div>
+          <div><span>Next run</span><b>{s.next_run_at?new Date(s.next_run_at).toLocaleString():'Not scheduled'}</b></div>
+          <button className="secondary" onClick={()=>toggleSchedule(s.id,!s.active)}>{s.active?'Pause':'Resume'}</button>
+        </div>
+      ):<div className="empty">No workflow schedules yet.</div>}</div>
     </Panel>
 
     <Panel title="Workflow run history">
@@ -943,7 +1001,7 @@ function Agents({org,session,rows,integrations,workflows,mappings,requests,reloa
   </>
 }
 
-function AIOps({data}) {
+function AIOps({data,reload}) {
   const totalIntegrationRuns=data.integrationRuns.length
   const integrationErrors=data.integrationRuns.filter(r=>r.status==='Error').length
   const workflowTotal=data.workflowRuns.length
@@ -953,6 +1011,8 @@ function AIOps({data}) {
     + data.agentRunRequests.filter(r=>r.status==='Pending'||r.status==='Approved').length
   const degraded=data.integrations.filter(i=>i.status==='Degraded'||i.status==='Blocked').length
   const activeAgents=data.agents.filter(a=>a.status==='Active').length
+  const openAlerts=data.opsAlerts.filter(a=>a.status==='Open')
+  const criticalAlerts=openAlerts.filter(a=>a.severity==='Critical').length
   const recentFailures=[
     ...data.integrationRuns.filter(r=>r.status==='Error').map(r=>({kind:'Integration',label:r.action,detail:r.error_message||r.summary,at:r.created_at})),
     ...data.workflowRuns.filter(r=>r.status==='Error').map(r=>({kind:'Workflow',label:data.workflowDefinitions.find(w=>w.id===r.workflow_id)?.name||'Workflow',detail:r.error_message||r.summary,at:r.created_at})),
@@ -965,6 +1025,7 @@ function AIOps({data}) {
       <Metric label="Active agents" value={activeAgents}/>
       <Metric label="Pending approvals" value={pendingActions}/>
       <Metric label="Degraded integrations" value={degraded}/>
+      <Metric label="Open alerts" value={openAlerts.length}/>
     </div>
 
     <div className="grid two">
@@ -997,6 +1058,19 @@ function AIOps({data}) {
         <MiniMetric label="Workflow successes" value={workflowSuccess}/>
         <MiniMetric label="Open approvals" value={pendingActions}/>
       </div>
+    </Panel>
+
+    <Panel title="Operations alerts">
+      <div className="alert-list">{data.opsAlerts.length?data.opsAlerts.map(a=>
+        <div className={'alert-row '+a.severity.toLowerCase()} key={a.id}>
+          <div><b>{a.title}</b><span>{a.message} • {new Date(a.created_at).toLocaleString()}</span></div>
+          <div className="alert-actions">
+            <em>{a.severity}</em>
+            {a.status==='Open'&&<button className="secondary" onClick={async()=>{const {error}=await supabase.from('ops_alerts').update({status:'Acknowledged',acknowledged_by:(await supabase.auth.getUser()).data.user?.id||null,acknowledged_at:new Date().toISOString()}).eq('id',a.id);if(!error)reload()}}>Acknowledge</button>}
+            {a.status!=='Resolved'&&<button className="secondary" onClick={async()=>{const {error}=await supabase.from('ops_alerts').update({status:'Resolved',resolved_at:new Date().toISOString()}).eq('id',a.id);if(!error)reload()}}>Resolve</button>}
+          </div>
+        </div>
+      ):<div className="empty">No operations alerts.</div>}</div>
     </Panel>
 
     <Panel title="Recent failures">
