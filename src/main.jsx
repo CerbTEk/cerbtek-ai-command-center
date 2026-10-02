@@ -31,7 +31,7 @@ function App() {
   const [data, setData] = useState({
     systems: [], workflows: [], opps: [], integrations: [], agents: [],
     policies: [], blueprints: [], audit: [], onboarding: null, readiness: null, oauth: [], integrationRuns: [], actionRequests: [],
-    workflowDefinitions: [], workflowRuns: [], approvalPolicies: []
+    workflowDefinitions: [], workflowRuns: [], approvalPolicies: [], agentWorkflows: [], agentRunRequests: []
   })
 
   useEffect(() => {
@@ -65,7 +65,7 @@ function App() {
   }
 
   async function loadOrg(orgId) {
-    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth, integrationRuns, actionRequests, workflowDefinitions, workflowRuns, approvalPolicies] = await Promise.all([
+    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth, integrationRuns, actionRequests, workflowDefinitions, workflowRuns, approvalPolicies, agentWorkflows, agentRunRequests] = await Promise.all([
       supabase.from('systems').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('workflows').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('ai_opportunities').select('*').eq('organization_id', orgId).order('opportunity_score', { ascending: false }),
@@ -82,6 +82,8 @@ function App() {
       supabase.from('workflow_definitions').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}),
       supabase.from('workflow_runs').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(30),
       supabase.from('approval_policies').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}),
+      supabase.from('agent_workflows').select('*'),
+      supabase.from('agent_run_requests').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(30),
     ])
     setData({
       systems: systems.data || [],
@@ -99,7 +101,9 @@ function App() {
       actionRequests: actionRequests.data || [],
       workflowDefinitions: workflowDefinitions.data || [],
       workflowRuns: workflowRuns.data || [],
-      approvalPolicies: approvalPolicies.data || []
+      approvalPolicies: approvalPolicies.data || [],
+      agentWorkflows: agentWorkflows.data || [],
+      agentRunRequests: agentRunRequests.data || []
     })
   }
 
@@ -142,7 +146,7 @@ function App() {
         {active === 'Workflows' && <Workflows org={org} session={session} rows={data.workflows} definitions={data.workflowDefinitions} runs={data.workflowRuns} approvalPolicies={data.approvalPolicies} reload={() => loadOrg(org.id)}/>} 
         {active === 'Opportunities' && <Opportunities org={org} session={session} workflows={data.workflows} rows={data.opps} reload={() => loadOrg(org.id)}/>}
         {active === 'Integrations' && <Integrations org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} runs={data.integrationRuns} requests={data.actionRequests} reload={() => loadOrg(org.id)}/>}
-        {active === 'Agents' && <Agents org={org} session={session} rows={data.agents} integrations={data.integrations} reload={() => loadOrg(org.id)}/>}
+        {active === 'Agents' && <Agents org={org} session={session} rows={data.agents} integrations={data.integrations} workflows={data.workflowDefinitions} mappings={data.agentWorkflows} requests={data.agentRunRequests} reload={() => loadOrg(org.id)}/>}
         {active === 'Governance' && <Governance org={org} session={session} rows={data.policies} reload={() => loadOrg(org.id)}/>}
         {active === 'Blueprints' && <Blueprints org={org} session={session} data={data} reload={() => loadOrg(org.id)}/>}
         {active === 'Audit' && <Audit rows={data.audit}/>}
@@ -787,14 +791,21 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
   </>
 }
 
-function Agents({org,session,rows,integrations,reload}) {
+function Agents({org,session,rows,integrations,workflows,mappings,requests,reload}) {
   const [name,setName]=useState('')
   const [purpose,setPurpose]=useState('')
   const [control,setControl]=useState('Assist')
   const [threshold,setThreshold]=useState(85)
+  const [dailyLimit,setDailyLimit]=useState(25)
   const [allowed,setAllowed]=useState('Read approved business data; draft responses')
   const [prohibited,setProhibited]=useState('Change financial terms; delete records')
   const [integration,setIntegration]=useState('')
+  const [selectedAgent,setSelectedAgent]=useState('')
+  const [selectedWorkflow,setSelectedWorkflow]=useState('')
+  const [executionMode,setExecutionMode]=useState('Propose')
+  const [confidence,setConfidence]=useState(90)
+  const [agentMessage,setAgentMessage]=useState('')
+
   async function save(e){
     e.preventDefault()
     const {data,error}=await supabase.from('ai_agents').insert({
@@ -802,13 +813,52 @@ function Agents({org,session,rows,integrations,reload}) {
       allowed_data_classifications:['Public','Internal'],
       allowed_actions:allowed.split(';').map(x=>x.trim()).filter(Boolean),
       prohibited_actions:prohibited.split(';').map(x=>x.trim()).filter(Boolean),
-      confidence_threshold:+threshold,audit_logging_enabled:true,created_by:session.user.id
+      confidence_threshold:+threshold,
+      minimum_execution_confidence:+threshold,
+      max_daily_runs:+dailyLimit,
+      audit_logging_enabled:true,created_by:session.user.id
     }).select().single()
     if(!error && data){
       if(integration) await supabase.from('agent_integrations').insert({agent_id:data.id,integration_id:integration,access_mode:'Read'})
       setName('');setPurpose('');reload()
-    }
+    } else if(error) setAgentMessage(error.message)
   }
+
+  async function mapWorkflow(e){
+    e.preventDefault()
+    const {error}=await supabase.from('agent_workflows').upsert({
+      agent_id:selectedAgent,workflow_id:selectedWorkflow,execution_mode:executionMode,active:true
+    })
+    setAgentMessage(error?error.message:'Workflow permission saved')
+    if(!error) reload()
+  }
+
+  async function setAgentStatus(id,status){
+    const {error}=await supabase.from('ai_agents').update({status}).eq('id',id)
+    setAgentMessage(error?error.message:('Agent '+status.toLowerCase()))
+    if(!error) reload()
+  }
+
+  async function requestRun(agentId,workflowId){
+    setAgentMessage('Submitting agent run…')
+    const {data,error}=await supabase.functions.invoke('agent-run',{body:{
+      op:'request',organization_id:org.id,agent_id:agentId,workflow_id:workflowId,confidence:+confidence,context:{}
+    }})
+    if(error) setAgentMessage(error.message)
+    else if(data?.error) setAgentMessage(data.error)
+    else setAgentMessage(data?.status==='Pending'?'Agent run waiting for approval':('Agent run '+String(data?.status||'submitted').toLowerCase()))
+    reload()
+  }
+
+  async function actOnAgentRequest(op,id){
+    setAgentMessage(op==='execute'?'Executing agent run…':(op==='approve'?'Approving agent run…':'Rejecting agent run…'))
+    const {data,error}=await supabase.functions.invoke('agent-run',{body:{op,request_id:id}})
+    if(error) setAgentMessage(error.message)
+    else if(data?.error) setAgentMessage(data.error)
+    else setAgentMessage('Agent run '+(op==='approve'?'approved':op==='reject'?'rejected':'executed'))
+    reload()
+  }
+
   return <>
     <Panel title="Agent Builder">
       <form className="agent-form" onSubmit={save}>
@@ -816,14 +866,77 @@ function Agents({org,session,rows,integrations,reload}) {
         <label>Purpose<input value={purpose} onChange={e=>setPurpose(e.target.value)} required placeholder="What business outcome does this agent own?"/></label>
         <label>Human control<select value={control} onChange={e=>setControl(e.target.value)}><option>Assist</option><option>Approve</option><option>Autonomous</option></select></label>
         <label>Confidence threshold<input type="number" min="0" max="100" value={threshold} onChange={e=>setThreshold(e.target.value)}/></label>
+        <label>Daily run limit<input type="number" min="1" value={dailyLimit} onChange={e=>setDailyLimit(e.target.value)}/></label>
+        <label>Initial integration<select value={integration} onChange={e=>setIntegration(e.target.value)}><option value="">None</option>{integrations.map(i=><option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
         <label className="span-2">Allowed actions<input value={allowed} onChange={e=>setAllowed(e.target.value)} /></label>
         <label className="span-2">Prohibited actions<input value={prohibited} onChange={e=>setProhibited(e.target.value)} /></label>
-        <label>Initial integration<select value={integration} onChange={e=>setIntegration(e.target.value)}><option value="">None</option>{integrations.map(i=><option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
         <div className="form-actions"><button className="primary"><Bot size={15}/>Create controlled agent</button></div>
       </form>
     </Panel>
+
+    <div className="grid two">
+      <Panel title="Workflow permissions">
+        <p>Agents can only access workflows explicitly assigned here.</p>
+        <form className="agent-permission-form" onSubmit={mapWorkflow}>
+          <label>Agent<select value={selectedAgent} onChange={e=>setSelectedAgent(e.target.value)} required><option value="">Select agent</option>{rows.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+          <label>Workflow<select value={selectedWorkflow} onChange={e=>setSelectedWorkflow(e.target.value)} required><option value="">Select active workflow</option>{workflows.filter(w=>w.status==='Active').map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+          <label>Execution mode<select value={executionMode} onChange={e=>setExecutionMode(e.target.value)}><option>Propose</option><option>Execute</option></select></label>
+          <button className="primary small">Allow workflow</button>
+        </form>
+        <div className="compact-list">{mappings.length?mappings.map(m=>{
+          const a=rows.find(x=>x.id===m.agent_id); const w=workflows.find(x=>x.id===m.workflow_id)
+          return <div className="compact-row" key={m.agent_id+'-'+m.workflow_id}><div><b>{a?.name||'Agent'} → {w?.name||'Workflow'}</b><span>{m.execution_mode} • {m.active?'Active':'Inactive'}</span></div></div>
+        }):<div className="empty">No agent workflow permissions yet.</div>}</div>
+      </Panel>
+
+      <Panel title="Agent execution controls">
+        <p>Test the same request path the agent runtime uses, including confidence thresholds and approval gates.</p>
+        <label className="confidence-control">Execution confidence<input type="number" min="0" max="100" value={confidence} onChange={e=>setConfidence(e.target.value)}/></label>
+        <div className="agent-exec-list">{mappings.filter(m=>m.active).map(m=>{
+          const a=rows.find(x=>x.id===m.agent_id); const w=workflows.find(x=>x.id===m.workflow_id)
+          if(!a||!w)return null
+          return <div className="agent-exec-row" key={m.agent_id+'-'+m.workflow_id}>
+            <div><b>{a.name}</b><span>{w.name} • {m.execution_mode} • {a.human_control_mode}</span></div>
+            <button className="secondary" disabled={a.status!=='Active'} onClick={()=>requestRun(a.id,w.id)}>Request run</button>
+          </div>
+        })}</div>
+      </Panel>
+    </div>
+
     <Panel title="AI agents">
-      <Rows rows={rows} secondary={r => [r.status,r.human_control_mode,r.confidence_threshold!=null?`${r.confidence_threshold}% threshold`:null,r.audit_logging_enabled?'Audit on':'Audit off'].filter(Boolean).join(' • ')} table="ai_agents" reload={reload}/>
+      <div className="agent-card-list">{rows.length?rows.map(r=>
+        <div className="agent-card" key={r.id}>
+          <div><b>{r.name}</b><span>{r.purpose}</span></div>
+          <div className="agent-stats">
+            <MiniMetric label="Status" value={r.status}/>
+            <MiniMetric label="Control" value={r.human_control_mode}/>
+            <MiniMetric label="Confidence" value={(r.minimum_execution_confidence??r.confidence_threshold??0)+'%'}/>
+            <MiniMetric label="Daily limit" value={r.max_daily_runs??'—'}/>
+          </div>
+          <div className="agent-card-actions">
+            {r.status==='Draft'&&<button className="secondary" onClick={()=>setAgentStatus(r.id,'Testing')}>Start testing</button>}
+            {r.status==='Testing'&&<button className="primary small" onClick={()=>setAgentStatus(r.id,'Active')}>Activate</button>}
+            {r.status==='Active'&&<button className="secondary" onClick={()=>setAgentStatus(r.id,'Paused')}>Pause</button>}
+            {r.status==='Paused'&&<button className="secondary" onClick={()=>setAgentStatus(r.id,'Active')}>Resume</button>}
+          </div>
+        </div>
+      ):<div className="empty">No AI agents yet.</div>}</div>
+    </Panel>
+
+    <Panel title="Agent run approvals">
+      <div className="approval-list">{requests.length?requests.map(r=>{
+        const a=rows.find(x=>x.id===r.agent_id); const w=workflows.find(x=>x.id===r.workflow_id)
+        return <div className="approval-row" key={r.id}>
+          <div><b>{a?.name||'Agent'} → {w?.name||'Workflow'}</b><span>{r.status} • Confidence {r.confidence??'—'}% • {new Date(r.created_at).toLocaleString()}</span></div>
+          <div className="approval-actions">
+            {r.status==='Pending'&&<><button className="secondary" onClick={()=>actOnAgentRequest('approve',r.id)}>Approve</button><button className="secondary" onClick={()=>actOnAgentRequest('reject',r.id)}>Reject</button></>}
+            {r.status==='Approved'&&<button className="primary small" onClick={()=>actOnAgentRequest('execute',r.id)}>Execute</button>}
+            {r.status==='Executed'&&<span className="status-text">Executed</span>}
+            {r.status==='Failed'&&<span className="status-text">Failed</span>}
+          </div>
+        </div>
+      }):<div className="empty">No agent run requests yet.</div>}</div>
+      {agentMessage&&<div className="message">{agentMessage}</div>}
     </Panel>
   </>
 }
