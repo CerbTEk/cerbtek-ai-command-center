@@ -34,7 +34,7 @@ function App() {
     systems: [], workflows: [], opps: [], integrations: [], agents: [],
     policies: [], blueprints: [], audit: [], onboarding: null, readiness: null, oauth: [], integrationRuns: [], actionRequests: [],
     workflowDefinitions: [], workflowRuns: [], approvalPolicies: [], agentWorkflows: [], agentRunRequests: [],
-    workflowSchedules: [], opsAlerts: [], members: [], invitations: []
+    workflowSchedules: [], opsAlerts: [], members: [], invitations: [], dataPolicy: null
   })
 
   useEffect(() => {
@@ -74,7 +74,7 @@ function App() {
   }
 
   async function loadOrg(orgId) {
-    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth, integrationRuns, actionRequests, workflowDefinitions, workflowRuns, approvalPolicies, agentWorkflows, agentRunRequests, workflowSchedules, opsAlerts, members, invitations] = await Promise.all([
+    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth, integrationRuns, actionRequests, workflowDefinitions, workflowRuns, approvalPolicies, agentWorkflows, agentRunRequests, workflowSchedules, opsAlerts, members, invitations, dataPolicy] = await Promise.all([
       supabase.from('systems').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('workflows').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('ai_opportunities').select('*').eq('organization_id', orgId).order('opportunity_score', { ascending: false }),
@@ -97,6 +97,7 @@ function App() {
       supabase.from('ops_alerts').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(50),
       supabase.functions.invoke('organization-members',{body:{organization_id:orgId}}),
       supabase.from('organization_invitations').select('*').eq('organization_id',orgId).order('created_at',{ascending:false}),
+      supabase.from('organization_data_policies').select('*').eq('organization_id',orgId).maybeSingle(),
     ])
     setData({
       systems: systems.data || [],
@@ -120,7 +121,8 @@ function App() {
       workflowSchedules: workflowSchedules.data || [],
       opsAlerts: opsAlerts.data || [],
       members: members.data?.members || [],
-      invitations: invitations.data || []
+      invitations: invitations.data || [],
+      dataPolicy: dataPolicy.data || null
     })
   }
 
@@ -166,7 +168,7 @@ function App() {
         {active === 'Integrations' && <Integrations org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} runs={data.integrationRuns} requests={data.actionRequests} reload={() => loadOrg(org.id)}/>}
         {active === 'Agents' && <Agents org={org} session={session} rows={data.agents} integrations={data.integrations} workflows={data.workflowDefinitions} mappings={data.agentWorkflows} requests={data.agentRunRequests} reload={() => loadOrg(org.id)}/>}
         {active === 'AI Ops' && <AIOps data={data}/>}
-        {active === 'Governance' && <Governance org={org} session={session} rows={data.policies} reload={() => loadOrg(org.id)}/>}
+        {active === 'Governance' && <Governance org={org} session={session} rows={data.policies} dataPolicy={data.dataPolicy} reload={() => loadOrg(org.id)}/>} 
         {active === 'Blueprints' && <Blueprints org={org} session={session} data={data} reload={() => loadOrg(org.id)}/>}
         {active === 'Audit' && <Audit rows={data.audit}/>}
         {active === 'CerbTek Staff' && staff && <StaffWorkspace orgs={orgs} current={org} setOrg={setOrg} role={staff.role}/>}
@@ -1188,24 +1190,89 @@ function AIOps({data,reload}) {
   </>
 }
 
-function Governance({org,session,rows,reload}) {
+function Governance({org,session,rows,dataPolicy,reload}) {
   const [name,setName]=useState('')
   const [type,setType]=useState('Data Access')
+  const [auditDays,setAuditDays]=useState(365)
+  const [executionDays,setExecutionDays]=useState(180)
+  const [approvalDays,setApprovalDays]=useState(365)
+  const [exportEnabled,setExportEnabled]=useState(true)
+  const [deletionApproval,setDeletionApproval]=useState(true)
+  const [govMessage,setGovMessage]=useState('')
+
+  useEffect(()=>{
+    if(dataPolicy){
+      setAuditDays(dataPolicy.audit_retention_days)
+      setExecutionDays(dataPolicy.execution_retention_days)
+      setApprovalDays(dataPolicy.approval_retention_days)
+      setExportEnabled(dataPolicy.export_enabled)
+      setDeletionApproval(dataPolicy.deletion_requires_approval)
+    }
+  },[dataPolicy?.organization_id])
+
   async function save(e) {
     e.preventDefault()
     const {error}=await supabase.from('governance_policies').insert({
       organization_id:org.id,name,policy_type:type,status:'Draft',created_by:session.user.id
     })
     if(!error){setName('');reload()}
+    else setGovMessage(error.message)
   }
-  return <Panel title="Governance policies">
-    <form className="inline-form" onSubmit={save}>
-      <input placeholder="Policy name" value={name} onChange={e=>setName(e.target.value)} required/>
-      <select value={type} onChange={e=>setType(e.target.value)}><option>Data Access</option><option>Human Approval</option><option>Model Use</option><option>Retention</option><option>Security</option><option>Acceptable Use</option><option>Other</option></select>
-      <button className="primary small">Add policy</button>
-    </form>
-    <Rows rows={rows} secondary={r => `${r.policy_type} • ${r.status}`} table="governance_policies" reload={reload}/>
-  </Panel>
+
+  async function saveDataPolicy(e){
+    e.preventDefault()
+    const {error}=await supabase.from('organization_data_policies').upsert({
+      organization_id:org.id,
+      audit_retention_days:+auditDays,
+      execution_retention_days:+executionDays,
+      approval_retention_days:+approvalDays,
+      export_enabled:exportEnabled,
+      deletion_requires_approval:deletionApproval,
+      updated_by:session.user.id
+    })
+    setGovMessage(error?error.message:'Data governance settings saved')
+    if(!error) reload()
+  }
+
+  async function exportTenant(){
+    setGovMessage('Generating secure tenant export…')
+    const {data,error}=await supabase.functions.invoke('tenant-export',{body:{organization_id:org.id}})
+    if(error){setGovMessage(error.message);return}
+    if(data?.error){setGovMessage(data.error);return}
+    const blob=new Blob([JSON.stringify(data.export,null,2)],{type:'application/json'})
+    const url=URL.createObjectURL(blob)
+    const a=document.createElement('a')
+    a.href=url
+    a.download=(org.name||'cerbtek-tenant').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-export.json'
+    document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)
+    setGovMessage('Tenant export generated. Secrets and OAuth tokens were excluded.')
+    reload()
+  }
+
+  return <>
+    <Panel title="Governance policies">
+      <form className="inline-form" onSubmit={save}>
+        <input placeholder="Policy name" value={name} onChange={e=>setName(e.target.value)} required/>
+        <select value={type} onChange={e=>setType(e.target.value)}><option>Data Access</option><option>Human Approval</option><option>Model Use</option><option>Retention</option><option>Security</option><option>Acceptable Use</option><option>Other</option></select>
+        <button className="primary small">Add policy</button>
+      </form>
+      <Rows rows={rows} secondary={r => `${r.policy_type} • ${r.status}`} table="governance_policies" reload={reload}/>
+    </Panel>
+
+    <Panel title="Tenant data controls">
+      <p>Set retention expectations and control whether authorized tenant admins can export their data.</p>
+      <form className="data-policy-form" onSubmit={saveDataPolicy}>
+        <label>Audit retention (days)<input type="number" min="30" max="3650" value={auditDays} onChange={e=>setAuditDays(e.target.value)}/></label>
+        <label>Execution retention (days)<input type="number" min="30" max="3650" value={executionDays} onChange={e=>setExecutionDays(e.target.value)}/></label>
+        <label>Approval retention (days)<input type="number" min="30" max="3650" value={approvalDays} onChange={e=>setApprovalDays(e.target.value)}/></label>
+        <label className="toggle-line"><input type="checkbox" checked={exportEnabled} onChange={e=>setExportEnabled(e.target.checked)}/><span>Allow tenant export</span></label>
+        <label className="toggle-line"><input type="checkbox" checked={deletionApproval} onChange={e=>setDeletionApproval(e.target.checked)}/><span>Require approval before destructive data actions</span></label>
+        <div className="data-policy-actions"><button className="primary">Save data controls</button><button type="button" className="secondary" disabled={!exportEnabled} onClick={exportTenant}>Export tenant data</button></div>
+      </form>
+      <p className="data-policy-note">Tenant exports exclude Microsoft client secrets, access tokens, refresh tokens, and all Supabase Vault contents.</p>
+      {govMessage&&<div className="message">{govMessage}</div>}
+    </Panel>
+  </>
 }
 
 function Blueprints({org,session,data,reload}) {
