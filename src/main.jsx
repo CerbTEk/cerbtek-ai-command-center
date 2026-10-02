@@ -402,28 +402,73 @@ function Opportunities({org,session,workflows,rows,reload}) {
   const [fit,setFit]=useState(80)
   const [risk,setRisk]=useState(25)
   const [control,setControl]=useState('Approve')
+  const [hours,setHours]=useState(500)
+  const [hourly,setHourly]=useState(45)
+  const [revenue,setRevenue]=useState(0)
+  const [avoidance,setAvoidance]=useState(0)
+  const [implementation,setImplementation]=useState(15000)
+  const [recurring,setRecurring]=useState(6000)
+  const [ttv,setTtv]=useState(8)
+  const [change,setChange]=useState('Medium')
   async function save(e) {
     e.preventDefault()
     const {error}=await supabase.from('ai_opportunities').insert({
       organization_id:org.id, workflow_id:workflow||null, name,
       business_value:+value, repeatability:70, data_availability:60, ai_suitability:+fit,
       integration_difficulty:40, risk_score:+risk, implementation_complexity:'Medium',
-      human_control_mode:control, created_by:session.user.id
+      human_control_mode:control,
+      annual_hours_saved:+hours,
+      blended_hourly_cost:+hourly,
+      annual_revenue_impact:+revenue,
+      annual_risk_avoidance:+avoidance,
+      implementation_cost:+implementation,
+      recurring_annual_cost:+recurring,
+      time_to_value_weeks:+ttv,
+      change_management_effort:change,
+      created_by:session.user.id
     })
     if(!error){setName('');reload()}
   }
-  return <Panel title="AI opportunities">
-    <form className="inline-form opportunity-form" onSubmit={save}>
-      <input placeholder="Opportunity" value={name} onChange={e=>setName(e.target.value)} required/>
-      <select value={workflow} onChange={e=>setWorkflow(e.target.value)}><option value="">No workflow linked</option>{workflows.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select>
-      <input type="number" min="0" max="100" value={value} onChange={e=>setValue(e.target.value)} title="Business value"/>
-      <input type="number" min="0" max="100" value={fit} onChange={e=>setFit(e.target.value)} title="AI suitability"/>
-      <input type="number" min="0" max="100" value={risk} onChange={e=>setRisk(e.target.value)} title="Risk"/>
-      <select value={control} onChange={e=>setControl(e.target.value)}><option>Assist</option><option>Approve</option><option>Autonomous</option></select>
-      <button className="primary small">Score</button>
-    </form>
-    <Rows rows={rows} secondary={r => `Score ${r.opportunity_score}/100 • ${r.human_control_mode}`} score table="ai_opportunities" reload={reload}/>
-  </Panel>
+  return <>
+    <Panel title="AI opportunity business case">
+      <form className="opportunity-business-form" onSubmit={save}>
+        <label>Opportunity<input placeholder="Opportunity" value={name} onChange={e=>setName(e.target.value)} required/></label>
+        <label>Linked workflow<select value={workflow} onChange={e=>setWorkflow(e.target.value)}><option value="">No workflow linked</option>{workflows.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+        <label>Business value<input type="number" min="0" max="100" value={value} onChange={e=>setValue(e.target.value)}/></label>
+        <label>AI suitability<input type="number" min="0" max="100" value={fit} onChange={e=>setFit(e.target.value)}/></label>
+        <label>Risk<input type="number" min="0" max="100" value={risk} onChange={e=>setRisk(e.target.value)}/></label>
+        <label>Human control<select value={control} onChange={e=>setControl(e.target.value)}><option>Assist</option><option>Approve</option><option>Autonomous</option></select></label>
+
+        <label>Annual hours saved<input type="number" min="0" value={hours} onChange={e=>setHours(e.target.value)}/></label>
+        <label>Blended hourly cost ($)<input type="number" min="0" step="0.01" value={hourly} onChange={e=>setHourly(e.target.value)}/></label>
+        <label>Annual revenue impact ($)<input type="number" min="0" step="0.01" value={revenue} onChange={e=>setRevenue(e.target.value)}/></label>
+        <label>Annual risk avoidance ($)<input type="number" min="0" step="0.01" value={avoidance} onChange={e=>setAvoidance(e.target.value)}/></label>
+        <label>Implementation cost ($)<input type="number" min="0" step="0.01" value={implementation} onChange={e=>setImplementation(e.target.value)}/></label>
+        <label>Recurring annual cost ($)<input type="number" min="0" step="0.01" value={recurring} onChange={e=>setRecurring(e.target.value)}/></label>
+        <label>Time to value (weeks)<input type="number" min="0" value={ttv} onChange={e=>setTtv(e.target.value)}/></label>
+        <label>Change management<select value={change} onChange={e=>setChange(e.target.value)}><option>Low</option><option>Medium</option><option>High</option></select></label>
+        <div className="business-form-actions"><button className="primary">Create business case</button></div>
+      </form>
+    </Panel>
+    <Panel title="Prioritized AI opportunities">
+      <div className="business-case-list">{rows.length ? rows.map(r=>
+        <div className="business-case-card" key={r.id}>
+          <div className="business-case-head">
+            <div><b>{r.name}</b><span>Score {r.opportunity_score}/100 • {r.human_control_mode} • {r.change_management_effort||'Change effort not set'}</span></div>
+            <em className="score-pill">{r.opportunity_score}</em>
+          </div>
+          <div className="business-case-metrics">
+            <MiniMetric label="First-year benefit" value={money(r.first_year_benefit)}/>
+            <MiniMetric label="Net value" value={money(r.first_year_net_value)}/>
+            <MiniMetric label="ROI" value={r.first_year_roi_percent==null?'—':Math.round(r.first_year_roi_percent)+'%'}/>
+            <MiniMetric label="Payback" value={r.payback_months==null?'—':r.payback_months.toFixed(1)+' mo'}/>
+            <MiniMetric label="Time to value" value={r.time_to_value_weeks==null?'—':r.time_to_value_weeks+' wk'}/>
+          </div>
+          <button className="icon-btn danger" title="Delete" onClick={async()=>{const {error}=await supabase.from('ai_opportunities').delete().eq('id',r.id);if(!error)reload()}}><Trash2 size={15}/></button>
+        </div>
+      ) : <div className="empty">No AI business cases yet.</div>}</div>
+    </Panel>
+  </>
 }
 
 function Integrations({org,session,systems,rows,reload}) {
@@ -517,7 +562,11 @@ function Governance({org,session,rows,reload}) {
 function Blueprints({org,session,data,reload}) {
   async function create() {
     const maturity = readinessScore(data)
-    const recommendations = data.opps.slice(0,5).map(o=>({name:o.name,score:o.opportunity_score,control:o.human_control_mode}))
+    const recommendations = data.opps.slice(0,5).map(o=>({
+      name:o.name,score:o.opportunity_score,control:o.human_control_mode,
+      first_year_benefit:o.first_year_benefit,first_year_net_value:o.first_year_net_value,
+      roi:o.first_year_roi_percent,payback_months:o.payback_months,time_to_value_weeks:o.time_to_value_weeks
+    }))
     const roadmap = [
       {phase:'30 days',focus:'Complete inventory, governance baseline, and top use-case selection'},
       {phase:'60 days',focus:'Implement first governed workflow with human approval and audit logging'},
@@ -641,7 +690,7 @@ function readinessScore(data) {
 }
 
 function blueprintHtml(org,bp,data){
-  const recs=(bp.recommendations||[]).map(x=>`<tr><td>${escapeHtml(x.name)}</td><td>${x.score}</td><td>${escapeHtml(x.control)}</td></tr>`).join('')
+  const recs=(bp.recommendations||[]).map(x=>'<tr><td>'+escapeHtml(x.name)+'</td><td>'+x.score+'</td><td>'+escapeHtml(x.control)+'</td><td>'+money(x.first_year_benefit)+'</td><td>'+money(x.first_year_net_value)+'</td><td>'+(x.roi==null?'—':Math.round(x.roi)+'%')+'</td><td>'+(x.payback_months==null?'—':Number(x.payback_months).toFixed(1)+' mo')+'</td></tr>').join('')
   const roadmap=(bp.roadmap||[]).map(x=>`<div class="phase"><b>${escapeHtml(x.phase)}</b><p>${escapeHtml(x.focus)}</p></div>`).join('')
   return `<!doctype html><html><head><title>${escapeHtml(org.name)} AI Enablement Blueprint</title><style>
     body{font-family:Arial,sans-serif;color:#161616;margin:48px;line-height:1.5}.top{border-bottom:3px solid #111;padding-bottom:18px;margin-bottom:28px}
@@ -652,7 +701,7 @@ function blueprintHtml(org,bp,data){
     <div class="top"><div class="ey">CERBTEK AI ENABLEMENT BLUEPRINT</div><h1>${escapeHtml(org.name)}</h1><p class="muted">Generated from the CerbTek AI Enablement Command Center</p></div>
     <h2>AI Readiness</h2><div class="score">${bp.maturity_score ?? 0}<span>/100</span></div>
     <h2>Executive Summary</h2><p>${escapeHtml(bp.executive_summary||'')}</p>
-    <h2>Priority Opportunities</h2><table><thead><tr><th>Opportunity</th><th>Score</th><th>Control</th></tr></thead><tbody>${recs||'<tr><td colspan="3">No prioritized opportunities yet.</td></tr>'}</tbody></table>
+    <h2>Priority Opportunities & Business Case</h2><table><thead><tr><th>Opportunity</th><th>Score</th><th>Control</th><th>Benefit</th><th>Net Value</th><th>ROI</th><th>Payback</th></tr></thead><tbody>${recs||'<tr><td colspan="7">No prioritized opportunities yet.</td></tr>'}</tbody></table>
     <h2>30 / 60 / 90 Day Roadmap</h2>${roadmap}
     <h2>Current Environment</h2><p>${data.systems.length} systems • ${data.workflows.length} workflows • ${data.integrations.length} integrations • ${data.agents.length} agents • ${data.policies.length} governance policies</p>
   </body></html>`
@@ -660,6 +709,8 @@ function blueprintHtml(org,bp,data){
 
 function escapeHtml(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 function DataClassOptions(){return <><option>Public</option><option>Internal</option><option>Personal</option><option>Sensitive</option><option>Highly Sensitive</option></>}
+function money(v){ if(v==null || Number.isNaN(Number(v))) return '—'; return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(Number(v)) }
+function MiniMetric({label,value}) { return <div className="mini-metric"><span>{label}</span><b>{value}</b></div> }
 function Metric({label,value}) { return <div className="metric"><span>{label}</span><strong>{value}</strong></div> }
 function Progress({label,done}) { return <div className="progress-row"><span className={done?'dot done':'dot'}></span><span>{label}</span><b>{done?'Complete':'Pending'}</b></div> }
 function Panel({title,children}) { return <div className="panel"><h3>{title}</h3>{children}</div> }
