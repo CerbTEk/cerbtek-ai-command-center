@@ -93,7 +93,7 @@ function App() {
 
   return <div className="app">
     <aside className="sidebar">
-      <div className="brand"><div className="brand-mark">◆</div><div><strong>CerbTek</strong><span>AI Enablement</span></div></div>
+      <div className="brand"><img className="brand-mark" src="/cerberus.svg" alt="CerbTek Cerberus" /><div><strong>CerbTek</strong><span>AI Enablement</span></div></div>
       <div className="org-switcher">
         <span>Client organization</span>
         <select value={org?.id || ''} onChange={e => setOrg(orgs.find(x => x.id === e.target.value))}>
@@ -148,7 +148,7 @@ function Auth() {
     else if (mode === 'signup') setMessage('Account created. Check your email if confirmation is enabled.')
   }
   return <div className="auth-shell"><div className="auth-card">
-    <div className="brand auth-brand"><div className="brand-mark">◆</div><div><strong>CerbTek</strong><span>AI Enablement</span></div></div>
+    <div className="brand auth-brand"><img className="brand-mark" src="/cerberus.svg" alt="CerbTek Cerberus" /><div><strong>CerbTek</strong><span>AI Enablement</span></div></div>
     <h1>{mode === 'signin' ? 'Sign in' : 'Create account'}</h1>
     <p>Secure access to the AI Enablement Command Center.</p>
     <form onSubmit={submit}>
