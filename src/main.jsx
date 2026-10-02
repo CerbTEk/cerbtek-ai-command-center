@@ -9,6 +9,7 @@ import './styles.css'
 
 const baseNav = [
   ['Overview', Gauge],
+  ['Onboarding', Building2],
   ['AI Readiness', Sparkles],
   ['Systems', ServerCog],
   ['Workflows', Workflow],
@@ -29,7 +30,7 @@ function App() {
   const [staff, setStaff] = useState(null)
   const [data, setData] = useState({
     systems: [], workflows: [], opps: [], integrations: [], agents: [],
-    policies: [], blueprints: [], audit: []
+    policies: [], blueprints: [], audit: [], onboarding: null, readiness: null
   })
 
   useEffect(() => {
@@ -63,7 +64,7 @@ function App() {
   }
 
   async function loadOrg(orgId) {
-    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit] = await Promise.all([
+    const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness] = await Promise.all([
       supabase.from('systems').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('workflows').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('ai_opportunities').select('*').eq('organization_id', orgId).order('opportunity_score', { ascending: false }),
@@ -72,6 +73,8 @@ function App() {
       supabase.from('governance_policies').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('blueprints').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('audit_events').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(100),
+      supabase.from('organization_onboarding').select('*').eq('organization_id', orgId).maybeSingle(),
+      supabase.from('readiness_assessments').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ])
     setData({
       systems: systems.data || [],
@@ -81,7 +84,9 @@ function App() {
       agents: agents.data || [],
       policies: policies.data || [],
       blueprints: blueprints.data || [],
-      audit: audit.data || []
+      audit: audit.data || [],
+      onboarding: onboarding.data || null,
+      readiness: readiness.data || null
     })
   }
 
@@ -118,7 +123,8 @@ function App() {
       </header>
       <section className="content">
         {active === 'Overview' && <Overview data={data} onGo={setActive}/>}
-        {active === 'AI Readiness' && <Readiness data={data}/>}
+        {active === 'Onboarding' && <Onboarding org={org} session={session} current={data.onboarding} reload={() => loadOrg(org.id)}/>}
+        {active === 'AI Readiness' && <Readiness org={org} session={session} data={data} reload={() => loadOrg(org.id)}/>}
         {active === 'Systems' && <Systems org={org} session={session} rows={data.systems} reload={() => loadOrg(org.id)}/>}
         {active === 'Workflows' && <Workflows org={org} session={session} rows={data.workflows} reload={() => loadOrg(org.id)}/>}
         {active === 'Opportunities' && <Opportunities org={org} session={session} workflows={data.workflows} rows={data.opps} reload={() => loadOrg(org.id)}/>}
@@ -203,6 +209,8 @@ function Overview({data,onGo}) {
     </div>
     <div className="grid two">
       <Panel title="Enablement progress">
+        <Progress label="Client onboarding" done={data.onboarding?.status === 'Complete' || data.onboarding?.status === 'Ready for Assessment'}/>
+        <Progress label="AI readiness assessment" done={data.readiness?.status === 'Complete'}/>
         <Progress label="Systems inventory" done={data.systems.length>0}/>
         <Progress label="Workflow inventory" done={data.workflows.length>0}/>
         <Progress label="Opportunity scoring" done={data.opps.length>0}/>
@@ -211,24 +219,136 @@ function Overview({data,onGo}) {
       </Panel>
       <Panel title="Next best action">
         <p>Map the business before scaling agents. Build enough workflow evidence to generate a defensible AI Enablement Blueprint.</p>
-        <button className="secondary" onClick={()=>onGo(!data.systems.length?'Systems':!data.workflows.length?'Workflows':!data.opps.length?'Opportunities':'Blueprints')}>Continue assessment</button>
+        <button className="secondary" onClick={()=>onGo(!data.onboarding?'Onboarding':!data.readiness?'AI Readiness':!data.systems.length?'Systems':!data.workflows.length?'Workflows':!data.opps.length?'Opportunities':'Blueprints')}>Continue assessment</button>
       </Panel>
     </div>
   </>
 }
 
-function Readiness({data}) {
-  const score = readinessScore(data)
-  return <div className="grid two">
-    <Panel title="AI Readiness Score"><div className="score">{score}<span>/100</span></div><p>Score combines mapped systems, workflows, prioritized AI opportunities, governance coverage, and controlled agent readiness.</p></Panel>
-    <Panel title="Assessment coverage">
-      <Progress label="Technology mapped" done={data.systems.length>=3}/>
-      <Progress label="Operational workflows mapped" done={data.workflows.length>=3}/>
-      <Progress label="AI use cases scored" done={data.opps.length>=3}/>
-      <Progress label="Governance established" done={data.policies.length>=2}/>
-      <Progress label="Agent controls established" done={data.agents.length>=1}/>
+
+const readinessQuestions = [
+  ['technology','tech_systems','Core business systems are documented and owned.'],
+  ['technology','tech_security','Identity, access, and endpoint security are centrally managed.'],
+  ['technology','tech_cloud','The technology environment supports modern APIs, cloud services, or automation.'],
+  ['workflow','wf_documented','Key business workflows are documented end to end.'],
+  ['workflow','wf_metrics','Workflow owners, volumes, cycle times, and service expectations are known.'],
+  ['workflow','wf_repeatable','High-volume repetitive work has been identified for automation.'],
+  ['data','data_quality','Operational data is sufficiently accurate and consistent for automation.'],
+  ['data','data_classification','Sensitive data is classified with clear handling requirements.'],
+  ['data','data_access','Approved data sources can be accessed programmatically when needed.'],
+  ['governance','gov_policy','The organization has defined acceptable-use expectations for AI.'],
+  ['governance','gov_approval','High-impact automated actions have explicit human approval boundaries.'],
+  ['governance','gov_audit','AI and automation activity can be audited and investigated.'],
+  ['workforce','people_training','Employees receive role-specific training for AI-enabled work.'],
+  ['workforce','people_adoption','Leaders actively manage adoption, resistance, and process change.'],
+  ['workforce','people_owner','The organization has accountable owners for AI-enabled processes.'],
+  ['integration','int_api','Priority business applications expose usable APIs or supported connectors.'],
+  ['integration','int_identity','Integrations can use controlled authentication and least-privilege access.'],
+  ['integration','int_monitoring','Integration failures can be monitored, alerted, and remediated.'],
+]
+const readinessLabels = {technology:'Technology',workflow:'Workflow',data:'Data',governance:'Governance',workforce:'Workforce',integration:'Integration'}
+
+function Onboarding({org,session,current,reload}) {
+  const [form,setForm]=useState({
+    primary_contact_name:'',primary_contact_email:'',business_goals:'',operational_pain_points:'',
+    ai_goals:'',current_ai_tools:'',target_outcomes:'',desired_timeline:'',budget_band:'',data_sensitivity:''
+  })
+  const [saved,setSaved]=useState('')
+  useEffect(()=>{ if(current) setForm(x=>({...x,...current})) },[current?.organization_id])
+  function field(k,v){setForm({...form,[k]:v})}
+  async function save(e){
+    e.preventDefault()
+    const required=['primary_contact_name','primary_contact_email','business_goals','operational_pain_points','ai_goals','target_outcomes']
+    const complete=required.filter(k=>String(form[k]||'').trim()).length
+    const pct=Math.round(complete/required.length*100)
+    const status=pct===100?'Ready for Assessment':pct>0?'In Progress':'Not Started'
+    const {error}=await supabase.from('organization_onboarding').upsert({
+      organization_id:org.id,
+      primary_contact_name:form.primary_contact_name||null,
+      primary_contact_email:form.primary_contact_email||null,
+      business_goals:form.business_goals||null,
+      operational_pain_points:form.operational_pain_points||null,
+      ai_goals:form.ai_goals||null,
+      current_ai_tools:form.current_ai_tools||null,
+      target_outcomes:form.target_outcomes||null,
+      desired_timeline:form.desired_timeline||null,
+      budget_band:form.budget_band||null,
+      data_sensitivity:form.data_sensitivity||null,
+      completion_percent:pct,
+      status,
+      updated_by:session.user.id
+    })
+    setSaved(error?error.message:'Onboarding saved')
+    if(!error) reload()
+  }
+  return <Panel title="Client onboarding">
+    <p>Capture the business context CerbTek needs before scoring AI opportunities or designing agents.</p>
+    <form className="onboarding-form" onSubmit={save}>
+      <label>Primary contact<input value={form.primary_contact_name||''} onChange={e=>field('primary_contact_name',e.target.value)} /></label>
+      <label>Contact email<input type="email" value={form.primary_contact_email||''} onChange={e=>field('primary_contact_email',e.target.value)} /></label>
+      <label className="span-2">Business goals<textarea value={form.business_goals||''} onChange={e=>field('business_goals',e.target.value)} placeholder="What must the business improve, protect, or scale?"/></label>
+      <label className="span-2">Operational pain points<textarea value={form.operational_pain_points||''} onChange={e=>field('operational_pain_points',e.target.value)} placeholder="Where are people losing time, quality, or visibility?"/></label>
+      <label className="span-2">AI goals<textarea value={form.ai_goals||''} onChange={e=>field('ai_goals',e.target.value)} placeholder="What does leadership expect AI to change?"/></label>
+      <label>Current AI tools<input value={form.current_ai_tools||''} onChange={e=>field('current_ai_tools',e.target.value)} placeholder="ChatGPT, Copilot, Gemini, etc."/></label>
+      <label>Desired timeline<input value={form.desired_timeline||''} onChange={e=>field('desired_timeline',e.target.value)} placeholder="e.g. first production workflow in 60 days"/></label>
+      <label className="span-2">Target outcomes<textarea value={form.target_outcomes||''} onChange={e=>field('target_outcomes',e.target.value)} placeholder="Hours saved, revenue, service quality, risk reduction..."/></label>
+      <label>Budget band<select value={form.budget_band||''} onChange={e=>field('budget_band',e.target.value)}><option value="">Not set</option><option>Under $10k</option><option>$10k–$25k</option><option>$25k–$75k</option><option>$75k+</option></select></label>
+      <label>Highest data sensitivity<select value={form.data_sensitivity||''} onChange={e=>field('data_sensitivity',e.target.value)}><option value="">Not set</option><DataClassOptions/></select></label>
+      <div className="span-2 onboarding-actions"><div><b>{current?.completion_percent||0}% complete</b><span>{current?.status||'Not Started'}</span></div><button className="primary">Save onboarding</button></div>
+    </form>
+    {saved && <div className="message">{saved}</div>}
+  </Panel>
+}
+
+function Readiness({org,session,data,reload}) {
+  const existing=data.readiness
+  const [answers,setAnswers]=useState({})
+  const [saved,setSaved]=useState('')
+  useEffect(()=>setAnswers(existing?.answers||{}),[existing?.id])
+  const dimensions=['technology','workflow','data','governance','workforce','integration']
+  function dimensionScore(dim,source=answers){
+    const qs=readinessQuestions.filter(q=>q[0]===dim)
+    const vals=qs.map(q=>Number(source[q[1]]||0)).filter(Boolean)
+    return vals.length===qs.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*20) : 0
+  }
+  const scores=Object.fromEntries(dimensions.map(d=>[d,dimensionScore(d)]))
+  const answered=Object.keys(answers).filter(k=>answers[k]).length
+  async function save(complete=false){
+    const payload={
+      organization_id:org.id,status:complete?'Complete':'Draft',answers,
+      technology_score:scores.technology,workflow_score:scores.workflow,data_score:scores.data,
+      governance_score:scores.governance,workforce_score:scores.workforce,integration_score:scores.integration,
+      completed_at:complete?new Date().toISOString():null,created_by:session.user.id
+    }
+    let error
+    if(existing?.id) ({error}=await supabase.from('readiness_assessments').update(payload).eq('id',existing.id))
+    else ({error}=await supabase.from('readiness_assessments').insert(payload))
+    setSaved(error?error.message:(complete?'Assessment completed':'Draft saved'))
+    if(!error) reload()
+  }
+  const overall=existing?.overall_score ?? Math.round(
+    scores.technology*.18+scores.workflow*.18+scores.data*.18+scores.governance*.18+scores.workforce*.14+scores.integration*.14
+  )
+  return <>
+    <div className="readiness-top">
+      <Panel title="AI Readiness Score"><div className="score">{overall}<span>/100</span></div><p>{answered} of {readinessQuestions.length} assessment questions answered.</p></Panel>
+      <div className="dimension-grid">{dimensions.map(d=><div className="dimension-card" key={d}><span>{readinessLabels[d]}</span><b>{scores[d]}</b><em>/100</em></div>)}</div>
+    </div>
+    <Panel title="Readiness assessment">
+      <p>Rate each statement from 1 (not established) to 5 (operationalized and consistently used).</p>
+      <div className="question-list">{readinessQuestions.map(([dim,key,label])=>
+        <div className="question-row" key={key}>
+          <div><span>{readinessLabels[dim]}</span><b>{label}</b></div>
+          <div className="rating">{[1,2,3,4,5].map(v=><button type="button" key={v} className={Number(answers[key])===v?'selected':''} onClick={()=>setAnswers({...answers,[key]:v})}>{v}</button>)}</div>
+        </div>
+      )}</div>
+      <div className="assessment-actions">
+        <button className="secondary" onClick={()=>save(false)}>Save draft</button>
+        <button className="primary" disabled={answered<readinessQuestions.length} onClick={()=>save(true)}>Complete assessment</button>
+      </div>
+      {saved && <div className="message">{saved}</div>}
     </Panel>
-  </div>
+  </>
 }
 
 function Systems({org,session,rows,reload}) {
@@ -444,20 +564,52 @@ function Audit({rows}) {
 }
 
 function StaffWorkspace({orgs,current,setOrg,role}) {
+  const [engagements,setEngagements]=useState([])
+  const [onboarding,setOnboarding]=useState([])
+  const [assessments,setAssessments]=useState([])
+  useEffect(()=>{load()},[orgs.length])
+  async function load(){
+    const [e,o,a]=await Promise.all([
+      supabase.from('client_engagements').select('*'),
+      supabase.from('organization_onboarding').select('*'),
+      supabase.from('readiness_assessments').select('*').order('created_at',{ascending:false})
+    ])
+    setEngagements(e.data||[]);setOnboarding(o.data||[]);setAssessments(a.data||[])
+  }
+  async function updateEngagement(orgId,patch){
+    const existing=engagements.find(x=>x.organization_id===orgId)
+    const payload={organization_id:orgId,stage:'Discovery',health:'On Track',assessment_status:'Not Started',blueprint_status:'Not Started',implementation_status:'Not Started',...(existing||{}),...patch}
+    delete payload.created_at;delete payload.updated_at
+    await supabase.from('client_engagements').upsert(payload)
+    load()
+  }
+  const completed=assessments.filter(a=>a.status==='Complete').length
+  const atRisk=engagements.filter(e=>e.health==='At Risk').length
   return <>
     <div className="metrics">
       <Metric label="Client tenants" value={orgs.length}/>
+      <Metric label="Assessments complete" value={completed}/>
+      <Metric label="At-risk accounts" value={atRisk}/>
       <Metric label="Staff role" value={role.replaceAll('_',' ')}/>
-      <Metric label="Current client" value={current?.name || '—'}/>
-      <Metric label="Isolation model" value="RLS"/>
     </div>
     <Panel title="Client portfolio">
-      <p>Switch into any authorized client tenant to perform assessments, configure integrations, build controlled agents, and review audit events.</p>
-      <div className="client-grid">{orgs.map(o=>
-        <button key={o.id} className={current?.id===o.id?'client-card selected':'client-card'} onClick={()=>setOrg(o)}>
-          <Building2 size={19}/><b>{o.name}</b><span>{o.industry || 'Industry not set'}</span>
-        </button>
-      )}</div>
+      <p>Manage the CerbTek delivery pipeline, then open the tenant to perform the work.</p>
+      <div className="portfolio-table">
+        <div className="portfolio-head"><span>Client</span><span>Stage</span><span>Health</span><span>Onboarding</span><span>Readiness</span><span>Next action</span><span></span></div>
+        {orgs.map(o=>{
+          const e=engagements.find(x=>x.organization_id===o.id)||{}
+          const ob=onboarding.find(x=>x.organization_id===o.id)
+          const a=assessments.find(x=>x.organization_id===o.id && x.status==='Complete')
+          return <div className={current?.id===o.id?'portfolio-row current':'portfolio-row'} key={o.id}>
+            <div><b>{o.name}</b><span>{o.industry||'Industry not set'}</span></div>
+            <select value={e.stage||'Discovery'} onChange={x=>updateEngagement(o.id,{stage:x.target.value})}><option>Discovery</option><option>Assessment</option><option>Blueprint</option><option>Implementation</option><option>AI Ops</option><option>Paused</option></select>
+            <select value={e.health||'On Track'} onChange={x=>updateEngagement(o.id,{health:x.target.value})}><option>On Track</option><option>Needs Attention</option><option>At Risk</option></select>
+            <span className="status-text">{ob?.status||'Not Started'}</span>
+            <span className="status-text">{a ? (a.overall_score + '/100') : 'Not Complete'}</span>
+            <input value={e.next_action||''} onChange={x=>updateEngagement(o.id,{next_action:x.target.value})} placeholder="Next action"/>
+            <button className="secondary" onClick={()=>setOrg(o)}>Open tenant</button>
+          </div>
+        })}</div>
     </Panel>
   </>
 }
@@ -477,6 +629,7 @@ function Rows({rows,secondary,score=false,table,reload}) {
 }
 
 function readinessScore(data) {
+  if(data.readiness?.status === 'Complete') return data.readiness.overall_score || 0
   return Math.min(100, Math.round(
     (Math.min(data.systems.length,5)/5*20) +
     (Math.min(data.workflows.length,8)/8*25) +
