@@ -16,6 +16,7 @@ const baseNav = [
   ['Opportunities', Sparkles],
   ['Integrations', Plug],
   ['Agents', Bot],
+  ['AI Ops', Activity],
   ['Governance', ShieldCheck],
   ['Blueprints', FileText],
   ['Audit', Activity],
@@ -147,6 +148,7 @@ function App() {
         {active === 'Opportunities' && <Opportunities org={org} session={session} workflows={data.workflows} rows={data.opps} reload={() => loadOrg(org.id)}/>}
         {active === 'Integrations' && <Integrations org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} runs={data.integrationRuns} requests={data.actionRequests} reload={() => loadOrg(org.id)}/>}
         {active === 'Agents' && <Agents org={org} session={session} rows={data.agents} integrations={data.integrations} workflows={data.workflowDefinitions} mappings={data.agentWorkflows} requests={data.agentRunRequests} reload={() => loadOrg(org.id)}/>}
+        {active === 'AI Ops' && <AIOps data={data}/>}
         {active === 'Governance' && <Governance org={org} session={session} rows={data.policies} reload={() => loadOrg(org.id)}/>}
         {active === 'Blueprints' && <Blueprints org={org} session={session} data={data} reload={() => loadOrg(org.id)}/>}
         {active === 'Audit' && <Audit rows={data.audit}/>}
@@ -937,6 +939,74 @@ function Agents({org,session,rows,integrations,workflows,mappings,requests,reloa
         </div>
       }):<div className="empty">No agent run requests yet.</div>}</div>
       {agentMessage&&<div className="message">{agentMessage}</div>}
+    </Panel>
+  </>
+}
+
+function AIOps({data}) {
+  const totalIntegrationRuns=data.integrationRuns.length
+  const integrationErrors=data.integrationRuns.filter(r=>r.status==='Error').length
+  const workflowTotal=data.workflowRuns.length
+  const workflowSuccess=data.workflowRuns.filter(r=>r.status==='Success').length
+  const workflowRate=workflowTotal?Math.round(workflowSuccess/workflowTotal*100):0
+  const pendingActions=data.actionRequests.filter(r=>r.status==='Pending'||r.status==='Approved').length
+    + data.agentRunRequests.filter(r=>r.status==='Pending'||r.status==='Approved').length
+  const degraded=data.integrations.filter(i=>i.status==='Degraded'||i.status==='Blocked').length
+  const activeAgents=data.agents.filter(a=>a.status==='Active').length
+  const recentFailures=[
+    ...data.integrationRuns.filter(r=>r.status==='Error').map(r=>({kind:'Integration',label:r.action,detail:r.error_message||r.summary,at:r.created_at})),
+    ...data.workflowRuns.filter(r=>r.status==='Error').map(r=>({kind:'Workflow',label:data.workflowDefinitions.find(w=>w.id===r.workflow_id)?.name||'Workflow',detail:r.error_message||r.summary,at:r.created_at})),
+    ...data.agentRunRequests.filter(r=>r.status==='Failed').map(r=>({kind:'Agent',label:data.agents.find(a=>a.id===r.agent_id)?.name||'Agent',detail:r.error_message||'Agent execution failed',at:r.created_at}))
+  ].sort((a,b)=>new Date(b.at)-new Date(a.at)).slice(0,10)
+
+  return <>
+    <div className="metrics">
+      <Metric label="Workflow success" value={workflowRate+'%'}/>
+      <Metric label="Active agents" value={activeAgents}/>
+      <Metric label="Pending approvals" value={pendingActions}/>
+      <Metric label="Degraded integrations" value={degraded}/>
+    </div>
+
+    <div className="grid two">
+      <Panel title="Integration health">
+        <div className="ops-health-list">{data.integrations.length?data.integrations.map(i=>
+          <div className="ops-health-row" key={i.id}>
+            <span className={'ops-status '+String(i.status||'unknown').toLowerCase().replaceAll(' ','-')}></span>
+            <div><b>{i.name}</b><span>{i.provider||'Provider not set'} • {i.status}</span></div>
+            <em>{i.last_health_check_at?new Date(i.last_health_check_at).toLocaleString():'Never checked'}</em>
+          </div>
+        ):<div className="empty">No integrations configured.</div>}</div>
+      </Panel>
+
+      <Panel title="Agent operations">
+        <div className="ops-health-list">{data.agents.length?data.agents.map(a=>
+          <div className="ops-health-row" key={a.id}>
+            <span className={'ops-status '+String(a.status||'unknown').toLowerCase()}></span>
+            <div><b>{a.name}</b><span>{a.human_control_mode} • threshold {a.minimum_execution_confidence??a.confidence_threshold??'—'}%</span></div>
+            <em>{a.max_daily_runs?('Limit '+a.max_daily_runs+'/day'):'No daily limit'}</em>
+          </div>
+        ):<div className="empty">No agents configured.</div>}</div>
+      </Panel>
+    </div>
+
+    <Panel title="Operations summary">
+      <div className="ops-summary-grid">
+        <MiniMetric label="Integration runs" value={totalIntegrationRuns}/>
+        <MiniMetric label="Integration errors" value={integrationErrors}/>
+        <MiniMetric label="Workflow runs" value={workflowTotal}/>
+        <MiniMetric label="Workflow successes" value={workflowSuccess}/>
+        <MiniMetric label="Open approvals" value={pendingActions}/>
+      </div>
+    </Panel>
+
+    <Panel title="Recent failures">
+      <div className="run-list">{recentFailures.length?recentFailures.map((f,i)=>
+        <div className="run-row" key={f.kind+'-'+i+'-'+f.at}>
+          <span className="run-dot error"></span>
+          <div><b>{f.kind}: {f.label}</b><span>{f.detail||'No error detail'} • {new Date(f.at).toLocaleString()}</span></div>
+          <em>Needs attention</em>
+        </div>
+      ):<div className="empty">No recent operational failures.</div>}</div>
     </Panel>
   </>
 }
