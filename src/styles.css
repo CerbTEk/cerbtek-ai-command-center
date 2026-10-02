@@ -930,3 +930,38 @@ textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.09
   .team-invite-form{grid-template-columns:1fr}
   .member-row{grid-template-columns:1fr}
 }
+
+
+.data-policy-form{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+}
+.data-policy-form label{
+  display:grid;
+  gap:6px;
+  font-size:12px;
+  font-weight:700;
+  color:#d8c8a6;
+}
+.data-policy-form .toggle-line{
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  gap:8px;
+}
+.data-policy-actions{
+  grid-column:1/-1;
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  padding-top:4px;
+}
+.data-policy-note{
+  font-size:11px;
+  color:#8c806b!important;
+}
+@media(max-width:900px){
+  .data-policy-form{grid-template-columns:1fr}
+  .data-policy-actions{grid-column:auto;justify-content:flex-start}
+}
