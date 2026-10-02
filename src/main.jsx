@@ -147,6 +147,13 @@ function Auth() {
   async function submit(e) {
     e.preventDefault()
     setMessage('')
+    if(mode === 'signup'){
+      const strong = password.length >= 12 && /[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password) && /[^A-Za-z0-9]/.test(password)
+      if(!strong){
+        setMessage('Use at least 12 characters with uppercase, lowercase, a number, and a symbol.')
+        return
+      }
+    }
     const res = mode === 'signin'
       ? await supabase.auth.signInWithPassword({email,password})
       : await supabase.auth.signUp({email,password, options:{ emailRedirectTo: window.location.origin }})
@@ -159,7 +166,7 @@ function Auth() {
     <p>Secure access to the AI Enablement Command Center.</p>
     <form onSubmit={submit}>
       <label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label>
-      <label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength="8"/></label>
+      <label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={mode==='signup'?12:8}/>{mode==='signup' && <small className="password-hint">12+ characters • upper & lowercase • number • symbol</small>}</label>
       <button className="primary">{mode === 'signin' ? 'Sign in' : 'Create account'}</button>
     </form>
     {message && <div className="message">{message}</div>}
