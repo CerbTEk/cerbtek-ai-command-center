@@ -7,6 +7,7 @@ import {
 import { supabase } from './supabase'
 import { assessmentComplete, deriveNextStep, onboardingComplete } from './first-use-guidance'
 import { useSectionNavigation } from './use-section-navigation'
+import KairoHelp from './KairoHelp'
 import './styles.css'
 
 const baseNav = [
@@ -245,6 +246,7 @@ function App() {
         </>}
       </section>
     </main>
+    <KairoHelp userId={session.user.id} organizationId={org.id} section={active} data={data} ready={!dataLoading&&!dataError&&loadedOrgId===org.id&&loadedUserId===session.user.id} onNavigate={setActive}/>
   </div>
 }
 

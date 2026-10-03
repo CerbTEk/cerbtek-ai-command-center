@@ -1,0 +1,55 @@
+.kairo-help-trigger{position:fixed;right:24px;bottom:22px;z-index:40;display:flex;align-items:center;gap:9px;min-height:44px;border:1px solid #d78416;background:#ff9f0a;color:#201500;font-family:inherit;font-weight:700;font-size:13px;padding:11px 16px;border-radius:999px;box-shadow:0 5px 20px #0a132b25;cursor:pointer}
+.kairo-help-trigger:hover{background:#ffb13d;transform:translateY(-1px)}
+.kairo-help-overlay{position:fixed;inset:0;z-index:1000;background:#07132966;display:flex;align-items:flex-end;justify-content:flex-end;padding:20px;backdrop-filter:blur(2px)}
+.kairo-help-panel{width:440px;max-width:100%;height:740px;max-height:calc(100dvh - 40px);display:flex;flex-direction:column;background:#fff;color:#172139;border:1px solid #d7dee8;border-radius:20px;box-shadow:0 20px 80px #05102540;overflow:hidden;font-size:14px;line-height:1.5;min-width:0}
+.kairo-help-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:21px 23px 6px}
+.kairo-help-header h2{font-size:24px;letter-spacing:-.04em;line-height:1.2;margin:4px 0 0;color:#172139}
+.kairo-help-eyebrow{display:flex;gap:6px;align-items:center;margin:0;font-size:10px;letter-spacing:.12em;font-weight:800;color:#8a5400}
+.kairo-help-panel button{font-family:inherit;cursor:pointer}
+.kairo-help-icon{height:40px;min-width:40px;border:1px solid #dce2eb;background:#f7f9fc;color:#45526a;border-radius:12px;display:grid;place-items:center;padding:0}
+.kairo-help-description{font-size:13px;line-height:1.6;margin:4px 23px 15px;color:#607087}
+.kairo-help-search{padding:0 23px 14px;border-bottom:1px solid #e5e9ef}
+.kairo-help-search label{display:block;font-size:12px;font-weight:700;color:#34425a;margin-bottom:6px}
+.kairo-help-search-input{display:flex;align-items:center;gap:8px;border:1px solid #c9d2df;background:#f8fafd;border-radius:11px;padding:0 10px;color:#77849a}
+.kairo-help-search-input input{min-width:0;flex:1;background:transparent!important;border:0!important;box-shadow:none!important;color:#172139;font:inherit;font-size:13px;padding:12px 0;outline:none;width:100%}
+.kairo-help-search-input:focus-within{outline:3px solid #ffd695;outline-offset:2px}
+.kairo-help-search>p{font-size:11px;color:#66768c;margin:7px 0 0}
+.kairo-help-body{overflow-y:auto;overscroll-behavior:contain;min-height:0;flex:1;padding:17px 23px 20px;scrollbar-gutter:stable}
+.kairo-help-results-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.kairo-help-results-heading h3{font-size:14px;margin:0;font-weight:750;color:#172139}
+.kairo-help-results-heading>span{font-size:11px;color:#66768c;text-align:right}
+.kairo-help-context-note{font-size:12px;color:#66768c;margin:7px 0 14px}
+.kairo-help-results{display:grid;gap:10px;margin-top:12px}
+.kairo-help-result{display:flex;flex-direction:column;gap:5px;width:100%;text-align:left;border:1px solid #dce3ed;background:#fff;border-radius:12px;padding:13px 15px;color:#5c6d84;font-size:12px;line-height:1.5}
+.kairo-help-result:hover{border-color:#e6ac55;background:#fffbf4}
+.kairo-help-section-label{font-size:10px;font-weight:750;letter-spacing:.025em;color:#956009;margin:0 0 6px}
+.kairo-help-result .kairo-help-section-label{margin:0}
+.kairo-help-result strong{font-size:14px;color:#1f2e46;font-weight:700}
+.kairo-help-read{display:flex;gap:4px;align-items:center;margin-top:3px;color:#36475e;font-size:11px;font-weight:700}
+.kairo-help-all{margin-top:18px;border-top:1px solid #e3e9f0;padding-top:14px;font-size:12px;color:#526178}
+.kairo-help-all .kairo-help-all-toggle{cursor:pointer;font-weight:700;padding:6px 0}
+.kairo-help-all>div:not([hidden]){display:grid;gap:2px;margin-top:8px}
+.kairo-help-all button,.kairo-help-related button{border:0;background:transparent;text-align:left;color:#344f71;padding:9px 4px;line-height:1.5;font-size:12px;border-radius:5px}
+.kairo-help-all button:hover,.kairo-help-related button:hover{background:#f1f5fa}
+.kairo-help-back{display:flex;align-items:center;gap:6px;background:transparent;border:0;color:#526781;font-size:12px;padding:4px 0;margin-bottom:16px}
+.kairo-help-article h3{font-size:21px;letter-spacing:-.025em;line-height:1.3;color:#172139;margin:0 0 12px;scroll-margin:18px}
+.kairo-help-article h4{font-size:12px;margin:18px 0 8px;color:#32415b}
+.kairo-help-article>p:not(.kairo-help-section-label){font-size:13px;color:#5c6d84}
+.kairo-help-article ol,.kairo-help-article ul{padding-left:20px;margin:7px 0;color:#42536c;font-size:13px}
+.kairo-help-article li{margin-bottom:10px;padding-left:3px}
+.kairo-help-prerequisites{background:#f5f8fc;border:1px solid #e1e8f1;border-radius:10px;padding:0 13px 5px;margin-top:16px}
+.kairo-help-prerequisites h4{margin-top:12px}
+.kairo-help-note{background:#fff7e9;border-left:3px solid #eda12e;padding:12px 13px;border-radius:0 8px 8px 0;margin:18px 0!important;color:#705121!important;font-size:12px!important}
+.kairo-help-go{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:1px solid #da8a1d;background:#ff9f0a;color:#2d1b00;border-radius:10px;padding:11px 16px;font-weight:750;font-size:13px}
+.kairo-help-navigation-note{font-size:11px!important;text-align:center;margin:8px 0 18px;color:#6a7788!important}
+.kairo-help-related{border-top:1px solid #e3e9f0;padding-top:1px}
+.kairo-help-related button{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%}
+.kairo-help-empty{border:1px dashed #cbd5e2;border-radius:12px;padding:24px 18px;text-align:center;margin:16px 0;color:#66768c}
+.kairo-help-empty h4{font-size:15px;color:#293a51;margin:8px 0}
+.kairo-help-empty p{font-size:12px;margin:8px 0 15px}
+.kairo-help-empty button{border:1px solid #cbd5e2;border-radius:8px;background:#f6f9fc;color:#344f71;padding:8px 12px;font-size:12px}
+.kairo-help-footer{flex:none;border-top:1px solid #e5e9ef;background:#f8fafd;padding:12px 23px;font-size:10px;color:#63738a}
+.kairo-help-footer span{display:block;margin-top:3px}
+.kairo-help-panel button:focus-visible,.kairo-help-trigger:focus-visible{outline:3px solid #ffb747;outline-offset:3px}
+@media(max-width:600px){.kairo-help-trigger{right:14px;bottom:14px;padding:10px 14px;font-size:12px}.kairo-help-overlay{padding:10px;align-items:flex-end}.kairo-help-panel{width:100%;height:calc(100dvh - 20px);max-height:calc(100dvh - 20px);border-radius:16px}.kairo-help-header{padding:17px 18px 6px}.kairo-help-description{margin-left:18px;margin-right:18px}.kairo-help-search{padding-left:18px;padding-right:18px}.kairo-help-body{padding:15px 18px 18px}.kairo-help-footer{padding:10px 18px}.kairo-help-search-input input{font-size:16px}}
+@media(prefers-reduced-motion:reduce){.kairo-help-trigger:hover{transform:none}}
