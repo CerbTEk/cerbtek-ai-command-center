@@ -28,7 +28,7 @@ const baseNav = [
 function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [active, setActive] = useSectionNavigation()
+  const [active, setActive, sectionHeadingRef] = useSectionNavigation()
   const [orgs, setOrgs] = useState([])
   const [org, setOrg] = useState(null)
   const [staff, setStaff] = useState(null)
@@ -218,7 +218,7 @@ function App() {
 
     <main>
       <header>
-        <div><p className="eyebrow">KAIRO COMMAND CENTER</p><h1>{active}</h1></div>
+        <div><p className="eyebrow">KAIRO COMMAND CENTER</p><h1 ref={sectionHeadingRef} tabIndex={-1}>{active}</h1></div>
         <div className="header-actions">
           {staff && <div className="staff-pill">{staff.role.replaceAll('_',' ')}</div>}
           <div className="tenant-pill"><Building2 size={15}/>{org.name}</div>
@@ -522,7 +522,7 @@ function Onboarding({org,session,current,reload,onGo}) {
       <label className="span-2">Target outcomes<textarea value={form.target_outcomes||''} onChange={e=>field('target_outcomes',e.target.value)} placeholder="Hours saved, revenue, service quality, risk reduction..."/></label>
       <label>Budget band<select value={form.budget_band||''} onChange={e=>field('budget_band',e.target.value)}><option value="">Not set</option><option>Under $10k</option><option>$10k–$25k</option><option>$25k–$75k</option><option>$75k+</option></select></label>
       <label>Highest data sensitivity<select value={form.data_sensitivity||''} onChange={e=>field('data_sensitivity',e.target.value)}><option value="">Not set</option><DataClassOptions/></select></label>
-      <div className="span-2 onboarding-actions"><div><b>{current?.completion_percent||0}% complete</b><span>{current?.status||'Not Started'}</span></div><button className="primary" disabled={saving}>{saving?'Saving…':'Save onboarding'}</button></div>
+      <div className="span-2 onboarding-actions"><div><b>Saved completion: {current?.completion_percent||0}%</b><span>{current?.status||'Not Started'}{changed?' · Unsaved changes':''}</span></div><button className="primary" disabled={saving}>{saving?'Saving…':'Save onboarding'}</button></div>
     </form>
     {saved && <div className="message" role="status">{saved}</div>}
     {onboardingComplete(current)&&!changed&&onGo&&<div className="saved-next-step"><p>Company profile complete. Next, assess your current readiness for AI-enabled work.</p><button className="primary" onClick={()=>onGo('AI Readiness')}>Next: readiness assessment</button></div>}
@@ -543,6 +543,9 @@ function Readiness({org,session,data,reload,onGo}) {
   }
   const scores=Object.fromEntries(dimensions.map(d=>[d,dimensionScore(d)]))
   const answered=Object.keys(answers).filter(k=>answers[k]).length
+  const answersMatchSaved=readinessQuestions.every(([,key])=>Number(answers[key]||0)===Number(existing?.answers?.[key]||0))
+  const savedComplete=assessmentComplete(existing)&&answersMatchSaved
+  const next=savedComplete?deriveNextStep(data):null
   async function save(complete=false){
     if(saving) return
     setSaving(true);setSaved('Saving assessment…')
@@ -568,9 +571,9 @@ function Readiness({org,session,data,reload,onGo}) {
     scores.technology*.18+scores.workflow*.18+scores.data*.18+scores.governance*.18+scores.workforce*.14+scores.integration*.14
   )
   return <>
-    {assessmentComplete(existing)&&JSON.stringify(answers)===JSON.stringify(existing.answers||{})&&onGo&&<><p className="assessment-meaning">Assessment complete. The saved scores summarize your answers; they do not by themselves confirm that an automation is ready for production.</p><NextStepCard data={data} onGo={onGo}/></>}
+    {savedComplete&&onGo&&<><p className="assessment-meaning">Assessment complete. The saved scores summarize your answers; they do not by themselves confirm that an automation is ready for production.</p><NextStepCard data={data} onGo={onGo}/></>}
     <div className="readiness-top">
-      <Panel title="AI Readiness Score"><div className="score">{overall}<span>/100</span></div><p>{answered} of {readinessQuestions.length} assessment questions answered.</p></Panel>
+      <Panel title={existing?.overall_score!=null?'Saved AI readiness score':'AI readiness score preview'}><div className="score">{overall}<span>/100</span></div><p>{answered} of {readinessQuestions.length} assessment questions answered. Category scores reflect your current answers.</p>{existing?.overall_score!=null&&!answersMatchSaved&&<p>Save your draft or complete the assessment to update the saved score.</p>}</Panel>
       <div className="dimension-grid">{dimensions.map(d=><div className="dimension-card" key={d}><span>{readinessLabels[d]}</span><b>{scores[d]}</b><em>/100</em></div>)}</div>
     </div>
     <Panel title="Readiness assessment">
@@ -586,6 +589,7 @@ function Readiness({org,session,data,reload,onGo}) {
         <button className="primary" disabled={saving||answered<readinessQuestions.length} onClick={()=>save(true)}>{saving?'Saving…':'Complete assessment'}</button>
       </div>
       {saved && <div className="message" role="status">{saved}</div>}
+      {savedComplete&&onGo&&<div className="saved-next-step"><p>Your completed assessment is saved. Continue with the next setup step.</p><button className="primary" onClick={()=>onGo(next.section)}>{next.action}</button></div>}
     </Panel>
   </>
 }
@@ -611,10 +615,11 @@ function Systems({org,session,rows,reload}) {
     } finally { setSaving(false) }
   }
   return <Panel title="Systems inventory">
-    <form className="inline-form four" onSubmit={save}>
-      <input placeholder="System" value={name} onChange={e=>setName(e.target.value)} required/>
-      <input placeholder="Vendor" value={vendor} onChange={e=>setVendor(e.target.value)}/>
-      <select value={classification} onChange={e=>setClassification(e.target.value)}><DataClassOptions/></select>
+    <p>Record the tools your company uses. New entries start as Not Assessed; adding a system does not confirm that it is connected or ready for automation.</p>
+    <form className="inline-form four systems-inventory-form" onSubmit={save}>
+      <label>System name<input placeholder="System" value={name} onChange={e=>setName(e.target.value)} required/></label>
+      <label>Vendor (optional)<input placeholder="Vendor" value={vendor} onChange={e=>setVendor(e.target.value)}/></label>
+      <label>Data sensitivity<select value={classification} onChange={e=>setClassification(e.target.value)}><DataClassOptions/></select></label>
       <button className="primary small" disabled={saving}>{saving?'Saving…':'Add'}</button>
     </form>
     {saveMessage&&<div className="message" role="status" aria-live="polite">{saveMessage}</div>}
@@ -874,6 +879,8 @@ function Opportunities({org,session,workflows,rows,reload}) {
   }
   return <>
     <Panel title="AI opportunity business case">
+      <p>The starting values are example estimates. Replace them with your own assumptions before creating a business case. The projected benefits, costs and returns depend on these inputs.</p>
+      <p>Use a 0–100 scale: higher business value and AI suitability mean stronger potential; higher risk means greater risk. Estimate hours saved over one year, hourly cost in dollars, implementation cost once, and recurring costs per year.</p>
       <form className="opportunity-business-form" onSubmit={save}>
         <label>Opportunity<input placeholder="Opportunity" value={name} onChange={e=>setName(e.target.value)} required/></label>
         <label>Linked workflow<select value={workflow} onChange={e=>setWorkflow(e.target.value)}><option value="">No workflow linked</option>{workflows.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
