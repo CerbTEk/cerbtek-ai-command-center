@@ -126,7 +126,7 @@ function App() {
     })
   }
 
-  if (loading) return <div className="center">Loading CerbTek…</div>
+  if (loading) return <div className="center">Loading Kairo…</div>
   if (!session) return <Auth />
   if (!orgs.length) return <CreateOrganization session={session} onCreated={loadOrgs} />
 
@@ -134,7 +134,7 @@ function App() {
 
   return <div className="app">
     <aside className="sidebar">
-      <div className="brand"><img className="brand-mark" src="/cerbtek-logo.png" alt="CerbTek Cerberus" width="42" height="42" /><div><strong>CerbTek</strong><span>AI Enablement</span></div></div>
+      <div className="brand"><img className="brand-mark" src="/cerbtek-logo.png" alt="CerbTek Cerberus" width="42" height="42" /><div><strong>Kairo</strong><span>AI Enablement by CerbTek</span></div></div>
       <div className="org-switcher">
         <span>Client organization</span>
         <select value={org?.id || ''} onChange={e => setOrg(orgs.find(x => x.id === e.target.value))}>
@@ -151,7 +151,7 @@ function App() {
 
     <main>
       <header>
-        <div><p className="eyebrow">AI ENABLEMENT COMMAND CENTER</p><h1>{active}</h1></div>
+        <div><p className="eyebrow">KAIRO COMMAND CENTER</p><h1>{active}</h1></div>
         <div className="header-actions">
           {staff && <div className="staff-pill">{staff.role.replaceAll('_',' ')}</div>}
           <div className="tenant-pill"><Building2 size={15}/>{org.name}</div>
@@ -199,9 +199,9 @@ function Auth() {
     else if (mode === 'signup') setMessage('Account created. Check your email if confirmation is enabled.')
   }
   return <div className="auth-shell"><div className="auth-card">
-    <div className="brand auth-brand"><img className="brand-mark" src="/cerbtek-logo.png" alt="CerbTek Cerberus" width="42" height="42" /><div><strong>CerbTek</strong><span>AI Enablement</span></div></div>
+    <div className="brand auth-brand"><img className="brand-mark" src="/cerbtek-logo.png" alt="CerbTek Cerberus" width="42" height="42" /><div><strong>Kairo</strong><span>AI Enablement by CerbTek</span></div></div>
     <h1>{mode === 'signin' ? 'Sign in' : 'Create account'}</h1>
-    <p>Secure access to the AI Enablement Command Center.</p>
+    <p>Secure access to Kairo Command Center.</p>
     <form onSubmit={submit}>
       <label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label>
       <label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={mode==='signup'?12:8}/>{mode==='signup' && <small className="password-hint">12+ characters • upper & lowercase • number • symbol</small>}</label>
@@ -263,7 +263,7 @@ function Overview({data,onGo}) {
         <Progress label="Agent controls" done={data.agents.length>0}/>
       </Panel>
       <Panel title="Next best action">
-        <p>Map the business before scaling agents. Build enough workflow evidence to generate a defensible AI Enablement Blueprint.</p>
+        <p>Map the business before scaling agents. Build enough workflow evidence to generate a defensible Kairo AI Enablement Blueprint.</p>
         <button className="secondary" onClick={()=>onGo(!data.onboarding?'Onboarding':!data.readiness?'AI Readiness':!data.systems.length?'Systems':!data.workflows.length?'Workflows':!data.opps.length?'Opportunities':'Blueprints')}>Continue assessment</button>
       </Panel>
     </div>
@@ -418,7 +418,7 @@ function Onboarding({org,session,current,reload}) {
     if(!error) reload()
   }
   return <Panel title="Client onboarding">
-    <p>Capture the business context CerbTek needs before scoring AI opportunities or designing agents.</p>
+    <p>Capture the business context needed before scoring AI opportunities or designing agents.</p>
     <form className="onboarding-form" onSubmit={save}>
       <label>Primary contact<input value={form.primary_contact_name||''} onChange={e=>field('primary_contact_name',e.target.value)} /></label>
       <label>Contact email<input type="email" value={form.primary_contact_email||''} onChange={e=>field('primary_contact_email',e.target.value)} /></label>
@@ -1243,7 +1243,7 @@ function Governance({org,session,rows,dataPolicy,reload}) {
     const url=URL.createObjectURL(blob)
     const a=document.createElement('a')
     a.href=url
-    a.download=(org.name||'cerbtek-tenant').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-export.json'
+    a.download=(org.name||'kairo-tenant').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-export.json'
     document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)
     setGovMessage('Tenant export generated. Secrets and OAuth tokens were excluded.')
     reload()
@@ -1289,7 +1289,7 @@ function Blueprints({org,session,data,reload}) {
       {phase:'90 days',focus:'Operationalize monitoring, employee enablement, cost controls, and optimization'}
     ]
     await supabase.from('blueprints').insert({
-      organization_id:org.id,title:'AI Enablement Blueprint',maturity_score:maturity,
+      organization_id:org.id,title:'Kairo AI Enablement Blueprint',maturity_score:maturity,
       executive_summary:`Current assessment includes ${data.systems.length} systems, ${data.workflows.length} workflows, ${data.opps.length} AI opportunities, ${data.integrations.length} integrations, ${data.agents.length} agents, and ${data.policies.length} governance policies.`,
       recommendations,roadmap,status:'Draft',created_by:session.user.id
     })
@@ -1305,7 +1305,7 @@ function Blueprints({org,session,data,reload}) {
     setTimeout(()=>w.print(),250)
   }
 
-  return <Panel title="AI Enablement Blueprints">
+  return <Panel title="Kairo AI Enablement Blueprints">
     <div className="panel-head"><span>{data.blueprints.length} generated</span><button className="secondary" onClick={create}><Plus size={15}/>Generate draft</button></div>
     <div className="list">{data.blueprints.length ? data.blueprints.map(bp =>
       <div className="list-row blueprint-row" key={bp.id}>
@@ -1408,13 +1408,13 @@ function readinessScore(data) {
 function blueprintHtml(org,bp,data){
   const recs=(bp.recommendations||[]).map(x=>'<tr><td>'+escapeHtml(x.name)+'</td><td>'+x.score+'</td><td>'+escapeHtml(x.control)+'</td><td>'+money(x.first_year_benefit)+'</td><td>'+money(x.first_year_net_value)+'</td><td>'+(x.roi==null?'—':Math.round(x.roi)+'%')+'</td><td>'+(x.payback_months==null?'—':Number(x.payback_months).toFixed(1)+' mo')+'</td></tr>').join('')
   const roadmap=(bp.roadmap||[]).map(x=>`<div class="phase"><b>${escapeHtml(x.phase)}</b><p>${escapeHtml(x.focus)}</p></div>`).join('')
-  return `<!doctype html><html><head><title>${escapeHtml(org.name)} AI Enablement Blueprint</title><style>
+  return `<!doctype html><html><head><title>${escapeHtml(org.name)} Kairo AI Enablement Blueprint</title><style>
     body{font-family:Arial,sans-serif;color:#161616;margin:48px;line-height:1.5}.top{border-bottom:3px solid #111;padding-bottom:18px;margin-bottom:28px}
     h1{margin:0;font-size:30px}.ey{font-size:11px;letter-spacing:.15em;color:#666}.score{font-size:56px;font-weight:800}
     .score span{font-size:18px;color:#666}table{width:100%;border-collapse:collapse;margin:18px 0}th,td{border-bottom:1px solid #ddd;padding:10px;text-align:left}
     .phase{border-left:3px solid #111;padding:2px 0 2px 14px;margin:16px 0}.muted{color:#666}@media print{body{margin:.45in}}
   </style></head><body>
-    <div class="top"><div class="ey">CERBTEK AI ENABLEMENT BLUEPRINT</div><h1>${escapeHtml(org.name)}</h1><p class="muted">Generated from the CerbTek AI Enablement Command Center</p></div>
+    <div class="top"><div class="ey">KAIRO AI ENABLEMENT BLUEPRINT</div><h1>${escapeHtml(org.name)}</h1><p class="muted">Generated by Kairo — AI Enablement by CerbTek</p></div>
     <h2>AI Readiness</h2><div class="score">${bp.maturity_score ?? 0}<span>/100</span></div>
     <h2>Executive Summary</h2><p>${escapeHtml(bp.executive_summary||'')}</p>
     <h2>Priority Opportunities & Business Case</h2><table><thead><tr><th>Opportunity</th><th>Score</th><th>Control</th><th>Benefit</th><th>Net Value</th><th>ROI</th><th>Payback</th></tr></thead><tbody>${recs||'<tr><td colspan="7">No prioritized opportunities yet.</td></tr>'}</tbody></table>
