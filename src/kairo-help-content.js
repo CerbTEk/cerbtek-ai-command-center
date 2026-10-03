@@ -1,9 +1,13 @@
-// Curated product guidance, reviewed against application revision 77328d0.
+import { TECHNICAL_HELP_ARTICLES } from './kairo-technical-guides'
+
+// Curated product guidance, reviewed against application revision 069cef8.
 // This is local documentation, not generated advice or an execution policy.
-export const HELP_VERSION = '2026-10-03.1'
+export const HELP_VERSION = '2026-10-03.2'
+export const HELP_REVIEWED_AT = '2026-10-03'
+export const HELP_CATEGORIES = Object.freeze(['Getting started','Workflows and approvals','Microsoft 365','Access and governance','Telephony reference'])
 export const HELP_SECTIONS = Object.freeze(['Overview','Team Access','Onboarding','AI Readiness','Systems','Workflows','Opportunities','Integrations','Agents','AI Ops','Governance','Blueprints','Audit'])
 
-export const HELP_ARTICLES = Object.freeze([
+const PRODUCT_HELP_ARTICLES = [
   {
     id:'getting-started', title:'Find your next setup step', section:'Overview',
     keywords:['start','setup','next','begin','onboarding','progress','help'],
@@ -148,7 +152,26 @@ export const HELP_ARTICLES = Object.freeze([
     note:'Do not assume a button click means a save, run, or send succeeded.',
     related:['readiness','run-status']
   }
-])
+]
+
+const categoryFor = section => ['Workflows','Agents','AI Ops'].includes(section) ? 'Workflows and approvals'
+  : section === 'Integrations' ? 'Microsoft 365'
+  : ['Team Access','Governance','Audit'].includes(section) ? 'Access and governance' : 'Getting started'
+
+export const HELP_ARTICLES = Object.freeze([...PRODUCT_HELP_ARTICLES,...TECHNICAL_HELP_ARTICLES].map(article => Object.freeze({
+  kind:'platform', category:categoryFor(article.section), reviewedAt:HELP_REVIEWED_AT,
+  sources:[{label:'Kairo interface reviewed at revision 069cef8'}], troubleshooting:[], ...article
+})))
+
+// Only curated documentation links are navigable. Never derive a URL from a query,
+// record, remote response, or company context; opening a source is a user action.
+export function helpSourceUrl(value) {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && ['learn.microsoft.com','www.twilio.com'].includes(url.hostname)
+      && !url.username && !url.password && !url.port ? url.href : null
+  } catch { return null }
+}
 
 export function getHelpArticle(id) {
   return HELP_ARTICLES.find(article => article.id === id) || null

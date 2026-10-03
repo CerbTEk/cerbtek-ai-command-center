@@ -53,3 +53,11 @@
 .kairo-help-panel button:focus-visible,.kairo-help-trigger:focus-visible{outline:3px solid #ffb747;outline-offset:3px}
 @media(max-width:600px){.kairo-help-trigger{right:14px;bottom:calc(64px + env(safe-area-inset-bottom, 0px));padding:10px 14px;font-size:12px}.kairo-help-overlay{padding:10px 10px calc(64px + env(safe-area-inset-bottom, 0px));align-items:flex-end}.kairo-help-panel{width:100%;height:calc(100dvh - 74px - env(safe-area-inset-bottom, 0px));max-height:calc(100dvh - 74px - env(safe-area-inset-bottom, 0px));border-radius:16px}.kairo-help-header{padding:17px 18px 6px}.kairo-help-description{margin-left:18px;margin-right:18px}.kairo-help-search{padding-left:18px;padding-right:18px}.kairo-help-body{padding:15px 18px 18px}.kairo-help-footer{padding:10px 18px}.kairo-help-search-input input{font-size:16px}}
 @media(prefers-reduced-motion:reduce){.kairo-help-trigger:hover{transform:none}}
+.kairo-help-category h4{font-size:12px;color:#172139;margin:13px 0 5px}
+.kairo-help-category button{display:block;width:100%;min-height:44px}
+.kairo-help-reference-tag{display:block;font-size:10px;color:#77613f}
+.kairo-help-sources{border-top:1px solid #e3e9f0;margin-top:18px;padding-bottom:8px}
+.kairo-help-sources>p{font-size:11px;color:#63738a}
+.kairo-help-sources a{color:#244f85;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+.kairo-help-source-hint{font-size:10px;color:#63738a}
+.kairo-help-panel a:focus-visible{outline:3px solid #ffb747;outline-offset:3px}
