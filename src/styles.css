@@ -987,3 +987,21 @@ textarea:focus{border-color:var(--amber);box-shadow:0 0 0 3px rgba(255,159,10,.0
 .auth-brand{margin:-12px -12px 24px}
 .auth-card label{font-size:14px}
 @media(max-width:480px){.auth-shell{padding:16px}.auth-card{padding:24px}.auth-brand{margin:-8px -8px 22px}}
+
+
+/* Guided setup and readable approval previews. */
+.approval-preview{min-width:0;flex:1}
+.approval-preview-label{margin-top:8px}
+.approval-message{white-space:pre-wrap;overflow-wrap:anywhere;margin:0!important;color:var(--white)!important}
+.primary:disabled,.secondary:disabled{opacity:.45;cursor:not-allowed}
+.next-step h2{margin:8px 0;color:var(--white);font-size:23px}
+.next-step .eyebrow{color:var(--amber)}
+.next-step>.primary{margin-top:16px;max-width:100%;white-space:normal;text-align:left}
+.next-step-blocker{border-left:3px solid var(--amber);padding:8px 12px;background:var(--panel-2)}
+.setup-progress{list-style:none;padding:0;margin:16px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:8px}
+.setup-progress li{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--white)}
+.setup-progress b{grid-column:2;font-size:11px;color:var(--muted)}
+.next-step-context .link{display:inline;margin:0;padding:0;text-decoration:underline}
+.saved-next-step{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.assessment-meaning,.permission-help{color:var(--muted);line-height:1.5}
+.permission small{font-size:11px;font-weight:400;line-height:1.5;color:var(--muted)}

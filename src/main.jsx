@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   Activity, Bot, Building2, FileText, Gauge, LogOut, Plus, Plug, Printer,
   ServerCog, ShieldCheck, Sparkles, Trash2, Users, Workflow
 } from 'lucide-react'
 import { supabase } from './supabase'
+import { assessmentComplete, deriveNextStep, onboardingComplete } from './first-use-guidance'
+import { useSectionNavigation } from './use-section-navigation'
 import './styles.css'
 
 const baseNav = [
@@ -26,10 +28,23 @@ const baseNav = [
 function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [active, setActive] = useState('Overview')
+  const [active, setActive] = useSectionNavigation()
   const [orgs, setOrgs] = useState([])
   const [org, setOrg] = useState(null)
   const [staff, setStaff] = useState(null)
+  const [staffLoading,setStaffLoading]=useState(true)
+  const [orgsLoading,setOrgsLoading]=useState(true)
+  const [orgsError,setOrgsError]=useState('')
+  const [orgsUserId,setOrgsUserId]=useState(null)
+  const [dataLoading,setDataLoading]=useState(false)
+  const [dataError,setDataError]=useState('')
+  const [loadedOrgId,setLoadedOrgId]=useState(null)
+  const [loadedUserId,setLoadedUserId]=useState(null)
+  const orgLoadRequest=useRef(0)
+  const orgsLoadRequest=useRef(0)
+  const staffLoadRequest=useRef(0)
+  const currentContext=useRef({userId:null,orgId:null})
+  currentContext.current={userId:session?.user?.id||null,orgId:org?.id||null}
   const [data, setData] = useState({
     systems: [], workflows: [], opps: [], integrations: [], agents: [],
     policies: [], blueprints: [], audit: [], onboarding: null, readiness: null, oauth: [], integrationRuns: [], actionRequests: [],
@@ -38,42 +53,82 @@ function App() {
   })
 
   useEffect(() => {
+    let disposed=false,authEventSeen=false
     supabase.auth.getSession().then(({ data }) => {
+      if(disposed||authEventSeen) return
       setSession(data.session)
       setLoading(false)
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
-    return () => subscription.unsubscribe()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+      if(disposed) return
+      authEventSeen=true;setSession(s);setLoading(false)
+    })
+    return () => {disposed=true;subscription.unsubscribe()}
   }, [])
 
   useEffect(() => {
+    // Token refreshes for the same user must not remount an in-progress form.
+    orgLoadRequest.current++;orgsLoadRequest.current++;staffLoadRequest.current++
+    setStaff(null)
     if (!session) return
-    loadStaff()
+    const userId=session.user.id
+    loadStaff(userId)
     const invite=new URLSearchParams(window.location.search).get('invite')
     if(invite){
       supabase.functions.invoke('organization-invite',{body:{op:'accept',token:invite}}).then(({data,error})=>{
+        if(currentContext.current.userId!==userId) return
         if(!error && !data?.error) window.history.replaceState({},'',window.location.pathname)
-        loadOrgs()
+        loadOrgs(userId)
       })
-    } else loadOrgs()
-  }, [session])
+    } else loadOrgs(userId)
+  }, [session?.user?.id])
 
   useEffect(() => {
-    if (org) loadOrg(org.id)
-  }, [org])
+    if (org && session?.user?.id && orgsUserId===session.user.id && !orgsLoading) loadOrg(org.id)
+  }, [org?.id,session?.user?.id,orgsUserId,orgsLoading])
 
-  async function loadStaff() {
-    const { data } = await supabase.from('staff_accounts').select('*').maybeSingle()
-    setStaff(data || null)
+  useEffect(()=>{
+    if(active==='CerbTek Staff'&&!staffLoading&&!staff) setActive('Overview',{replace:true})
+  },[active,staff,staffLoading])
+
+  async function loadStaff(userId=session?.user?.id) {
+    if(!userId||currentContext.current.userId!==userId) return
+    const request=++staffLoadRequest.current
+    const isCurrent=()=>request===staffLoadRequest.current&&currentContext.current.userId===userId
+    setStaffLoading(true)
+    try {
+      const {data}=await supabase.from('staff_accounts').select('*').maybeSingle()
+      if(isCurrent()) setStaff(data||null)
+    } catch {
+      if(isCurrent()) setStaff(null)
+    } finally {
+      if(isCurrent()) setStaffLoading(false)
+    }
   }
 
-  async function loadOrgs() {
-    const { data } = await supabase.from('organizations').select('*').order('created_at')
-    setOrgs(data || [])
-    if (!org && data?.length) setOrg(data[0])
+  async function loadOrgs(userId=session?.user?.id) {
+    if(!userId||currentContext.current.userId!==userId) return
+    const request=++orgsLoadRequest.current
+    const isCurrent=()=>request===orgsLoadRequest.current&&currentContext.current.userId===userId
+    setOrgsUserId(userId);setOrgsLoading(true);setOrgsError('')
+    try {
+      const {data,error}=await supabase.from('organizations').select('*').order('created_at')
+      if(!isCurrent()) return
+      if(error) throw error
+      setOrgs(data||[])
+      setOrg(current=>(data||[]).find(item=>item.id===current?.id)||data?.[0]||null)
+    } catch(error) {
+      if(isCurrent()) setOrgsError('Your companies could not be loaded. Please try again before creating a workspace.')
+    } finally { if(isCurrent()) setOrgsLoading(false) }
   }
 
-  async function loadOrg(orgId) {
+  async function loadOrg(orgId,userId=session?.user?.id) {
+    // A completed save may call a reload captured before a company/user switch.
+    if(!userId||currentContext.current.userId!==userId||currentContext.current.orgId!==orgId) return
+    const request=++orgLoadRequest.current
+    const isCurrent=()=>request===orgLoadRequest.current&&currentContext.current.userId===userId&&currentContext.current.orgId===orgId
+    setDataLoading(true);setDataError('')
+    try {
     const [systems, workflows, opps, integrations, agents, policies, blueprints, audit, onboarding, readiness, oauth, integrationRuns, actionRequests, workflowDefinitions, workflowRuns, approvalPolicies, agentWorkflows, agentRunRequests, workflowSchedules, opsAlerts, members, invitations, dataPolicy] = await Promise.all([
       supabase.from('systems').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
       supabase.from('workflows').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }),
@@ -99,6 +154,9 @@ function App() {
       supabase.from('organization_invitations').select('*').eq('organization_id',orgId).order('created_at',{ascending:false}),
       supabase.from('organization_data_policies').select('*').eq('organization_id',orgId).maybeSingle(),
     ])
+    if(!isCurrent()) return
+    const responses=[systems,workflows,opps,integrations,agents,policies,blueprints,audit,onboarding,readiness,oauth,integrationRuns,actionRequests,workflowDefinitions,workflowRuns,approvalPolicies,agentWorkflows,agentRunRequests,workflowSchedules,opsAlerts,members,invitations,dataPolicy]
+    if(responses.some(result=>result.error||result.data?.error)) throw new Error('Workspace information could not be loaded.')
     setData({
       systems: systems.data || [],
       workflows: workflows.data || [],
@@ -124,10 +182,19 @@ function App() {
       invitations: invitations.data || [],
       dataPolicy: dataPolicy.data || null
     })
+    setLoadedOrgId(orgId)
+    setLoadedUserId(userId)
+    } catch(error) {
+      if(isCurrent()) setDataError('Some workspace information could not be loaded. Refresh it before continuing setup; your saved work has not been reset.')
+    } finally {
+      if(isCurrent()) setDataLoading(false)
+    }
   }
 
   if (loading) return <div className="center">Loading Kairo…</div>
   if (!session) return <Auth />
+  if (orgsLoading||orgsUserId!==session.user.id) return <div className="center" role="status">Loading your companies…</div>
+  if (orgsError) return <div className="auth-shell"><div className="auth-card"><h1>Could not load your companies</h1><p role="alert">{orgsError}</p><button className="primary" onClick={()=>loadOrgs()}>Try again</button></div></div>
   if (!orgs.length) return <CreateOrganization session={session} onCreated={loadOrgs} />
 
   const nav = staff ? [...baseNav, ['CerbTek Staff', Users]] : baseNav
@@ -157,21 +224,25 @@ function App() {
           <div className="tenant-pill"><Building2 size={15}/>{org.name}</div>
         </div>
       </header>
-      <section className="content">
+      <section className="content" aria-busy={dataLoading}>
+        {dataLoading&&loadedOrgId===org.id&&loadedUserId===session.user.id&&!dataError&&<p role="status">Refreshing workspace…</p>}
+        {dataError?<Panel title="Workspace information unavailable"><p role="alert">{dataError}</p><button className="primary" onClick={()=>loadOrg(org.id)}>Refresh workspace</button></Panel>:loadedOrgId!==org.id||loadedUserId!==session.user.id?<p role="status">Loading workspace…</p>:<>
         {active === 'Overview' && <Overview data={data} onGo={setActive}/>}
         {active === 'Team Access' && <TeamAccess org={org} session={session} members={data.members} invitations={data.invitations} reload={() => loadOrg(org.id)}/>}
-        {active === 'Onboarding' && <Onboarding org={org} session={session} current={data.onboarding} reload={() => loadOrg(org.id)}/>}
-        {active === 'AI Readiness' && <Readiness org={org} session={session} data={data} reload={() => loadOrg(org.id)}/>}
+        {active === 'Onboarding' && <Onboarding org={org} session={session} current={data.onboarding} reload={() => loadOrg(org.id)} onGo={setActive}/>}
+        {active === 'AI Readiness' && <Readiness org={org} session={session} data={data} reload={() => loadOrg(org.id)} onGo={setActive}/>}
         {active === 'Systems' && <Systems org={org} session={session} rows={data.systems} reload={() => loadOrg(org.id)}/>}
         {active === 'Workflows' && <Workflows org={org} session={session} rows={data.workflows} definitions={data.workflowDefinitions} runs={data.workflowRuns} approvalPolicies={data.approvalPolicies} schedules={data.workflowSchedules} reload={() => loadOrg(org.id)}/>} 
         {active === 'Opportunities' && <Opportunities org={org} session={session} workflows={data.workflows} rows={data.opps} reload={() => loadOrg(org.id)}/>}
         {active === 'Integrations' && <Integrations org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} runs={data.integrationRuns} requests={data.actionRequests} reload={() => loadOrg(org.id)}/>}
         {active === 'Agents' && <Agents org={org} session={session} rows={data.agents} integrations={data.integrations} workflows={data.workflowDefinitions} mappings={data.agentWorkflows} requests={data.agentRunRequests} reload={() => loadOrg(org.id)}/>}
-        {active === 'AI Ops' && <AIOps data={data}/>}
+        {active === 'AI Ops' && <AIOps data={data} reload={() => loadOrg(org.id)}/>}
         {active === 'Governance' && <Governance org={org} session={session} rows={data.policies} dataPolicy={data.dataPolicy} reload={() => loadOrg(org.id)}/>} 
         {active === 'Blueprints' && <Blueprints org={org} session={session} data={data} reload={() => loadOrg(org.id)}/>}
         {active === 'Audit' && <Audit rows={data.audit}/>}
         {active === 'CerbTek Staff' && staff && <StaffWorkspace orgs={orgs} current={org} setOrg={setOrg} role={staff.role}/>}
+        {active === 'CerbTek Staff' && staffLoading && <p role="status">Checking staff access…</p>}
+        </>}
       </section>
     </main>
   </div>
@@ -246,6 +317,7 @@ function CreateOrganization({session,onCreated}) {
 function Overview({data,onGo}) {
   const avg = data.opps.length ? Math.round(data.opps.reduce((a,b)=>a+(b.opportunity_score||0),0)/data.opps.length) : 0
   return <>
+    <NextStepCard data={data} onGo={onGo}/>
     <div className="metrics">
       <Metric label="Systems mapped" value={data.systems.length}/>
       <Metric label="Workflows mapped" value={data.workflows.length}/>
@@ -262,12 +334,25 @@ function Overview({data,onGo}) {
         <Progress label="Governance baseline" done={data.policies.length>0}/>
         <Progress label="Agent controls" done={data.agents.length>0}/>
       </Panel>
-      <Panel title="Next best action">
-        <p>Map the business before scaling agents. Build enough workflow evidence to generate a defensible Kairo AI Enablement Blueprint.</p>
-        <button className="secondary" onClick={()=>onGo(!data.onboarding?'Onboarding':!data.readiness?'AI Readiness':!data.systems.length?'Systems':!data.workflows.length?'Workflows':!data.opps.length?'Opportunities':'Blueprints')}>Continue assessment</button>
+      <Panel title="Your assessment and plan">
+        <p>{assessmentComplete(data.readiness)?'Your saved readiness score summarizes your assessment answers. Use it with the mapped systems and business cases to choose what to investigate next.':'Complete the company profile and readiness assessment first. The next-step guide above will show where to continue.'}</p>
+        {assessmentComplete(data.readiness)&&<button className="secondary" onClick={()=>onGo('AI Readiness')}>Review assessment results</button>}
       </Panel>
     </div>
   </>
+}
+
+function NextStepCard({data,onGo}) {
+  const next=deriveNextStep(data)
+  return <section className="panel next-step" aria-labelledby="next-step-title">
+    <p className="eyebrow">YOUR NEXT STEP</p>
+    <h2 id="next-step-title">{next.title}</h2>
+    <p>{next.detail}</p>
+    {next.blocked&&<p className="next-step-blocker">{next.blocked}</p>}
+    {next.opportunity&&<p className="next-step-context">Highest recorded opportunity score: <b>{next.opportunity.name}</b> ({next.opportunity.opportunity_score}/100). Review the assumptions before choosing your pilot. <button type="button" className="link" onClick={()=>onGo('Opportunities')}>Review business cases</button></p>}
+    <ol className="setup-progress" aria-label="Setup progress">{next.steps.map(step=><li key={step.label}><span aria-hidden="true">{step.complete?'✓':'○'}</span><span>{step.label}</span><b>{step.complete?'Complete':'To do'}</b></li>)}</ol>
+    <button type="button" className="primary" onClick={()=>onGo(next.section)}>{next.action}</button>
+  </section>
 }
 
 
@@ -384,16 +469,21 @@ function TeamAccess({org,session,members,invitations,reload}) {
 }
 
 
-function Onboarding({org,session,current,reload}) {
+function Onboarding({org,session,current,reload,onGo}) {
   const [form,setForm]=useState({
     primary_contact_name:'',primary_contact_email:'',business_goals:'',operational_pain_points:'',
     ai_goals:'',current_ai_tools:'',target_outcomes:'',desired_timeline:'',budget_band:'',data_sensitivity:''
   })
   const [saved,setSaved]=useState('')
-  useEffect(()=>{ if(current) setForm(x=>({...x,...current})) },[current?.organization_id])
-  function field(k,v){setForm({...form,[k]:v})}
+  const [saving,setSaving]=useState(false)
+  const [changed,setChanged]=useState(false)
+  useEffect(()=>{ if(current) setForm(x=>({...x,...current}));setChanged(false) },[current])
+  function field(k,v){setForm({...form,[k]:v});setChanged(true)}
   async function save(e){
     e.preventDefault()
+    if(saving) return
+    setSaving(true);setSaved('Saving company profile…')
+    try {
     const required=['primary_contact_name','primary_contact_email','business_goals','operational_pain_points','ai_goals','target_outcomes']
     const complete=required.filter(k=>String(form[k]||'').trim()).length
     const pct=Math.round(complete/required.length*100)
@@ -414,8 +504,10 @@ function Onboarding({org,session,current,reload}) {
       status,
       updated_by:session.user.id
     })
-    setSaved(error?error.message:'Onboarding saved')
-    if(!error) reload()
+    if(error) throw error
+    setChanged(false);setSaved('Company profile saved.');await reload()
+    } catch(error) { setSaved('Save was not confirmed. Your entries are still here. '+(error.message||'Check your connection.')) }
+    finally { setSaving(false) }
   }
   return <Panel title="Client onboarding">
     <p>Capture the business context needed before scoring AI opportunities or designing agents.</p>
@@ -430,16 +522,18 @@ function Onboarding({org,session,current,reload}) {
       <label className="span-2">Target outcomes<textarea value={form.target_outcomes||''} onChange={e=>field('target_outcomes',e.target.value)} placeholder="Hours saved, revenue, service quality, risk reduction..."/></label>
       <label>Budget band<select value={form.budget_band||''} onChange={e=>field('budget_band',e.target.value)}><option value="">Not set</option><option>Under $10k</option><option>$10k–$25k</option><option>$25k–$75k</option><option>$75k+</option></select></label>
       <label>Highest data sensitivity<select value={form.data_sensitivity||''} onChange={e=>field('data_sensitivity',e.target.value)}><option value="">Not set</option><DataClassOptions/></select></label>
-      <div className="span-2 onboarding-actions"><div><b>{current?.completion_percent||0}% complete</b><span>{current?.status||'Not Started'}</span></div><button className="primary">Save onboarding</button></div>
+      <div className="span-2 onboarding-actions"><div><b>{current?.completion_percent||0}% complete</b><span>{current?.status||'Not Started'}</span></div><button className="primary" disabled={saving}>{saving?'Saving…':'Save onboarding'}</button></div>
     </form>
-    {saved && <div className="message">{saved}</div>}
+    {saved && <div className="message" role="status">{saved}</div>}
+    {onboardingComplete(current)&&!changed&&onGo&&<div className="saved-next-step"><p>Company profile complete. Next, assess your current readiness for AI-enabled work.</p><button className="primary" onClick={()=>onGo('AI Readiness')}>Next: readiness assessment</button></div>}
   </Panel>
 }
 
-function Readiness({org,session,data,reload}) {
+function Readiness({org,session,data,reload,onGo}) {
   const existing=data.readiness
   const [answers,setAnswers]=useState({})
   const [saved,setSaved]=useState('')
+  const [saving,setSaving]=useState(false)
   useEffect(()=>setAnswers(existing?.answers||{}),[existing?.id])
   const dimensions=['technology','workflow','data','governance','workforce','integration']
   function dimensionScore(dim,source=answers){
@@ -450,6 +544,9 @@ function Readiness({org,session,data,reload}) {
   const scores=Object.fromEntries(dimensions.map(d=>[d,dimensionScore(d)]))
   const answered=Object.keys(answers).filter(k=>answers[k]).length
   async function save(complete=false){
+    if(saving) return
+    setSaving(true);setSaved('Saving assessment…')
+    try {
     const payload={
       organization_id:org.id,status:complete?'Complete':'Draft',answers,
       technology_score:scores.technology,workflow_score:scores.workflow,data_score:scores.data,
@@ -457,15 +554,21 @@ function Readiness({org,session,data,reload}) {
       completed_at:complete?new Date().toISOString():null,created_by:session.user.id
     }
     let error
-    if(existing?.id) ({error}=await supabase.from('readiness_assessments').update(payload).eq('id',existing.id))
+    if(existing?.id) {
+      const result=await supabase.from('readiness_assessments').update(payload).eq('id',existing.id).select('id,status').maybeSingle()
+      error=result.error||(!result.data||result.data.status!==payload.status?new Error('No assessment was updated. Check your access and refresh before continuing.'):null)
+    }
     else ({error}=await supabase.from('readiness_assessments').insert(payload))
-    setSaved(error?error.message:(complete?'Assessment completed':'Draft saved'))
-    if(!error) reload()
+    if(error) throw error
+    setSaved(complete?'Assessment completed':'Draft saved');await reload()
+    } catch(error) { setSaved('Save was not confirmed. Your answers are still here. '+(error.message||'Check your connection.')) }
+    finally { setSaving(false) }
   }
   const overall=existing?.overall_score ?? Math.round(
     scores.technology*.18+scores.workflow*.18+scores.data*.18+scores.governance*.18+scores.workforce*.14+scores.integration*.14
   )
   return <>
+    {assessmentComplete(existing)&&JSON.stringify(answers)===JSON.stringify(existing.answers||{})&&onGo&&<><p className="assessment-meaning">Assessment complete. The saved scores summarize your answers; they do not by themselves confirm that an automation is ready for production.</p><NextStepCard data={data} onGo={onGo}/></>}
     <div className="readiness-top">
       <Panel title="AI Readiness Score"><div className="score">{overall}<span>/100</span></div><p>{answered} of {readinessQuestions.length} assessment questions answered.</p></Panel>
       <div className="dimension-grid">{dimensions.map(d=><div className="dimension-card" key={d}><span>{readinessLabels[d]}</span><b>{scores[d]}</b><em>/100</em></div>)}</div>
@@ -479,10 +582,10 @@ function Readiness({org,session,data,reload}) {
         </div>
       )}</div>
       <div className="assessment-actions">
-        <button className="secondary" onClick={()=>save(false)}>Save draft</button>
-        <button className="primary" disabled={answered<readinessQuestions.length} onClick={()=>save(true)}>Complete assessment</button>
+        <button className="secondary" disabled={saving} onClick={()=>save(false)}>Save draft</button>
+        <button className="primary" disabled={saving||answered<readinessQuestions.length} onClick={()=>save(true)}>{saving?'Saving…':'Complete assessment'}</button>
       </div>
-      {saved && <div className="message">{saved}</div>}
+      {saved && <div className="message" role="status">{saved}</div>}
     </Panel>
   </>
 }
@@ -491,20 +594,30 @@ function Systems({org,session,rows,reload}) {
   const [name,setName]=useState('')
   const [vendor,setVendor]=useState('')
   const [classification,setClassification]=useState('Internal')
+  const [saveMessage,setSaveMessage]=useState('')
+  const [saving,setSaving]=useState(false)
   async function save(e) {
     e.preventDefault()
-    const {error}=await supabase.from('systems').insert({
-      organization_id:org.id,name,vendor:vendor||null,data_classification:classification,integration_status:'Not Assessed',created_by:session.user.id
-    })
-    if(!error){setName('');setVendor('');reload()}
+    if(saving) return
+    setSaving(true);setSaveMessage('Saving system…')
+    try {
+      const {error}=await supabase.from('systems').insert({
+        organization_id:org.id,name,vendor:vendor||null,data_classification:classification,integration_status:'Not Assessed',created_by:session.user.id
+      })
+      if(error) throw error
+      setName('');setVendor('');setSaveMessage('System saved.');reload()
+    } catch(error) {
+      setSaveMessage('Save was not confirmed. Your entries are still here. '+(error.message||'Check your connection before trying again.'))
+    } finally { setSaving(false) }
   }
   return <Panel title="Systems inventory">
     <form className="inline-form four" onSubmit={save}>
       <input placeholder="System" value={name} onChange={e=>setName(e.target.value)} required/>
       <input placeholder="Vendor" value={vendor} onChange={e=>setVendor(e.target.value)}/>
       <select value={classification} onChange={e=>setClassification(e.target.value)}><DataClassOptions/></select>
-      <button className="primary small">Add</button>
+      <button className="primary small" disabled={saving}>{saving?'Saving…':'Add'}</button>
     </form>
+    {saveMessage&&<div className="message" role="status" aria-live="polite">{saveMessage}</div>}
     <Rows rows={rows} secondary={r => [r.vendor,r.data_classification,r.integration_status].filter(Boolean).join(' • ')} table="systems" reload={reload}/>
   </Panel>
 }
@@ -513,6 +626,8 @@ function Workflows({org,session,rows,definitions,runs,approvalPolicies,schedules
   const [name,setName]=useState('')
   const [department,setDepartment]=useState('')
   const [risk,setRisk]=useState('Moderate')
+  const [inventoryMessage,setInventoryMessage]=useState('')
+  const [savingInventory,setSavingInventory]=useState(false)
   const [automationName,setAutomationName]=useState('')
   const [automationDescription,setAutomationDescription]=useState('')
   const [stepType,setStepType]=useState('microsoft.health')
@@ -529,10 +644,17 @@ function Workflows({org,session,rows,definitions,runs,approvalPolicies,schedules
 
   async function save(e) {
     e.preventDefault()
-    const {error}=await supabase.from('workflows').insert({
-      organization_id:org.id,name,department:department||null,current_risk_level:risk,created_by:session.user.id
-    })
-    if(!error){setName('');setDepartment('');reload()}
+    if(savingInventory) return
+    setSavingInventory(true);setInventoryMessage('Saving workflow…')
+    try {
+      const {error}=await supabase.from('workflows').insert({
+        organization_id:org.id,name,department:department||null,current_risk_level:risk,created_by:session.user.id
+      })
+      if(error) throw error
+      setName('');setDepartment('');setInventoryMessage('Business workflow saved.');reload()
+    } catch(error) {
+      setInventoryMessage('Save was not confirmed. Your entries are still here. '+(error.message||'Check your connection before trying again.'))
+    } finally { setSavingInventory(false) }
   }
 
   async function savePolicy(e){
@@ -624,12 +746,14 @@ function Workflows({org,session,rows,definitions,runs,approvalPolicies,schedules
 
   return <>
     <Panel title="Business workflow inventory">
+      <p>Describe work your team does here. Adding it to this inventory does not create or run an automation. After comparing its business case, use Workflow builder below to create a runnable draft.</p>
       <form className="inline-form four" onSubmit={save}>
         <input placeholder="Workflow" value={name} onChange={e=>setName(e.target.value)} required/>
         <input placeholder="Department" value={department} onChange={e=>setDepartment(e.target.value)}/>
         <select value={risk} onChange={e=>setRisk(e.target.value)}><option>Low</option><option>Moderate</option><option>High</option><option>Critical</option></select>
-        <button className="primary small">Add</button>
+        <button className="primary small" disabled={savingInventory}>{savingInventory?'Saving…':'Add'}</button>
       </form>
+      {inventoryMessage&&<div className="message" role="status" aria-live="polite">{inventoryMessage}</div>}
       <Rows rows={rows} secondary={r => [r.department,r.current_risk_level].filter(Boolean).join(' • ')} table="workflows" reload={reload}/>
     </Panel>
 
@@ -663,12 +787,13 @@ function Workflows({org,session,rows,definitions,runs,approvalPolicies,schedules
             <label>Subject<input value={emailSubject} onChange={e=>setEmailSubject(e.target.value)} required/></label>
             <label className="span-2">Message<textarea value={emailMessage} onChange={e=>setEmailMessage(e.target.value)} required/></label>
           </>}
-          <div className="span-2 workflow-builder-actions"><span>{workflowMessage}</span><button className="primary">Save workflow</button></div>
+          <div className="span-2 workflow-builder-actions"><span role={workflowMessage?'status':undefined}>{workflowMessage}</span><button className="primary">Save draft automation</button></div>
         </form>
       </Panel>
     </div>
 
     <Panel title="Orchestrated workflows">
+      <p>Activate makes a draft available to run. Run uses your real connected account; it is not a sandbox. Email steps request human review before sending. A schedule is a separate choice below.</p>
       <div className="orchestration-list">{definitions.length?definitions.map(w=>{
         const latest=runs.find(r=>r.workflow_id===w.id)
         return <div className="orchestration-row" key={w.id}>
@@ -795,6 +920,8 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
   const [type,setType]=useState('API')
   const [system,setSystem]=useState('')
   const [classification,setClassification]=useState('Internal')
+  const [inventoryMessage,setInventoryMessage]=useState('')
+  const [savingInventory,setSavingInventory]=useState(false)
   const [tenantId,setTenantId]=useState('organizations')
   const [clientId,setClientId]=useState('')
   const [clientSecret,setClientSecret]=useState('')
@@ -806,11 +933,18 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
 
   async function save(e){
     e.preventDefault()
-    const {error}=await supabase.from('integrations').insert({
-      organization_id:org.id,system_id:system||null,name,provider:provider||null,
-      integration_type:type,status:'Planned',data_classification:classification,created_by:session.user.id
-    })
-    if(!error){setName('');setProvider('');reload()}
+    if(savingInventory) return
+    setSavingInventory(true);setInventoryMessage('Saving integration…')
+    try {
+      const {error}=await supabase.from('integrations').insert({
+        organization_id:org.id,system_id:system||null,name,provider:provider||null,
+        integration_type:type,status:'Planned',data_classification:classification,created_by:session.user.id
+      })
+      if(error) throw error
+      setName('');setProvider('');setInventoryMessage('Integration saved.');reload()
+    } catch(error) {
+      setInventoryMessage('Save was not confirmed. Your entries are still here. '+(error.message||'Check your connection before trying again.'))
+    } finally { setSavingInventory(false) }
   }
 
   async function connectMicrosoft(e){
@@ -876,6 +1010,7 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
           <p className="eyebrow">FIRST PRODUCTION CONNECTOR</p>
           <h4>Microsoft 365</h4>
           <p>Connect an authorized Microsoft Entra application using OAuth 2.0. Client secrets and refresh tokens are stored server-side in Supabase Vault, never in the browser database.</p>
+          {microsoft?.status!=='Connected'&&<p><b>Microsoft administrator setup:</b> ask your Microsoft 365 administrator for the approved app registration details below. Choose only the access the planned workflow needs. Your connection uses ongoing access so Kairo can run authorized actions later.</p>}
         </div>
         <div className={microsoft?.status==='Connected'?'connection-badge connected':'connection-badge'}>{microsoft?.status||'Not Connected'}</div>
       </div>
@@ -894,6 +1029,8 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
           <button className="secondary" disabled={!!runningAction || !(microsoft.scopes||[]).includes('Calendars.Read')} onClick={()=>executeMicrosoft('calendar-next')}>Upcoming calendar</button>
         </div>
       </div>
+      {!(microsoft.scopes||[]).includes('Mail.Read')&&<p className="permission-help">Inbox status needs Mail.Read permission. Ask your Microsoft 365 administrator to review access if this workflow needs it.</p>}
+      {!(microsoft.scopes||[]).includes('Calendars.Read')&&<p className="permission-help">Upcoming calendar needs Calendars.Read permission.</p>}
       {runMessage && <div className="message">{runMessage}</div>}
       </> :
       <form className="microsoft-form" onSubmit={connectMicrosoft}>
@@ -901,11 +1038,11 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
         <label>Application (client) ID<input value={clientId} onChange={e=>setClientId(e.target.value)} required/></label>
         <label className="span-2">Client secret<input type="password" value={clientSecret} onChange={e=>setClientSecret(e.target.value)} required autoComplete="off"/></label>
         <div className="span-2 permission-grid">
-          <label className="permission locked"><input type="checkbox" checked readOnly/><span><b>Profile</b><em>User.Read</em></span></label>
-          <label className="permission"><input type="checkbox" checked={scopeFlags.mail} onChange={e=>setScopeFlags({...scopeFlags,mail:e.target.checked})}/><span><b>Email read</b><em>Mail.Read</em></span></label>
-          <label className="permission"><input type="checkbox" checked={scopeFlags.sendMail} onChange={e=>setScopeFlags({...scopeFlags,sendMail:e.target.checked})}/><span><b>Email send</b><em>Mail.Send</em></span></label>
-          <label className="permission"><input type="checkbox" checked={scopeFlags.calendar} onChange={e=>setScopeFlags({...scopeFlags,calendar:e.target.checked})}/><span><b>Calendar read</b><em>Calendars.Read</em></span></label>
-          <label className="permission"><input type="checkbox" checked={scopeFlags.files} onChange={e=>setScopeFlags({...scopeFlags,files:e.target.checked})}/><span><b>Files read</b><em>Files.Read.All</em></span></label>
+          <label className="permission locked"><input type="checkbox" checked readOnly/><span><b>Profile</b><em>User.Read</em><small>Read the connected account's profile.</small></span></label>
+          <label className="permission"><input type="checkbox" checked={scopeFlags.mail} onChange={e=>setScopeFlags({...scopeFlags,mail:e.target.checked})}/><span><b>Email read</b><em>Mail.Read</em><small>Read mail, including inbox status.</small></span></label>
+          <label className="permission"><input type="checkbox" checked={scopeFlags.sendMail} onChange={e=>setScopeFlags({...scopeFlags,sendMail:e.target.checked})}/><span><b>Email send</b><em>Mail.Send</em><small>Send mail through the existing review and send controls.</small></span></label>
+          <label className="permission"><input type="checkbox" checked={scopeFlags.calendar} onChange={e=>setScopeFlags({...scopeFlags,calendar:e.target.checked})}/><span><b>Calendar read</b><em>Calendars.Read</em><small>Read calendar events.</small></span></label>
+          <label className="permission"><input type="checkbox" checked={scopeFlags.files} onChange={e=>setScopeFlags({...scopeFlags,files:e.target.checked})}/><span><b>Files read</b><em>Files.Read.All</em><small>Read files the connected account can access.</small></span></label>
         </div>
         <div className="span-2 connect-actions"><span>{connectMessage}</span><button className="primary">Connect Microsoft 365</button></div>
       </form>}
@@ -921,10 +1058,10 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
       </form>
       <div className="approval-list">{requests?.length ? requests.filter(r=>r.action_type==='send_email').map(r=>
         <div className="approval-row" key={r.id}>
-          <div><b>{r.payload?.subject||r.title}</b><span>To {r.payload?.to||'—'} • {r.status} • {new Date(r.created_at).toLocaleString()}</span></div>
+          <div className="approval-preview"><b>{r.payload?.subject||r.title}</b><span>To {r.payload?.to||'—'} • {r.status} • {new Date(r.created_at).toLocaleString()}</span><span className="approval-preview-label">Message to be sent</span><p className="approval-message">{r.payload?.message||'Message preview unavailable. Review the original request before approving.'}</p>{r.error_message&&<span role="status">Last action: {r.error_message}</span>}</div>
           <div className="approval-actions">
-            {r.status==='Pending' && <><button className="secondary" onClick={()=>actOnRequest('approve',r.id)}>Approve</button><button className="secondary" onClick={()=>actOnRequest('reject',r.id)}>Reject</button></>}
-            {r.status==='Approved' && <button className="primary small" onClick={()=>actOnRequest('execute',r.id)}>Send approved email</button>}
+            {r.status==='Pending' && <><button className="secondary" disabled={!r.payload?.message} onClick={()=>actOnRequest('approve',r.id)}>Approve</button><button className="secondary" onClick={()=>actOnRequest('reject',r.id)}>Reject</button></>}
+            {r.status==='Approved' && <button className="primary small" disabled={!r.payload?.message} onClick={()=>actOnRequest('execute',r.id)}>Send approved email</button>}
             {r.status==='Executed' && <span className="status-text">Executed</span>}
             {r.status==='Failed' && <span className="status-text">Failed</span>}
           </div>
@@ -949,8 +1086,9 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
         <select value={type} onChange={e=>setType(e.target.value)}><option>API</option><option>OAuth</option><option>MCP</option><option>Webhook</option><option>Database</option><option>File</option><option>Other</option></select>
         <select value={system} onChange={e=>setSystem(e.target.value)}><option value="">No linked system</option>{systems.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select>
         <select value={classification} onChange={e=>setClassification(e.target.value)}><DataClassOptions/></select>
-        <button className="primary small">Add</button>
+        <button className="primary small" disabled={savingInventory}>{savingInventory?'Saving…':'Add'}</button>
       </form>
+      {inventoryMessage&&<div className="message" role="status" aria-live="polite">{inventoryMessage}</div>}
       <Rows rows={rows} secondary={r => [r.provider,r.integration_type,r.status,r.data_classification].filter(Boolean).join(' • ')} table="integrations" reload={reload}/>
     </Panel>
   </>
@@ -1107,6 +1245,28 @@ function Agents({org,session,rows,integrations,workflows,mappings,requests,reloa
 }
 
 function AIOps({data,reload}) {
+  const [alertMessage,setAlertMessage]=useState('')
+  const [updatingAlert,setUpdatingAlert]=useState(null)
+  async function updateAlert(id,status){
+    if(updatingAlert) return
+    setUpdatingAlert(id);setAlertMessage('Updating alert…')
+    try {
+      const at=new Date().toISOString()
+      let patch={status,resolved_at:at}
+      if(status==='Acknowledged') {
+        const {data:userData,error:userError}=await supabase.auth.getUser()
+        if(userError) throw userError
+        patch={status,acknowledged_by:userData.user?.id||null,acknowledged_at:at}
+      }
+      const {data:updated,error}=await supabase.from('ops_alerts').update(patch).eq('id',id).select('id,status').maybeSingle()
+      if(error) throw error
+      if(!updated||updated.status!==status) throw new Error('No alert was updated. Check your access and refresh the alert.')
+      setAlertMessage(status==='Acknowledged'?'Alert acknowledged.':'Alert resolved.')
+      await reload()
+    } catch(error) {
+      setAlertMessage('Could not confirm the alert status. '+(error.message||'Refresh the page before trying again.'))
+    } finally { setUpdatingAlert(null) }
+  }
   const totalIntegrationRuns=data.integrationRuns.length
   const integrationErrors=data.integrationRuns.filter(r=>r.status==='Error').length
   const workflowTotal=data.workflowRuns.length
@@ -1166,13 +1326,14 @@ function AIOps({data,reload}) {
     </Panel>
 
     <Panel title="Operations alerts">
+      {alertMessage&&<div className="message" role="status" aria-live="polite">{alertMessage}</div>}
       <div className="alert-list">{data.opsAlerts.length?data.opsAlerts.map(a=>
         <div className={'alert-row '+a.severity.toLowerCase()} key={a.id}>
           <div><b>{a.title}</b><span>{a.message} • {new Date(a.created_at).toLocaleString()}</span></div>
           <div className="alert-actions">
             <em>{a.severity}</em>
-            {a.status==='Open'&&<button className="secondary" onClick={async()=>{const {error}=await supabase.from('ops_alerts').update({status:'Acknowledged',acknowledged_by:(await supabase.auth.getUser()).data.user?.id||null,acknowledged_at:new Date().toISOString()}).eq('id',a.id);if(!error)reload()}}>Acknowledge</button>}
-            {a.status!=='Resolved'&&<button className="secondary" onClick={async()=>{const {error}=await supabase.from('ops_alerts').update({status:'Resolved',resolved_at:new Date().toISOString()}).eq('id',a.id);if(!error)reload()}}>Resolve</button>}
+            {a.status==='Open'&&<button className="secondary" disabled={!!updatingAlert} onClick={()=>updateAlert(a.id,'Acknowledged')}>Acknowledge</button>}
+            {a.status!=='Resolved'&&<button className="secondary" disabled={!!updatingAlert} onClick={()=>updateAlert(a.id,'Resolved')}>Resolve</button>}
           </div>
         </div>
       ):<div className="empty">No operations alerts.</div>}</div>
