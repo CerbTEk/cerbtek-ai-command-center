@@ -977,3 +977,13 @@ textarea:focus{border-color:var(--amber);box-shadow:0 0 0 3px rgba(255,159,10,.0
 .sidebar nav button.active,.sidebar nav button:hover{background:linear-gradient(90deg,rgba(255,159,10,.17),rgba(255,159,10,.025))}
 .eyebrow{color:#ffad22}
 .score-pill{background:linear-gradient(135deg,#ffc247,#f06a00);color:#100800}
+
+
+/* Approved full banner and source-image K, October 2026 */
+.brand-mark{background:#070707;box-shadow:none}
+.brand span{font-size:12px;letter-spacing:0}
+.brand-banner{display:block;width:100%;height:auto;object-fit:contain;border-radius:8px}
+.auth-card:not(.wide){width:min(600px,94vw)}
+.auth-brand{margin:-12px -12px 24px}
+.auth-card label{font-size:14px}
+@media(max-width:480px){.auth-shell{padding:16px}.auth-card{padding:24px}.auth-brand{margin:-8px -8px 22px}}
