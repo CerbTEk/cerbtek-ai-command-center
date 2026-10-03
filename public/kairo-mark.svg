@@ -1,16 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420" role="img" aria-labelledby="title desc">
   <title id="title">Kairo</title>
-  <desc id="desc">Amber geometric K mark for Kairo, AI Enablement by CerbTek</desc>
+  <desc id="desc">Kairo amber K brand mark</desc>
   <defs>
-    <linearGradient id="amber" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#FFD35A"/>
-      <stop offset="45%" stop-color="#FFAB18"/>
+    <linearGradient id="kairoAmber" x1="0" y1="0" x2=".82" y2="1">
+      <stop offset="0%" stop-color="#FFE15A"/>
+      <stop offset="44%" stop-color="#FFAA10"/>
       <stop offset="100%" stop-color="#F06A00"/>
     </linearGradient>
+    <filter id="kairoGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
-  <g fill="url(#amber)">
-    <rect x="18" y="18" width="18" height="92" rx="3"/>
-    <path d="M38 61 79 18h28L61 64l46 46H79L38 67z"/>
-    <path d="M53 62 86 29h12L65 62l33 33H86L53 67z" opacity=".55"/>
+  <rect width="420" height="420" fill="#050403"/>
+  <g fill="url(#kairoAmber)" filter="url(#kairoGlow)">
+    <path d="M62 62h76v116l-44 42 44 42v116H62z"/>
+    <path d="M136 220 292 62h118L252 220l158 158H254L136 250l-22-30 22-30z"/>
   </g>
+  <path d="M125 220 287 65h18L145 220l160 155h-18L125 240l-18-20 18-20z" fill="#FFD12F"/>
 </svg>
