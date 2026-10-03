@@ -1,3 +1,4 @@
+import { PROVIDER_HELP_ARTICLES } from './kairo-provider-guides'
 import { TECHNICAL_HELP_ARTICLES } from './kairo-technical-guides'
 import { BUSINESS_HELP_ARTICLES } from './kairo-business-guides'
 import { AI_TECHNICAL_HELP_ARTICLES } from './kairo-ai-technical-guides'
@@ -5,9 +6,9 @@ import { HELP_QUESTIONS } from './kairo-help-questions'
 
 // Curated product guidance, reviewed against application revision e9e1c66.
 // This is local documentation, not generated advice or an execution policy.
-export const HELP_VERSION = '2026-10-03.3'
+export const HELP_VERSION = '2026-10-03.4'
 export const HELP_REVIEWED_AT = '2026-10-03'
-export const HELP_CATEGORIES = Object.freeze(['Getting started','Workflows and approvals','Microsoft 365','Access and governance','Everyday AI reference','AI implementation reference','Telephony reference'])
+export const HELP_CATEGORIES = Object.freeze(['Getting started','Integrations and cloud providers','Workflows and approvals','Microsoft 365','Access and governance','Everyday AI reference','AI implementation reference','Telephony reference'])
 export const HELP_SECTIONS = Object.freeze(['Overview','Team Access','Onboarding','AI Readiness','Systems','Workflows','Opportunities','Integrations','Agents','AI Ops','Governance','Blueprints','Audit'])
 
 const PRODUCT_HELP_ARTICLES = [
@@ -47,7 +48,7 @@ const PRODUCT_HELP_ARTICLES = [
     prerequisites:['Know which software the task uses and what kind of data it holds.'],
     steps:['Add a system with its name and relevant details.','Review its data classification.','Map a business workflow that uses those systems.'],
     note:'Adding an inventory record does not connect a service or give Kairo access to it.',
-    related:['workflow-basics','microsoft-setup']
+    related:['workflow-basics','provider-setup']
   },
   {
     id:'workflow-basics', title:'Map a task before automating it', section:'Workflows',
@@ -167,7 +168,7 @@ const categoryFor = section => ['Workflows','Agents','AI Ops'].includes(section)
   : section === 'Integrations' ? 'Microsoft 365'
   : ['Team Access','Governance','Audit'].includes(section) ? 'Access and governance' : 'Getting started'
 
-export const HELP_ARTICLES = Object.freeze([...PRODUCT_HELP_ARTICLES,...TECHNICAL_HELP_ARTICLES,...BUSINESS_HELP_ARTICLES,...AI_TECHNICAL_HELP_ARTICLES].map(article => Object.freeze({
+export const HELP_ARTICLES = Object.freeze([...PRODUCT_HELP_ARTICLES,...PROVIDER_HELP_ARTICLES,...TECHNICAL_HELP_ARTICLES,...BUSINESS_HELP_ARTICLES,...AI_TECHNICAL_HELP_ARTICLES].map(article => Object.freeze({
   kind:'platform', category:categoryFor(article.section), reviewedAt:HELP_REVIEWED_AT,
   sources:[{label:'Kairo interface reviewed at revision e9e1c66'}], troubleshooting:[], successChecks:[], externalSteps:[], ...article,
   questions:HELP_QUESTIONS.filter(question=>question.articleId===article.id)
@@ -178,7 +179,7 @@ export const HELP_ARTICLES = Object.freeze([...PRODUCT_HELP_ARTICLES,...TECHNICA
 export function helpSourceUrl(value) {
   try {
     const url = new URL(value)
-    return url.protocol === 'https:' && ['learn.microsoft.com','support.microsoft.com','www.twilio.com','airc.nist.gov','nvlpubs.nist.gov','docs.langchain.com','docs.livekit.io','cheatsheetseries.owasp.org'].includes(url.hostname)
+    return url.protocol === 'https:' && ['developers.google.com','docs.aws.amazon.com','aws.amazon.com','learn.microsoft.com','support.microsoft.com','www.twilio.com','airc.nist.gov','nvlpubs.nist.gov','docs.langchain.com','docs.livekit.io','cheatsheetseries.owasp.org'].includes(url.hostname)
       && !url.username && !url.password && !url.port ? url.href : null
   } catch { return null }
 }

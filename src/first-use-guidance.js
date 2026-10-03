@@ -1,3 +1,5 @@
+import {nextProviderPlan,integrationProvider} from './integration-providers'
+
 export const onboardingComplete = value => ['Ready for Assessment','Complete'].includes(value?.status)
 export const assessmentComplete = value => value?.status === 'Complete'
 
@@ -29,15 +31,21 @@ export function deriveNextStep(data) {
   const ranked=opportunities.filter(o=>Number.isFinite(o.opportunity_score)).sort((a,b)=>b.opportunity_score-a.opportunity_score)
   const opportunity=ranked[0]||null
   const context={opportunity}
+  const providerId=nextProviderPlan(data)
+  if(!providerId) return result('provider','Choose the tools this workflow needs','Review Microsoft 365, Google Workspace and AWS, then save a plan for the provider and first use case your team needs. Current connector availability is shown separately.','Integrations','Next: choose an integration path',context)
+  if(providerId!=='microsoft') {
+    const provider=integrationProvider(providerId)
+    return result('provider-planned','Review your '+provider.name+' integration plan',provider.next,'Integrations','Next: review integration plan',{...context,blocked:provider.name+' is planned, but its connector is not available yet. Your plan is saved; no workflow has been run.'})
+  }
   const microsoft=(data.oauth||[]).find(c=>c.provider==='microsoft')
   if(microsoft?.status!=='Connected') return result('microsoft','Prepare Microsoft 365 access','Review your business case, then ask your Microsoft 365 administrator for the approved app registration details. The existing setup requires a tenant/domain, application ID, and client secret.','Integrations','Next: Microsoft administrator setup',{...context,blocked:'Microsoft 365 is not connected. No workflow has been run by this guide.'})
 
-  const definitions=data.workflowDefinitions||[]
+  const definitions=(Array.isArray(data.workflowDefinitions)?data.workflowDefinitions:[]).filter(Boolean)
   const active=definitions.find(w=>w.status==='Active')
   const draft=definitions.find(w=>w.status==='Draft')
   if(!active && !draft) return result('draft',definitions.length?'Review your paused automations':'Create a draft automation',definitions.length?'Review the automation and its connection before resuming it. Resuming does not schedule a run.':'In Workflow builder, choose one of the supported Microsoft actions. Saving a draft does not run it.','Workflows',definitions.length?'Next: review paused automations':'Next: create a draft automation',context)
   const workflow=active||draft
-  const needed=[...new Set((workflow.steps||[]).map(step=>permissions[step.type]).filter(Boolean))]
+  const needed=[...new Set((Array.isArray(workflow.steps)?workflow.steps:[]).map(step=>permissions[step?.type]).filter(Boolean))]
   const missing=needed.filter(scope=>!(microsoft.scopes||[]).includes(scope))
   if(missing.length) return result('permission','Review the Microsoft permissions','This automation needs '+missing.join(', ')+'. Ask your Microsoft 365 administrator to review the connection before running it. This guide does not change permissions.','Integrations','Next: review Microsoft connection',{...context,blocked:'Required permission missing: '+missing.join(', ')})
   if(!active) return result('activate','Review and activate your draft','Review the action and its required access. Activate makes the draft available to run; it does not run or schedule it.','Workflows','Next: review draft automation',context)

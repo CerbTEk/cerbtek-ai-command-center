@@ -1,3 +1,4 @@
+import {nextProviderPlan} from './integration-providers'
 import { HELP_ARTICLES, helpDestination } from './kairo-help-content'
 
 const STOP_WORDS = new Set(['a','an','and','are','can','do','does','for','how','i','in','is','it','me','my','of','on','the','to','what','where','with','about','am','at','be','by','could','from','has','have','into','please','should','that','this','was','we','when','which','why','will','would','you','your','kairo','implement','implementing','implementation','configure','configuring','need','want','help','trying','set','up','use','using'])
@@ -45,7 +46,7 @@ export function buildHelpContext({ section, data, ready = false } = {}) {
   else if (!systemsCount) suggestedArticle='systems'
   else if (!workflowsCount) suggestedArticle='workflow-basics'
   else if (!opportunitiesCount) suggestedArticle='business-case'
-  else if (!microsoftConnected) suggestedArticle='microsoft-setup'
+  else if (!microsoftConnected) suggestedArticle=nextProviderPlan(data)==='microsoft'?'microsoft-setup':nextProviderPlan(data)==='google'?'google-workspace-plan':nextProviderPlan(data)==='aws'?'aws-plan':'provider-setup'
   else if (pendingApproval) suggestedArticle='email-approval'
   else if (list(data.workflowRuns).some(run => run?.status === 'Error')) suggestedArticle='run-status'
   return { currentSection, ready:true, profileComplete, assessmentComplete, systemsCount, workflowsCount, opportunitiesCount, microsoftConnected, pendingApproval, suggestedArticle }

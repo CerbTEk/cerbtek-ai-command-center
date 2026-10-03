@@ -1,3 +1,4 @@
+import IntegrationProviderPlanner from './IntegrationProviderPlanner'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
@@ -924,6 +925,12 @@ function Opportunities({org,session,workflows,rows,reload}) {
 }
 
 function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
+  async function saveProviderPlan(plan) {
+    const {error}=await supabase.from('integrations').insert({...plan,organization_id:org.id,created_by:session.user.id})
+    if(error) throw error
+    reload()
+  }
+
   const [name,setName]=useState('')
   const [provider,setProvider]=useState('')
   const [type,setType]=useState('API')
@@ -1013,6 +1020,7 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
   }
 
   return <>
+    <IntegrationProviderPlanner key={session.user.id+':'+org.id} rows={rows} onSave={saveProviderPlan}/>
     <Panel title="Microsoft 365 / Graph">
       <div className="integration-hero">
         <div>
