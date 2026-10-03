@@ -5,7 +5,7 @@ const SYNONYMS = Object.freeze({
   start:['setup','begin'], chatbot:['help'], bot:['help'], connect:['connection','integration'],
   connected:['connection'], connecting:['connection'], outlook:['microsoft'], mail:['email'], sending:['send'],
   approvals:['approval'], approved:['approval'], scores:['score'], workflows:['workflow'],
-  saving:['save'], saved:['save'], rating:['score'], ratings:['score'], costs:['cost'],
+  saving:['save'], saved:['save'], rating:['score'], ratings:['score'],
   benefits:['benefit'], returns:['roi'], invitations:['invite'], invite:['invitation'],
   teammates:['team'], stuck:['error'], errors:['error'], failed:['failure'],
   automation:['workflow'], automate:['automation'], pdf:['blueprint'], next:['setup'],
@@ -15,7 +15,12 @@ const SYNONYMS = Object.freeze({
   transcripts:['transcript','transcription'], transcript:['transcription'],
   retry:['retries'], retries:['retry'], webhook:['webhooks'], webhooks:['webhook'],
   troubleshooting:['troubleshoot','diagnose'], diagnose:['diagnostic','diagnostics'],
-  broken:['error'], failing:['failure','error'], expired:['expiry'], entra:['microsoft']
+  broken:['error'], failing:['failure','error'], expired:['expiry'], entra:['microsoft'],
+  tasks:['task'], emails:['email'], documents:['document'], files:['file'], answers:['answer'],
+  instructions:['instruction','prompt'], prompts:['prompt','instructions'], sources:['source'],
+  spreadsheets:['spreadsheet'], formulas:['formula'], scans:['scan','ocr'], scanned:['ocr'],
+  safe:['safety','privacy'], accurate:['accuracy'], costs:['cost'], slow:['latency'],
+  interruptions:['interruption'], transfers:['transfer'], resumes:['resume'], duplicates:['duplicate']
 })
 const normalize = value => String(value || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()
 const list = value => Array.isArray(value) ? value : []
@@ -53,8 +58,8 @@ export function searchHelp(query, context = {}, limit = 6) {
   const suggestionsOnly = !normalized
   if (!suggestionsOnly && !tokens.length) return []
   return HELP_ARTICLES.map((article, index) => {
-    const title=normalize(article.title), keywords=normalize(article.keywords.join(' '))
-    const body=normalize([article.summary,...article.prerequisites,...article.steps,...article.troubleshooting].join(' '))
+    const title=normalize(article.title), keywords=normalize([...article.keywords,...article.questions.flatMap(question=>[question.title,...question.aliases])].join(' '))
+    const body=normalize([article.summary,...article.prerequisites,...article.steps,...article.externalSteps,...article.troubleshooting].join(' '))
     const termScores=expanded.map(variants => Math.max(...variants.map(term => {
       const matches = text => (` ${text} `).includes(` ${term} `)
       return matches(title) ? 10 : matches(keywords) ? 7 : matches(body) ? 2 : 0

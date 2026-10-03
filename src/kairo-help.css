@@ -61,3 +61,23 @@
 .kairo-help-sources a{color:#244f85;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
 .kairo-help-source-hint{font-size:10px;color:#63738a}
 .kairo-help-panel a:focus-visible{outline:3px solid #ffb747;outline-offset:3px}
+.kairo-help-questions{border-bottom:1px solid #e3e9f0;padding-bottom:18px;margin-bottom:18px}
+.kairo-help-questions h3{font-size:17px;letter-spacing:-.02em;color:#172139;margin:0 0 6px}
+.kairo-help-questions>p{font-size:12px;color:#627188;margin:6px 0 12px;line-height:1.6}
+.kairo-help-question-groups{display:flex;gap:6px;padding:4px;background:#f1f4f8;border-radius:11px}
+.kairo-help-question-groups button{display:flex;align-items:center;justify-content:center;gap:6px;flex:1;min-height:44px;border:1px solid transparent;background:transparent;border-radius:8px;padding:7px;font-size:11px;line-height:1.4;font-weight:700;color:#53627a}
+.kairo-help-question-groups button[aria-pressed="true"]{background:#fff7e9;border-color:#edc387;color:#754a09;box-shadow:0 1px 3px #14213b0a}
+.kairo-help-question-groups span{font-size:10px;border-radius:4px;padding:1px 4px;background:#e8edf4;color:#53627a}
+.kairo-help-questions .kairo-help-question-description{font-size:11px;margin:10px 0}
+.kairo-help-question-list{display:grid;gap:7px}
+.kairo-help-question-list button{display:grid;grid-template-columns:minmax(0,1fr) 16px;gap:4px 8px;text-align:left;width:100%;border:1px solid #dce3ed;background:#fff;border-radius:10px;padding:11px 12px;color:#273952;line-height:1.45}
+.kairo-help-question-list button:hover{background:#fffbf4;border-color:#e6ac55}
+.kairo-help-question-list button>span{font-size:13px;font-weight:650}
+.kairo-help-question-list small{grid-column:1;font-size:10px;color:#876327}
+.kairo-help-question-list svg{grid-column:2;grid-row:1;align-self:center;color:#89663a}
+.kairo-help-question-more{width:100%;min-height:44px;margin-top:6px;border:0;background:transparent;color:#345478;font-size:12px;text-align:left;padding:8px 0;font-weight:650}
+.kairo-help-question-context{font-size:12px!important;color:#79561e!important;background:#fff7e9;border:1px solid #f0d4a9;border-radius:8px;padding:10px 12px;margin:0 0 16px!important}
+.kairo-help-success{background:#f3f8f5;border:1px solid #dce9e1;border-radius:10px;padding:0 13px 5px;margin-top:16px}
+.kairo-help-success h4{margin-top:12px;color:#325947}
+.kairo-help-result-question{color:#465d7a;font-size:11px;font-style:italic}
+@media(max-width:360px){.kairo-help-question-groups button{font-size:10px;gap:3px;padding:6px 3px}.kairo-help-question-list button>span{font-size:12px}}

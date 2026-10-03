@@ -1,10 +1,13 @@
 import { TECHNICAL_HELP_ARTICLES } from './kairo-technical-guides'
+import { BUSINESS_HELP_ARTICLES } from './kairo-business-guides'
+import { AI_TECHNICAL_HELP_ARTICLES } from './kairo-ai-technical-guides'
+import { HELP_QUESTIONS } from './kairo-help-questions'
 
-// Curated product guidance, reviewed against application revision 069cef8.
+// Curated product guidance, reviewed against application revision e9e1c66.
 // This is local documentation, not generated advice or an execution policy.
-export const HELP_VERSION = '2026-10-03.2'
+export const HELP_VERSION = '2026-10-03.3'
 export const HELP_REVIEWED_AT = '2026-10-03'
-export const HELP_CATEGORIES = Object.freeze(['Getting started','Workflows and approvals','Microsoft 365','Access and governance','Telephony reference'])
+export const HELP_CATEGORIES = Object.freeze(['Getting started','Workflows and approvals','Microsoft 365','Access and governance','Everyday AI reference','AI implementation reference','Telephony reference'])
 export const HELP_SECTIONS = Object.freeze(['Overview','Team Access','Onboarding','AI Readiness','Systems','Workflows','Opportunities','Integrations','Agents','AI Ops','Governance','Blueprints','Audit'])
 
 const PRODUCT_HELP_ARTICLES = [
@@ -12,8 +15,10 @@ const PRODUCT_HELP_ARTICLES = [
     id:'getting-started', title:'Find your next setup step', section:'Overview',
     keywords:['start','setup','next','begin','onboarding','progress','help'],
     summary:'Follow the saved setup progress for this company.',
-    prerequisites:[],
-    steps:['Complete the company profile, then answer and complete the readiness assessment.','Map your systems and a repeatable business workflow.','Create a business case using your own benefit and cost assumptions.','Review integration access before creating and running an automation.'],
+    prerequisites:['A business owner, one repeated task, and a clear description of what a better result would look like.'],
+    steps:['Choose a small, reversible pilot: for example, preparing a draft for human review. Avoid starting with an irreversible action or a decision about someone’s eligibility.','Complete the company profile, then answer and complete the readiness assessment using evidence of how your team works today.','Map the systems and one repeatable workflow. Record its owner, current effort, known errors and the point where a person must review the result.','Create a business case using your own benefit and cost assumptions. Set a quality target and a stop condition before testing.','Check the supported-capability guide. For an external AI task, use an approved tool and safe sample data; Kairo does not run a general-purpose AI model.','Review a small pilot with the task owner before expanding it. For a supported Kairo automation, review integration access and the proposed action before a real run.'],
+    troubleshooting:['If the goal is simply “use AI,” narrow it to one task and a measurable outcome.','If the proposed action is absent from Kairo’s builder, record the requirement rather than assuming an inventory entry enables it.'],
+    successChecks:['You have one named pilot, an owner, a baseline, a human review point and a clear continue-or-stop decision.'],
     note:'The next-step guide points to existing screens. It does not connect services, run workflows, or send messages.',
     related:['company-profile','readiness','workflow-basics']
   },
@@ -48,8 +53,10 @@ const PRODUCT_HELP_ARTICLES = [
     id:'workflow-basics', title:'Map a task before automating it', section:'Workflows',
     keywords:['workflow','task','process','map','inventory','department','repeatable'],
     summary:'Describe a repeatable business task and who owns it.',
-    prerequisites:['Identify a task and the systems it depends on.'],
-    steps:['Use the workflow inventory to record the task and its department.','Describe the process you want to improve.','Create a linked business case in Opportunities.','Use Workflow builder separately when you are ready to configure a supported automation.'],
+    prerequisites:['Identify a task, its owner, the systems it depends on, and the cost of a wrong result.'],
+    steps:['List the task’s inputs, steps, outputs and exceptions before deciding which part to automate. Favor repeated steps with clear evidence and an easy way to check the result.','Separate draft or recommendation work from actions that send, publish, delete, spend money or change access. Keep human judgment for ambiguous, sensitive or consequential cases.','Use the workflow inventory to record the task and its department. Describe the reviewer, approval point, exception path and rollback or manual fallback in your process notes.','Create a linked business case in Opportunities using measured baseline effort and your own assumptions. Include review and correction time.','Try approved sample cases, including an exception, outside live operations. If the reviewer cannot reliably detect a mistake, narrow the task before proceeding.','Use Workflow builder separately when ready to configure one of Kairo’s supported actions. Mapping the process does not implement its review or exception controls.'],
+    troubleshooting:['If exceptions dominate, assist the person with preparation rather than attempting end-to-end automation.','If a written review step is bypassed in a test, stop the pilot and have the implementation owner enforce the gate.'],
+    successChecks:['The owner can identify what is automated, what requires judgment, and what happens when the task cannot safely continue.'],
     note:'A mapped business workflow is an inventory record. It is not an executable automation.',
     related:['business-case','automation','systems']
   },
@@ -58,7 +65,9 @@ const PRODUCT_HELP_ARTICLES = [
     keywords:['opportunity','opportunities','business case','roi','return','cost','benefit','payback','savings','risk','value','money'],
     summary:'Compare potential benefits with implementation and recurring costs.',
     prerequisites:['Choose a mapped workflow, if one is relevant.','Prepare your own assumptions for hours saved and costs.'],
-    steps:['Replace the example starting values with your own estimates.','Enter business value, AI suitability, and risk on the 0–100 scales.','Estimate annual hours saved, hourly cost, other annual benefits, one-time implementation cost, and annual recurring cost.','Create the business case and review its calculated score, return, and payback.'],
+    steps:['Before a pilot, measure representative tasks using the current process: total human time, accepted output, error rate and rework. Keep the sample and task mix comparable.','Repeat the measurement for the pilot, including prompting, review, correction and failed attempts. Calculate net time saved per accepted result, not only generation speed.','Record license or provider charges, implementation, training and maintenance costs in an approved pilot worksheet. Avoid counting the same saved time as both labor savings and another benefit.','Replace Kairo’s example starting values with your own estimates. Enter business value, AI suitability and risk on the 0–100 scales.','Estimate annual hours saved, hourly cost, other annual benefits, one-time implementation cost and annual recurring cost. Use conservative volume assumptions and compare a lower-benefit scenario.','Create the business case and review its calculated score, return and payback. Keep the observed pilot evidence separately and revisit estimates when real usage changes.'],
+    troubleshooting:['If the result looks too good, check annual versus monthly units, failed attempts, reviewer time and double-counted benefits.','A high usage count is not proof of better quality or realized savings. Compare accepted outcomes against the baseline.'],
+    successChecks:['The task owner can reproduce the assumptions from a dated pilot record and see whether quality held while net effort or cost improved.'],
     note:'These are calculations from your assumptions, not measured results or AI forecasts. Higher risk means greater risk.',
     related:['workflow-basics','blueprints']
   },
@@ -158,9 +167,10 @@ const categoryFor = section => ['Workflows','Agents','AI Ops'].includes(section)
   : section === 'Integrations' ? 'Microsoft 365'
   : ['Team Access','Governance','Audit'].includes(section) ? 'Access and governance' : 'Getting started'
 
-export const HELP_ARTICLES = Object.freeze([...PRODUCT_HELP_ARTICLES,...TECHNICAL_HELP_ARTICLES].map(article => Object.freeze({
+export const HELP_ARTICLES = Object.freeze([...PRODUCT_HELP_ARTICLES,...TECHNICAL_HELP_ARTICLES,...BUSINESS_HELP_ARTICLES,...AI_TECHNICAL_HELP_ARTICLES].map(article => Object.freeze({
   kind:'platform', category:categoryFor(article.section), reviewedAt:HELP_REVIEWED_AT,
-  sources:[{label:'Kairo interface reviewed at revision 069cef8'}], troubleshooting:[], ...article
+  sources:[{label:'Kairo interface reviewed at revision e9e1c66'}], troubleshooting:[], successChecks:[], externalSteps:[], ...article,
+  questions:HELP_QUESTIONS.filter(question=>question.articleId===article.id)
 })))
 
 // Only curated documentation links are navigable. Never derive a URL from a query,
@@ -168,7 +178,7 @@ export const HELP_ARTICLES = Object.freeze([...PRODUCT_HELP_ARTICLES,...TECHNICA
 export function helpSourceUrl(value) {
   try {
     const url = new URL(value)
-    return url.protocol === 'https:' && ['learn.microsoft.com','www.twilio.com'].includes(url.hostname)
+    return url.protocol === 'https:' && ['learn.microsoft.com','support.microsoft.com','www.twilio.com','airc.nist.gov','nvlpubs.nist.gov','docs.langchain.com','docs.livekit.io','cheatsheetseries.owasp.org'].includes(url.hostname)
       && !url.username && !url.password && !url.port ? url.href : null
   } catch { return null }
 }
