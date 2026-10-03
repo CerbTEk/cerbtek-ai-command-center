@@ -1,6 +1,6 @@
-# CerbTek AI Enablement Command Center
+# Kairo Command Center
 
-Initial MVP for CerbTek's AI Enablement as a Service platform.
+Kairo is CerbTek's AI Enablement and Workflow Orchestration platform.
 
 ## Included
 - Supabase Auth sign-in/sign-up
@@ -12,10 +12,10 @@ Initial MVP for CerbTek's AI Enablement as a Service platform.
 - AI opportunity scoring
 - Integrations and AI agent data model
 - Governance policies
-- AI Enablement Blueprint generation
+- Kairo AI Enablement Blueprint generation
 
 ## Backend
-Dedicated Supabase project: CerbTek AI Enablement.
+Dedicated Supabase project for Kairo (project ref: `suohuogalotxhsnkumvy`).
 
 Tenant authorization is enforced with Row Level Security (RLS). Never use a service-role key in the browser.
 
