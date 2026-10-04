@@ -1,3 +1,4 @@
+import WorkflowMonitor from './WorkflowMonitor'
 import IntegrationProviderPlanner from './IntegrationProviderPlanner'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -93,6 +94,26 @@ function App() {
     if(active==='CerbTek Staff'&&!staffLoading&&!staff) setActive('Overview',{replace:true})
   },[active,staff,staffLoading])
 
+  useEffect(()=>{
+    const restoreCompany=()=>{
+      if(orgsUserId!==session?.user?.id) return
+      const id=new URLSearchParams(window.location.search).get('kairoCompany')
+      const target=orgs.find(item=>item.id===id)
+      if(target&&target.id!==currentContext.current.orgId) setOrg(target)
+    }
+    window.addEventListener('popstate',restoreCompany)
+    return ()=>window.removeEventListener('popstate',restoreCompany)
+  },[orgs,orgsUserId,session?.user?.id])
+
+  function selectCompany(next) {
+    if(!next||!orgs.some(item=>item.id===next.id)) return
+    setOrg(next)
+    const url=new URL(window.location.href)
+    url.searchParams.set('kairoCompany',next.id)
+    url.searchParams.delete('kairoWorkflow');url.searchParams.delete('kairoRun')
+    window.history.replaceState({},'',url.pathname+url.search+url.hash)
+  }
+
   async function loadStaff(userId=session?.user?.id) {
     if(!userId||currentContext.current.userId!==userId) return
     const request=++staffLoadRequest.current
@@ -118,7 +139,8 @@ function App() {
       if(!isCurrent()) return
       if(error) throw error
       setOrgs(data||[])
-      setOrg(current=>(data||[]).find(item=>item.id===current?.id)||data?.[0]||null)
+      const linkedCompany=new URLSearchParams(window.location.search).get('kairoCompany')
+      setOrg(current=>(data||[]).find(item=>item.id===current?.id)||(data||[]).find(item=>item.id===linkedCompany)||data?.[0]||null)
     } catch(error) {
       if(isCurrent()) setOrgsError('Your companies could not be loaded. Please try again before creating a workspace.')
     } finally { if(isCurrent()) setOrgsLoading(false) }
@@ -206,7 +228,7 @@ function App() {
       <div className="brand"><img className="brand-mark" src="/kairo-mark.svg" alt="Kairo" width="42" height="42" /><div><strong>Kairo</strong><span>AI Enablement by CerbTek</span></div></div>
       <div className="org-switcher">
         <span>Client organization</span>
-        <select value={org?.id || ''} onChange={e => setOrg(orgs.find(x => x.id === e.target.value))}>
+        <select value={org?.id || ''} onChange={e => selectCompany(orgs.find(x=>x.id===e.target.value))}>
           {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
         </select>
       </div>
@@ -238,11 +260,11 @@ function App() {
         {active === 'Opportunities' && <Opportunities org={org} session={session} workflows={data.workflows} rows={data.opps} reload={() => loadOrg(org.id)}/>}
         {active === 'Integrations' && <Integrations org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} runs={data.integrationRuns} requests={data.actionRequests} reload={() => loadOrg(org.id)}/>}
         {active === 'Agents' && <Agents org={org} session={session} rows={data.agents} integrations={data.integrations} workflows={data.workflowDefinitions} mappings={data.agentWorkflows} requests={data.agentRunRequests} reload={() => loadOrg(org.id)}/>}
-        {active === 'AI Ops' && <AIOps data={data} reload={() => loadOrg(org.id)}/>}
+        {active === 'AI Ops' && <><WorkflowMonitor key={session.user.id+':'+org.id} organizationId={org.id} userId={session.user.id} definitions={data.workflowDefinitions} schedules={data.workflowSchedules} agents={data.agents} client={supabase} onManage={()=>setActive('Workflows')}/><AIOps data={data} reload={() => loadOrg(org.id)}/></>}
         {active === 'Governance' && <Governance org={org} session={session} rows={data.policies} dataPolicy={data.dataPolicy} reload={() => loadOrg(org.id)}/>} 
         {active === 'Blueprints' && <Blueprints org={org} session={session} data={data} reload={() => loadOrg(org.id)}/>}
         {active === 'Audit' && <Audit rows={data.audit}/>}
-        {active === 'CerbTek Staff' && staff && <StaffWorkspace orgs={orgs} current={org} setOrg={setOrg} role={staff.role}/>}
+        {active === 'CerbTek Staff' && staff && <StaffWorkspace orgs={orgs} current={org} setOrg={selectCompany} role={staff.role}/>}
         {active === 'CerbTek Staff' && staffLoading && <p role="status">Checking staff access…</p>}
         </>}
       </section>
@@ -748,7 +770,7 @@ function Workflows({org,session,rows,definitions,runs,approvalPolicies,schedules
     const {data,error}=await supabase.functions.invoke('workflow-runner',{body:{workflow_id:id,context:{}}})
     if(error) setWorkflowMessage(error.message)
     else if(data?.error) setWorkflowMessage(data.error)
-    else setWorkflowMessage(data?.status==='Waiting Approval'?'Workflow paused for approval':'Workflow completed')
+    else setWorkflowMessage(data?.status==='Success'?'Workflow completed':data?.status==='Waiting Approval'?'Workflow paused for approval':data?.status==='Error'?'Workflow reported an error. Check AI Ops for details.':'Run request submitted. Check AI Ops for the recorded outcome.')
     reload()
   }
 
@@ -1286,9 +1308,6 @@ function AIOps({data,reload}) {
   }
   const totalIntegrationRuns=data.integrationRuns.length
   const integrationErrors=data.integrationRuns.filter(r=>r.status==='Error').length
-  const workflowTotal=data.workflowRuns.length
-  const workflowSuccess=data.workflowRuns.filter(r=>r.status==='Success').length
-  const workflowRate=workflowTotal?Math.round(workflowSuccess/workflowTotal*100):0
   const pendingActions=data.actionRequests.filter(r=>r.status==='Pending'||r.status==='Approved').length
     + data.agentRunRequests.filter(r=>r.status==='Pending'||r.status==='Approved').length
   const degraded=data.integrations.filter(i=>i.status==='Degraded'||i.status==='Blocked').length
@@ -1303,9 +1322,8 @@ function AIOps({data,reload}) {
 
   return <>
     <div className="metrics">
-      <Metric label="Workflow success" value={workflowRate+'%'}/>
       <Metric label="Active agents" value={activeAgents}/>
-      <Metric label="Pending approvals" value={pendingActions}/>
+      <Metric label="Open action requests" value={pendingActions}/>
       <Metric label="Degraded integrations" value={degraded}/>
       <Metric label="Open alerts" value={openAlerts.length}/>
     </div>
@@ -1332,13 +1350,11 @@ function AIOps({data,reload}) {
       </Panel>
     </div>
 
-    <Panel title="Operations summary">
+    <Panel title="Other operations · recent workspace sample">
       <div className="ops-summary-grid">
         <MiniMetric label="Integration runs" value={totalIntegrationRuns}/>
         <MiniMetric label="Integration errors" value={integrationErrors}/>
-        <MiniMetric label="Workflow runs" value={workflowTotal}/>
-        <MiniMetric label="Workflow successes" value={workflowSuccess}/>
-        <MiniMetric label="Open approvals" value={pendingActions}/>
+        <MiniMetric label="Pending or approved requests" value={pendingActions}/>
       </div>
     </Panel>
 
