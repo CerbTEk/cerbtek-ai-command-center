@@ -13,7 +13,7 @@ test('all existing product sections retain their exact query and fragment', asyn
   }
 })
 test('marketing pages, section anchors and UTM URLs remain public', () => {
-  for (const hash of ['', '#main', '#approach', '#setup', '#readiness', '#walkthrough', '#%E0%A4%A']) {
+  for (const hash of ['', '#main', '#approach', '#setup', '#readiness', '#platform', '#walkthrough', '#%E0%A4%A']) {
     assert.equal(legacyAppTarget({search:'?utm_source=email&utm_campaign=launch',hash}), null)
   }
 })
