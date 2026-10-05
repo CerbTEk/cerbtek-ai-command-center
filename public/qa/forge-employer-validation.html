@@ -1,0 +1,540 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-8wG5lkRRUEBmUJhjQmsVWpGwO1oMTzTwtaaOuJu2XE0='; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'"><title>Forge employer · disabled validation candidate</title><style>:root{color-scheme:light;--ink:#163431;--muted:#4e6965;--accent:#176a58;--line:#d3e1dc;--pale:#edf6f0;--warn:#815a0b}*{box-sizing:border-box}body{margin:0;background:#f3f4ef;color:var(--ink);font:16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.validation-shell{max-width:1240px;margin:auto;padding:46px 32px}header{max-width:890px;padding-bottom:22px}.eyebrow{font-size:12px;letter-spacing:.15em;font-weight:750;color:var(--accent)}h1{font-size:clamp(30px,4vw,52px);line-height:1.1;letter-spacing:-.045em;margin:14px 0}h2{font-size:20px;line-height:1.3;margin:0 0 20px}h3,legend{font-size:16px;font-weight:700}.intro{font-size:18px;color:var(--muted);max-width:780px}.badge{display:inline-block;padding:6px 11px;border:1px solid #c7dace;border-radius:24px;background:var(--pale);font-size:12px;font-weight:750;letter-spacing:.06em}#status{background:#e4efe9;padding:15px 18px;border-radius:8px;margin:8px 0;color:#154d3e;min-height:54px}#error{color:#a31f2c;overflow-wrap:anywhere}#error:empty{display:none}.trust-note{font-size:13px;color:var(--muted);margin:14px 0 24px}.workspace-grid{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(0,1.5fr);gap:22px}.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:26px;box-shadow:0 2px 4px #13342f03}.checkout-panel{margin-top:22px}.muted,footer{font-size:13px;color:var(--muted)}label{display:block;font-size:13px;font-weight:650;margin:13px 0}input,select{display:block;width:100%;font:inherit;color:inherit;margin-top:6px;padding:10px 11px;border:1px solid #b5cac3;border-radius:6px;background:white}input[type=checkbox]{display:inline-block;width:18px;height:18px;margin:0 8px 0 0;vertical-align:middle}label:has(input[type=checkbox]){display:flex;flex-direction:row-reverse;align-items:start;justify-content:flex-end;gap:8px;font-weight:500}label:has(input[type=checkbox]) input{flex-shrink:0;margin-top:3px}button,a#checkout-link{font:600 14px/1.4 system-ui;padding:11px 15px;margin:7px 7px 7px 0;border:1px solid var(--accent);border-radius:7px;background:var(--accent);color:white;cursor:pointer;display:inline-block;text-decoration:none}button:disabled{opacity:.44;cursor:not-allowed;background:#5f7670;border-color:#5f7670}button#sign-out,button#cancel{background:white;color:var(--accent)}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #cc8d32;outline-offset:3px}input:disabled,select:disabled{background:#f3f5f3}fieldset{margin:22px 0 0;border:1px solid var(--line);padding:15px 18px;border-radius:8px;min-width:0}fieldset:disabled{color:#5d6b67}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;background:#f5f7f5;border:1px solid #e2e9e4;padding:16px;border-radius:7px;max-height:410px;overflow:auto}.terms{font:14px/1.65 system-ui;max-height:420px;white-space:pre-wrap}details{margin:18px 0}summary{cursor:pointer;font-size:14px;font-weight:650}.uncertain{margin-top:24px;padding-top:14px;border-top:1px solid var(--line)}footer{padding:25px 0 4px}hr{margin:24px 0;border:0;border-top:1px solid var(--line)}[hidden]{display:none!important}@media(max-width:760px){.validation-shell{padding:24px 16px}.workspace-grid{grid-template-columns:1fr}.panel{padding:20px}button{width:100%;margin-right:0}.intro{font-size:16px}fieldset{padding:12px}.document-panel{min-width:0}}
+</style></head><body><main id="app"></main><script>/** Exact reserved identities from shared-test-candidate/fixture-scope.json. */
+const FIXTURE_EMAILS = Object.freeze([
+  'owner@forge-employer-validation.invalid',
+  'admin@forge-employer-validation.invalid',
+  'foreign-owner@forge-employer-validation.invalid',
+  'viewer@forge-employer-validation.invalid',
+  'recruiter@forge-employer-validation.invalid',
+  'staff@forge-employer-validation.invalid'
+]);
+function fixtureEmail(value) {
+  const canonical = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return FIXTURE_EMAILS.includes(canonical) ? canonical : null;
+}
+
+/** Local candidate. All destinations fixed; no SDK import or credential included. */
+const PROJECT = 'https://jrpsnqzoalwlovwtrvkn.supabase.co';
+const ENDPOINT = PROJECT + '/functions/v1/forge-employer-test-workspace';
+const STORAGE_KEY = 'forge-employer-validation-memory-v1';
+const PREVIEW_PATH = '/funding-preview-20261002/qa/forge-employer-validation.html';
+const MAX_RESPONSE = 524288;
+const safeCode = code => typeof code === 'string' && /^[A-Z][A-Z0-9_]{1,79}$/.test(code) ? code : 'REQUEST_OUTCOME_UNCERTAIN';
+class UiError extends Error { constructor(code) { super(safeCode(code)); this.code = safeCode(code); } }
+
+// Use for BOTH the injected Auth SDK and direct workspace HTTP. No credentials
+// are sent to another target, an HTTP redirect, a cookie session, or a URL override.
+function fixedFetch(fetcher, {enabled = false, lifetimeSignal, timeoutMs = 15000} = {}) {
+  return async (input, init = {}) => {
+    if (enabled !== true) throw new UiError('TEST_UI_DISABLED');
+    let u; try { u = new URL(typeof input === 'string' ? input : input.url); } catch { throw new UiError('DESTINATION_DENIED'); }
+    const method = (init.method ?? input?.method ?? 'GET').toUpperCase();
+    const allowed = u.origin === PROJECT && !u.username && !u.password && !u.hash && (
+      (u.pathname === '/auth/v1/token' && method === 'POST' && u.search === '?grant_type=password') ||
+      (u.pathname === '/auth/v1/user' && method === 'GET' && !u.search) ||
+      (u.pathname === '/auth/v1/logout' && method === 'POST' && ['', '?scope=local'].includes(u.search)) ||
+      (u.href === ENDPOINT && method === 'POST'));
+    if (!allowed) throw new UiError('DESTINATION_DENIED');
+    const abort = new AbortController(), outer = init.signal ?? input?.signal;
+    const cancel = () => abort.abort();
+    outer?.addEventListener('abort', cancel, {once: true});
+    lifetimeSignal?.addEventListener('abort', cancel, {once: true});
+    if (outer?.aborted || lifetimeSignal?.aborted) cancel();
+    let timer, rejectAbort;
+    const canceled = new Promise((_, reject) => {
+      rejectAbort = () => reject(new UiError('REQUEST_OUTCOME_UNCERTAIN'));
+      abort.signal.addEventListener('abort', rejectAbort, {once: true});
+      if (abort.signal.aborted) rejectAbort();
+    });
+    const work = async () => {
+      if (abort.signal.aborted) throw new UiError('REQUEST_OUTCOME_UNCERTAIN');
+      const r = await fetcher(input, {...init, redirect: 'error', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer', signal: abort.signal});
+      if (abort.signal.aborted) { void r.body?.cancel().catch(() => {}); throw new UiError('REQUEST_OUTCOME_UNCERTAIN'); }
+      if (!/^application\/json(?:\s*;|$)/i.test(r.headers.get('content-type') ?? '')) { void r.body?.cancel().catch(() => {}); throw new UiError('RESPONSE_INVALID'); }
+      const reader = r.body?.getReader();
+      const chunks = []; let size = 0;
+      const cancelBody = () => { void reader?.cancel().catch(() => {}); };
+      abort.signal.addEventListener('abort', cancelBody, {once: true});
+      try {
+        if (reader) for (;;) {
+          if (abort.signal.aborted) throw new UiError('REQUEST_OUTCOME_UNCERTAIN');
+          const {done, value} = await reader.read(); if (done) break;
+          size += value.byteLength;
+          if (size > MAX_RESPONSE) throw new UiError('RESPONSE_INVALID');
+          chunks.push(value);
+        }
+        if (abort.signal.aborted) throw new UiError('REQUEST_OUTCOME_UNCERTAIN');
+        const bytes = new Uint8Array(size); let n = 0;
+        for (const part of chunks) { bytes.set(part, n); n += part.byteLength; }
+        return new Response([204, 205, 304].includes(r.status) ? null : bytes, {status: r.status, headers: {'content-type': 'application/json'}});
+      } catch (e) { cancelBody(); throw e; }
+      finally { abort.signal.removeEventListener('abort', cancelBody); reader?.releaseLock(); }
+    };
+    try {
+      timer = setTimeout(cancel, timeoutMs);
+      return await Promise.race([work(), canceled]);
+    } finally {
+      clearTimeout(timer); abort.signal.removeEventListener('abort', rejectAbort);
+      outer?.removeEventListener('abort', cancel); lifetimeSignal?.removeEventListener('abort', cancel);
+    }
+  };
+}
+
+function createWorkspaceSender({enabled = false, fetcher} = {}) {
+  const send = fixedFetch(fetcher, {enabled});
+  return async ({serialized, token, signal}) => {
+    if (enabled !== true) throw new UiError('TEST_UI_DISABLED');
+    if (typeof token !== 'string' || !/^[-_A-Za-z0-9]+\.[-_A-Za-z0-9]+\.[-_A-Za-z0-9]+$/.test(token)) throw new UiError('SIGN_IN_REQUIRED');
+    const response = await send(ENDPOINT, {method: 'POST', headers: {'content-type': 'application/json', authorization: 'Bearer ' + token}, body: serialized, signal});
+    let body; try { body = await response.json(); } catch { throw new UiError('REQUEST_OUTCOME_UNCERTAIN'); }
+    if (!response.ok || body?.code !== 'OK') throw new UiError(safeCode(body?.code));
+    if (!body.data || typeof body.data !== 'object') throw new UiError('RESPONSE_INVALID');
+    return body.data;
+  };
+}
+
+// Future approved bootstrap must inject a reviewed, pinned createClient and a
+// publishable TEST key. No global SDK, production session, or config lookup.
+function createMemoryAuth({enabled = false, createClient, publishableKey, fetcher, now = Date.now} = {}) {
+  let client = null, snapshot = null, serial = 0, lifetime = null, unsubscribe = null;
+  function discard() {
+    serial++; snapshot = null; lifetime?.abort(); lifetime = null;
+    unsubscribe?.(); unsubscribe = null;
+    const old = client; client = null;
+    // A closed transport permits local SDK memory cleanup without an outbound
+    // logout. This is local discard, never a claim of server session revocation.
+    if (old) { void Promise.resolve(old.auth.signOut({scope: 'local'})).catch(() => {}); }
+  }
+  return Object.freeze({
+    async signIn({email, password}) {
+      if (enabled !== true) throw new UiError('TEST_UI_DISABLED');
+      email = fixtureEmail(email);
+      if (!email) throw new UiError('FIXTURE_ACCOUNT_REQUIRED');
+      if (typeof createClient !== 'function' || !/^sb_publishable_[A-Za-z0-9_-]+$/.test(publishableKey ?? '')) throw new UiError('TEST_AUTH_NOT_CONFIGURED');
+      discard(); const epoch = serial; const life = lifetime = new AbortController();
+      const transport = fixedFetch(fetcher, {enabled, lifetimeSignal: life.signal});
+      // Explicit in-memory storage avoids even probing ambient browser storage.
+      const memory = new Map();
+      const instance = client = createClient(PROJECT, publishableKey, {
+        auth: {persistSession: false, detectSessionInUrl: false, autoRefreshToken: false, storageKey: STORAGE_KEY,
+          storage: {getItem: key => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value), removeItem: key => memory.delete(key)}},
+        global: {fetch: transport}
+      });
+      try {
+        const {data, error} = await instance.auth.signInWithPassword({email, password});
+        if (epoch !== serial) throw new UiError('SIGN_IN_CANCELED');
+        const s = data?.session;
+        if (error || !s?.access_token || !s?.user?.id || !Number.isSafeInteger(s.expires_at) || s.expires_at * 1000 <= now()) throw new UiError('SIGN_IN_FAILED');
+        snapshot = {actorId: s.user.id, sessionTag: epoch, token: s.access_token, expiresAt: s.expires_at * 1000};
+        if (instance.auth.onAuthStateChange) {
+          const sub = instance.auth.onAuthStateChange((event, next) => {
+            if (epoch !== serial || event === 'INITIAL_SESSION') return;
+            if (event !== 'SIGNED_IN' || next?.access_token !== snapshot?.token || next?.user?.id !== snapshot?.actorId) snapshot = null;
+          });
+          unsubscribe = () => { sub?.data?.subscription?.unsubscribe(); memory.clear(); };
+        } else unsubscribe = () => memory.clear();
+        return {actorId: snapshot.actorId};
+      } catch { if (epoch === serial) discard(); throw new UiError('SIGN_IN_FAILED'); }
+      finally { password = ''; }
+    },
+    current() { return snapshot && snapshot.expiresAt > now() ? {...snapshot} : null; },
+    discard,
+    async signOut() {
+      const old = client, epoch = serial; snapshot = null;
+      // UI clears first. Remote logout is best effort; no stale token is reused.
+      try { if (old) await old.auth.signOut({scope: 'local'}); } finally { if (epoch === serial) discard(); }
+    }
+  });
+}
+
+const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+const SHA = /^[a-f0-9]{64}$/;
+const clone = value => structuredClone(value);
+const fail = code => { throw new UiError(code); };
+const must = (condition, code) => { if (!condition) fail(code); };
+const uncertainCodes = new Set(['REQUEST_OUTCOME_UNCERTAIN', 'RESPONSE_INVALID', 'REQUEST_ABORTED']);
+const invalidSessionCodes = new Set(['AUTHENTICATED_CONTEXT_REQUIRED', 'SESSION_NO_LONGER_VALID', 'SIGN_IN_REQUIRED']);
+const revokedCodes = new Set([...invalidSessionCodes, 'COMPANY_BILLING_AUTHORITY_REQUIRED', 'STAFF_PERMISSION_REQUIRED', 'COMPANY_NOT_ACTIVE', 'ATTEMPT_ACTOR_SESSION_MISMATCH', 'QUOTE_NOT_FOUND', 'ATTEMPT_NOT_FOUND']);
+function safeCheckoutUrl(value) {
+  if (typeof value !== 'string' || value.length > 4096 || /[\u0000-\u0020\u007f]/.test(value)) return null;
+  try {
+    const u = new URL(value);
+    return u.protocol === 'https:' && u.hostname === 'checkout.stripe.com' && !u.port && !u.username && !u.password && u.pathname.startsWith('/c/pay/') ? u.href : null;
+  } catch { return null; }
+}
+function quoteView(q, organizationId, expectedQuoteId) {
+  const fields = ['quoteId','state','revision','offerDigest','offerVersion','termsVersion','issuanceDigest','issuedAt','expiresAt','expired','document','forgeAcceptanceReference','customerAcceptanceReference','supersededByQuoteId','acceptedDocumentDigest','presentationId','presentationExpiresAt'];
+  must(q && typeof q === 'object' && Object.keys(q).every(k => fields.includes(k)), 'RESPONSE_INVALID');
+  must(q && UUID.test(q.quoteId ?? '') && (!expectedQuoteId || q.quoteId === expectedQuoteId) && q.document?.id === q.quoteId && q.document.organization_id === organizationId, 'RESPONSE_INVALID');
+  must(['prepared', 'issued', 'accepted', 'revoked', 'superseded'].includes(q.state) && Number.isSafeInteger(q.revision) && q.revision >= 0 && SHA.test(q.offerDigest ?? ''), 'RESPONSE_INVALID');
+  must(typeof q.offerVersion === 'string' && q.offerVersion === q.document.offer_version && typeof q.termsVersion === 'string' && q.termsVersion === q.document.terms_version && q.document.terms_document?.version === q.termsVersion && SHA.test(q.document.terms_document.digest ?? '') && typeof q.document.terms_document.content === 'string', 'RESPONSE_INVALID');
+  if (q.state === 'accepted') must(SHA.test(q.acceptedDocumentDigest ?? '') && UUID.test(q.customerAcceptanceReference ?? '') && UUID.test(q.forgeAcceptanceReference ?? ''), 'RESPONSE_INVALID');
+  return clone(q);
+}
+function attemptView(a, quoteId, acceptedDigest) {
+  const fields = ['attemptId','quoteId','state','revision','sessionId','checkoutExpiresAt','acceptedDocumentDigest','checkoutUrl','entitlementGranted'];
+  must(a && typeof a === 'object' && Object.keys(a).every(k => fields.includes(k)), 'RESPONSE_INVALID');
+  must(a && a.quoteId === quoteId && a.entitlementGranted === false, 'RESPONSE_INVALID');
+  if (a.state === 'no_attempt') { must(a.attemptId === null && a.checkoutUrl === null, 'RESPONSE_INVALID'); return clone(a); }
+  must(UUID.test(a.attemptId ?? '') && Number.isSafeInteger(a.revision) && a.revision >= 0 && SHA.test(a.acceptedDocumentDigest ?? '') && (!acceptedDigest || a.acceptedDocumentDigest === acceptedDigest), 'RESPONSE_INVALID');
+  must(['prepared', 'dispatching', 'unknown', 'ready', 'payment_pending', 'payment_observed', 'expired_unpaid', 'review_required', 'replaced'].includes(a.state), 'RESPONSE_INVALID');
+  const out = clone(a);
+  if (out.checkoutUrl !== null && out.checkoutUrl !== undefined) {
+    must(out.state === 'ready' && safeCheckoutUrl(out.checkoutUrl), 'RESPONSE_INVALID'); out.checkoutUrl = safeCheckoutUrl(out.checkoutUrl);
+  } else out.checkoutUrl = null;
+  return out;
+}
+
+/** No token, password, storage or raw provider output is exposed by getState. */
+function createController({enabled = false, auth, send, now = Date.now, createKey = () => crypto.randomUUID()} = {}) {
+  let epoch = 0, sequence = 0, active = null, authBusy = false, signedIn = false, binding = null;
+  let org = '', quote = null, audience = 'customer', attempt = null, notice = enabled === true ? 'Sign in to the synthetic employer test workspace.' : 'Disabled local candidate. No authentication or resource calls are enabled.';
+  let error = '', pending = null, originalStart = null;
+  const retained = new Map(), listeners = new Set();
+  function emit() { for (const fn of listeners) fn(getState()); }
+  function clearData() { org = ''; quote = null; attempt = null; pending = null; originalStart = null; retained.clear(); audience = 'customer'; }
+  function invalidate({logout = false} = {}) {
+    epoch++; active?.abort.abort(); active = null; authBusy = false; clearData();
+    if (logout) { signedIn = false; binding = null; if (enabled === true) auth?.discard?.(); }
+  }
+  function identity() {
+    must(enabled === true, 'TEST_UI_DISABLED');
+    const s = auth?.current?.();
+    if (!signedIn || !s || s.actorId !== binding?.actorId || s.sessionTag !== binding?.sessionTag || s.token !== binding?.token || s.expiresAt <= now()) {
+      invalidate({logout: true}); notice = 'Session changed or expired. Sign in again, then read and resume by quote.'; emit(); fail('SIGN_IN_REQUIRED');
+    }
+    return s;
+  }
+  function scope() { identity(); must(UUID.test(org), 'ORGANIZATION_REQUIRED'); }
+  function currentQuote() { scope(); must(quote, 'READ_QUOTE_FIRST'); return quote; }
+  function validPresentation() {
+    return quote && UUID.test(quote.presentationId ?? '') && Date.parse(quote.presentationExpiresAt) > now() && !quote.expired && (!quote.expiresAt || Date.parse(quote.expiresAt) > now()) && Date.parse(quote.document.starts_at) > now();
+  }
+  function getState() {
+    const connected = signedIn && !!binding;
+    const known = attempt && attempt.state !== 'no_attempt';
+    return clone({enabled: enabled === true, signedIn: connected, actorId: binding?.actorId ?? null, organizationId: org,
+      audience, quote, attempt, busy: !!active || authBusy, pending: pending ? {operation: pending.operation, quoteId: pending.request.quoteId ?? quote?.quoteId ?? null} : null,
+      notice, error, entitlementGranted: false,
+      canIssue: connected && audience === 'forge' && quote?.state === 'prepared' && !!validPresentation() && !pending,
+      canAccept: connected && audience === 'customer' && quote?.state === 'issued' && !!validPresentation() && !pending,
+      canStart: connected && quote?.state === 'accepted' && !quote.expired && Date.parse(quote.expiresAt) > now() && Date.parse(quote.document.starts_at) > now() && attempt?.state === 'no_attempt' && !pending,
+      canRecoverUnknown: connected && !!originalStart && originalStart.epoch === epoch && originalStart.quoteId === quote?.quoteId && ['unknown', 'dispatching'].includes(attempt?.state),
+      canResume: connected && !!quote, canInspect: connected && !!known,
+      checkoutUrl: known && attempt.state === 'ready' && Date.parse(attempt.checkoutExpiresAt) > now() ? safeCheckoutUrl(attempt.checkoutUrl) : null
+    });
+  }
+  function confirmAck(input, q) {
+    must(input?.accepted === true && input.offerDigest === q.offerDigest && input.offerVersion === q.offerVersion && input.termsVersion === q.termsVersion, 'EXACT_ACCEPTANCE_REQUIRED');
+  }
+  function requestRecord(operation, request, write) {
+    return {operation, request: clone(request), serialized: JSON.stringify({operation, request}), write, epoch, applied: false};
+  }
+  function apply(record, data) {
+    const action = record.operation;
+    if (action.startsWith('quote.')) {
+      const next = quoteView(data.quote ?? data, org, record.request.quoteId);
+      quote = next; attempt = null;
+      if (record.request.audience) audience = record.request.audience;
+      if (action === 'quote.prepareIssue') audience = 'forge';
+      notice = next.state === 'accepted' ? 'Acceptance is recorded. Check for an existing Checkout before starting one. No service has been granted.' : 'Server document loaded. Review the full commercial document and terms before acknowledging.';
+    } else {
+      attempt = attemptView(data, record.request.quoteId ?? quote?.quoteId, quote?.acceptedDocumentDigest);
+      notice = ({no_attempt: 'No retained attempt was found. An explicit purchase acknowledgment is required to start.', ready: 'The same server-validated sandbox Checkout is available. Opening it never grants service.', unknown: 'Dispatch outcome is unknown. Only the original actor and session may request an explicit same-key recovery.', dispatching: 'Dispatch is still fenced. Recovery requires server proof that the old worker cannot dispatch.', prepared: 'A retained intent exists. No new Checkout can be created from this view.', payment_observed: 'Payment was observed. This is not service activation or fulfillment.', payment_pending: 'Payment is pending. Do not start another Checkout.'})[attempt.state] ?? 'Server attempt inspected. No service has been granted.';
+    }
+    record.applied = true; if (pending === record) pending = null; error = '';
+  }
+  function dispatch(record) {
+    scope();
+    if (active) {
+      if (active.record.serialized === record.serialized) return active.promise;
+      return Promise.reject(new UiError('OPERATION_IN_PROGRESS'));
+    }
+    const s = identity(), currentEpoch = epoch, id = ++sequence, abort = new AbortController();
+    let rejectAbort;
+    const canceled = new Promise((_, reject) => { rejectAbort = () => reject(new UiError('REQUEST_OUTCOME_UNCERTAIN')); abort.signal.addEventListener('abort', rejectAbort, {once: true}); });
+    const run = {id, record, abort, promise: null}; active = run; error = '';
+    if (record.write) pending = record;
+    const work = Promise.resolve().then(() => { if (abort.signal.aborted) fail('REQUEST_OUTCOME_UNCERTAIN'); return send({serialized: record.serialized, token: s.token, signal: abort.signal}); });
+    run.promise = Promise.race([work, canceled]).then(data => {
+      if (epoch !== currentEpoch || active?.id !== id) return null;
+      identity(); // Fences same-page SDK/session changes before exposing any data.
+      apply(record, data); return getState();
+    }).catch(e => {
+      if (epoch !== currentEpoch || active?.id !== id) return null;
+      const code = e instanceof UiError ? e.code : 'REQUEST_OUTCOME_UNCERTAIN';
+      error = code;
+      if (record.operation.startsWith('checkout.') && attempt) attempt = {...attempt, checkoutUrl: null};
+      // A Checkout domain rejection may occur during post-dispatch reconcile.
+      // It does not prove that preparation/create rolled back. Retain its exact
+      // original request for every error, not only transport failures.
+      if (record.write && (uncertainCodes.has(code) || record.operation.startsWith('checkout.'))) {
+        pending = record; notice = 'Outcome uncertain. The exact request is retained in this session. Inspect first or explicitly retry that unchanged request. Cancel does not undo server work.';
+      } else {
+        if (pending === record) pending = null;
+        if (record.write) retained.delete(record.operation + ':' + (record.request.quoteId ?? record.request.sourceOfferId));
+        notice = 'Request was not confirmed. Read the latest server state before trying again.';
+      }
+      // Never retain a financial document or URL after authority rejection.
+      if (revokedCodes.has(code)) { quote = null; attempt = null; pending = null; originalStart = null; retained.clear(); }
+      if (invalidSessionCodes.has(code)) {
+        invalidate({logout: true}); notice = 'The server no longer accepts this session. Sign in again, then read and resume by quote.'; emit();
+      }
+      return null;
+    }).finally(() => { abort.signal.removeEventListener('abort', rejectAbort); if (active?.id === id) { active = null; emit(); } });
+    emit(); return run.promise;
+  }
+  function write(operation, requestBuilder, key) {
+    scope();
+    const existing = retained.get(key);
+    if (existing) return dispatch(existing);
+    must(!active, 'OPERATION_IN_PROGRESS');
+    must(!pending, 'UNRESOLVED_WRITE_REQUIRES_INSPECTION');
+    const record = requestRecord(operation, requestBuilder(), true); retained.set(key, record); return dispatch(record);
+  }
+  const api = {
+    getState,
+    subscribe(fn) { listeners.add(fn); fn(getState()); return () => listeners.delete(fn); },
+    tick() { if (signedIn) { try { identity(); } catch {} } emit(); },
+    async signIn(credentials) {
+      must(enabled === true, 'TEST_UI_DISABLED');
+      if (authBusy) return;
+      const email = fixtureEmail(credentials?.email);
+      must(email, 'FIXTURE_ACCOUNT_REQUIRED');
+      invalidate({logout: true}); const currentEpoch = epoch; authBusy = true; error = ''; notice = 'Signing in to the fixed test project…'; emit();
+      try {
+        await auth.signIn({email, password: credentials.password});
+        if (epoch !== currentEpoch) return;
+        const s = auth.current(); must(s && s.expiresAt > now(), 'SIGN_IN_FAILED');
+        binding = {actorId: s.actorId, sessionTag: s.sessionTag, token: s.token}; signedIn = true; notice = 'Signed in. Enter a synthetic company and quote or approved source ID. The server checks current authority for every request.';
+      } catch { if (epoch === currentEpoch) { signedIn = false; binding = null; error = 'SIGN_IN_FAILED'; notice = 'Sign-in did not complete. No credentials were retained by this interface.'; } }
+      finally { if (epoch === currentEpoch) { authBusy = false; emit(); } }
+    },
+    signOut() {
+      invalidate({logout: true}); notice = 'Signed out locally. All displayed data and retry state were cleared. Server work may still complete; sign in and resume by quote.'; error = ''; emit();
+    },
+    setOrganization(value) {
+      identity(); must(UUID.test(value), 'ORGANIZATION_REQUIRED');
+      if (org === value) return;
+      invalidate(); org = value; error = ''; notice = 'Company context changed. Read the quote again. All previous display and operation state was cleared.'; emit();
+    },
+    prepareIssue(sourceOfferId) {
+      scope(); must(UUID.test(sourceOfferId), 'SOURCE_ID_REQUIRED');
+      return write('quote.prepareIssue', () => ({organizationId: org, sourceOfferId}), 'quote.prepareIssue:' + sourceOfferId);
+    },
+    readQuote(quoteId, nextAudience = 'customer') {
+      scope(); must(UUID.test(quoteId) && ['customer', 'forge'].includes(nextAudience), 'QUOTE_READ_INVALID');
+      // Retained uncertain writes cannot silently change their target.
+      if (pending) must(!pending.request.quoteId || pending.request.quoteId === quoteId, 'UNRESOLVED_WRITE_REQUIRES_INSPECTION');
+      must(!active, 'OPERATION_IN_PROGRESS'); quote = null; attempt = null;
+      return dispatch(requestRecord('quote.read', {organizationId: org, quoteId, audience: nextAudience}, false));
+    },
+    acknowledge(kind, input) {
+      const q = currentQuote(); must(['issue', 'accept'].includes(kind), 'OPERATION_INVALID');
+      const key = 'quote.' + kind + ':' + q.quoteId;
+      if (retained.has(key)) return dispatch(retained.get(key));
+      must(kind === 'issue' ? audience === 'forge' && q.state === 'prepared' : audience === 'customer' && q.state === 'issued', 'QUOTE_STATE_INVALID');
+      must(validPresentation(), 'PRESENTATION_EXPIRED'); confirmAck(input, q);
+      return write('quote.' + kind, () => ({organizationId: org, quoteId: q.quoteId, presentationId: q.presentationId, offerDigest: q.offerDigest, offerVersion: q.offerVersion, termsVersion: q.termsVersion, revision: q.revision, accepted: true, idempotencyKey: createKey()}), key);
+    },
+    resumeByQuote() { const q = currentQuote(); return dispatch(requestRecord('checkout.resumeByQuote', {organizationId: org, quoteId: q.quoteId}, false)); },
+    inspect() { scope(); must(attempt?.attemptId, 'ATTEMPT_REQUIRED'); return dispatch(requestRecord('checkout.inspect', {organizationId: org, attemptId: attempt.attemptId}, false)); },
+    reconcile() { scope(); must(attempt?.attemptId, 'ATTEMPT_REQUIRED'); return dispatch(requestRecord('checkout.reconcile', {organizationId: org, attemptId: attempt.attemptId}, false)); },
+    start(input) {
+      const q = currentQuote(), key = 'checkout.start:' + q.quoteId;
+      if (retained.has(key)) return dispatch(retained.get(key));
+      must(q.state === 'accepted' && attempt?.state === 'no_attempt', 'CHECK_EXISTING_ATTEMPT_FIRST');
+      must(input?.purchaseAcknowledged === true && input.acceptedDocumentDigest === q.acceptedDocumentDigest, 'EXACT_PURCHASE_ACKNOWLEDGEMENT_REQUIRED');
+      originalStart = {epoch, quoteId: q.quoteId};
+      return write('checkout.start', () => ({organizationId: org, quoteId: q.quoteId, acceptedDocumentDigest: q.acceptedDocumentDigest, idempotencyKey: createKey(), purchaseAcknowledged: true, replacementOf: null}), key);
+    },
+    recoverUnknown(input) {
+      const q = currentQuote();
+      must(originalStart?.epoch === epoch && originalStart.quoteId === q.quoteId, 'ORIGINAL_ACTOR_SESSION_REQUIRED');
+      must(['unknown', 'dispatching'].includes(attempt?.state) && attempt.acceptedDocumentDigest === q.acceptedDocumentDigest, 'UNKNOWN_ATTEMPT_REQUIRED');
+      must(input?.retryAcknowledged === true && input.revision === attempt.revision && input.acceptedDocumentDigest === attempt.acceptedDocumentDigest, 'EXACT_RECOVERY_ACKNOWLEDGEMENT_REQUIRED');
+      // Retain the prior uncertain start body, but recovery is a distinct explicit
+      // acknowledgment of the current revision, never a generated start/key.
+      must(!active, 'OPERATION_IN_PROGRESS');
+      const key = 'checkout.recoverUnknown:' + attempt.attemptId + ':' + attempt.revision;
+      const record = retained.get(key) ?? requestRecord('checkout.recoverUnknown', {organizationId: org, attemptId: attempt.attemptId, acceptedDocumentDigest: attempt.acceptedDocumentDigest, revision: attempt.revision, retryAcknowledged: true}, true);
+      retained.set(key, record); return dispatch(record);
+    },
+    retryUncertain(acknowledged) { scope(); must(acknowledged === true && pending && pending.epoch === epoch, 'EXPLICIT_UNCHANGED_RETRY_REQUIRED'); return dispatch(pending); },
+    cancel() {
+      if (authBusy) { invalidate({logout: true}); notice = 'Sign-in canceled; credentials and display cleared.'; }
+      else if (active) {
+        const record = active.record; active.abort.abort(); active = null;
+        if (record.write) { pending = record; notice = 'Stopped waiting. Server work may still complete. The exact request is retained; inspect before an explicit retry.'; }
+        else { quote = null; attempt = null; notice = 'Stopped waiting. No late response will restore the dismissed display.'; }
+      } else { quote = null; attempt = null; notice = 'Display cleared. Any uncertain request remains retained in this session.'; }
+      emit();
+    }
+  };
+  return Object.freeze(api);
+}
+
+/** Text-only DOM renderer. No HTML interpolation or automatic navigation. */
+function mountValidation(root, controller) {
+  const doc = root.ownerDocument;
+  function el(tag, text, attrs = {}) {
+    const n = doc.createElement(tag); if (text !== undefined) n.textContent = text;
+    for (const [key, value] of Object.entries(attrs)) n.setAttribute(key, value);
+    return n;
+  }
+  function append(parent, ...children) { parent.append(...children); return parent; }
+  function field(parent, label, id, type = 'text') {
+    const input = el('input', undefined, {id, type, autocomplete: 'off', spellcheck: 'false'});
+    append(parent, append(el('label', label, {for: id}), input)); return input;
+  }
+  function check(parent, label, id) { return field(parent, label, id, 'checkbox'); }
+  function button(parent, text, id, fn) {
+    const b = el('button', text, {type: 'button', id});
+    b.addEventListener('click', () => { if (!b.disabled) run(fn); }); parent.append(b); return b;
+  }
+  let localError = '', current = null, previousBinding = '', previousQuote = '';
+  async function run(fn) {
+    localError = ''; render(controller.getState());
+    try { await fn(); } catch (e) { localError = /^[A-Z][A-Z0-9_]{1,79}$/.test(e?.code ?? '') ? e.code : 'ACTION_NOT_COMPLETED'; }
+    render(controller.getState());
+  }
+  root.replaceChildren();
+  root.className = 'validation-shell';
+  const header = append(el('header'), el('p', 'FORGE / EMPLOYER VALIDATION', {class: 'eyebrow'}), el('h1', 'Review. Acknowledge. Recover.'), el('p', 'Synthetic data and isolated sandbox only. This workspace never activates employer services or changes the $19 Pro experience.', {class: 'intro'}));
+  const badge = el('span', 'DISABLED LOCAL CANDIDATE', {class: 'badge', id: 'mode'});
+  header.append(badge);
+  const status = el('p', '', {id: 'status', role: 'status', 'aria-live': 'polite'});
+  const error = el('p', '', {id: 'error', role: 'alert'});
+  const trust = el('p', 'This preview shares its website origin with other pages. A separate path is not a security boundary. Use synthetic accounts only; Auth stays in memory and no existing browser session is reused.', {class: 'trust-note'});
+  const grid = el('div', undefined, {class: 'workspace-grid'});
+  const left = el('section', undefined, {class: 'panel'}), right = el('section', undefined, {class: 'panel document-panel'});
+  left.append(el('h2', '1. Test identity & scope'));
+  const authForm = el('form', undefined, {autocomplete: 'off'});
+  const email = field(authForm, 'Synthetic account email', 'email', 'email');
+  const password = field(authForm, 'Test account password', 'password', 'password');
+  email.setAttribute('name', 'forge-synthetic-fixture-identity');
+  email.setAttribute('autocapitalize', 'none'); email.setAttribute('autocorrect', 'off');
+  email.setAttribute('list', 'fixture-accounts');
+  password.setAttribute('name', 'forge-synthetic-fixture-secret');
+  for (const input of [email, password]) { input.setAttribute('data-lpignore', 'true'); input.setAttribute('data-1p-ignore', 'true'); }
+  password.setAttribute('autocomplete', 'new-password');
+  const fixtureList = el('datalist', undefined, {id: 'fixture-accounts'});
+  FIXTURE_EMAILS.forEach(value => fixtureList.append(el('option', value, {value})));
+  authForm.append(fixtureList, el('p', 'Only the six reserved Forge fixture accounts are accepted. Use synthetic passwords only; do not accept production credential autofill. Non-fixture email is rejected before any Auth request.', {class: 'muted'}));
+  const signIn = el('button', 'Sign in to test project', {id: 'sign-in', type: 'submit'}); authForm.append(signIn);
+  authForm.addEventListener('submit', event => {
+    event.preventDefault(); if (signIn.disabled) return;
+    const credentials = {email: email.value.trim(), password: password.value};
+    password.value = ''; run(() => controller.signIn(credentials)); credentials.password = '';
+  });
+  left.append(authForm);
+  const identity = el('p', '', {id: 'identity', class: 'muted'}); left.append(identity);
+  const signOut = button(left, 'Sign out & clear local state', 'sign-out', () => controller.signOut());
+  const org = field(left, 'Synthetic company ID', 'organization');
+  const useOrg = button(left, 'Use this company', 'use-company', () => controller.setOrganization(org.value.trim()));
+  left.append(el('hr'));
+  left.append(el('h2', '2. Retrieve a server document'));
+  const quoteId = field(left, 'Quote ID', 'quote-id');
+  const audienceLabel = el('label', 'Requested audience (server authorization still applies)', {for: 'audience'});
+  const audience = append(el('select', undefined, {id: 'audience'}), el('option', 'Company owner / admin', {value: 'customer'}), el('option', 'Forge approver', {value: 'forge'}));
+  append(left, append(audienceLabel, audience));
+  const read = button(left, 'Read quote', 'read-quote', () => controller.readQuote(quoteId.value.trim(), audience.value));
+  const sourceId = field(left, 'Approved synthetic source ID (Forge approver only)', 'source-id');
+  const prepare = button(left, 'Prepare issuance presentation', 'prepare', () => controller.prepareIssue(sourceId.value.trim()));
+  left.append(el('p', 'No prices, customers, taxes, capacity, or terms can be edited here. Preparation uses an already approved server source.', {class: 'muted'}));
+
+  right.append(el('h2', 'Server-owned quote & terms'));
+  const summary = el('p', 'No quote loaded.', {id: 'quote-summary'}), metadata = el('pre', '', {id: 'quote-evidence'});
+  const terms = el('pre', '', {id: 'terms', class: 'terms'});
+  const details = append(el('details'), el('summary', 'Full immutable commercial document'), el('pre', '', {id: 'document'}));
+  const fullDocument = details.querySelector('pre');
+  append(right, summary, metadata, el('h3', 'Complete server terms'), terms, details);
+  const ackArea = el('fieldset'); ackArea.append(el('legend', 'Explicit quote acknowledgment'));
+  const offerDigest = field(ackArea, 'Enter the exact displayed offer digest', 'offer-digest');
+  const offerVersion = field(ackArea, 'Enter the displayed offer version', 'offer-version');
+  const termsVersion = field(ackArea, 'Enter the displayed terms version', 'terms-version');
+  const accepted = check(ackArea, 'I reviewed the complete server document and terms and explicitly acknowledge this exact offer and versions.', 'accepted');
+  const acknowledgment = () => ({accepted: accepted.checked, offerDigest: offerDigest.value.trim(), offerVersion: offerVersion.value.trim(), termsVersion: termsVersion.value.trim()});
+  const issue = button(ackArea, 'Explicitly issue this synthetic quote', 'issue', () => controller.acknowledge('issue', acknowledgment()));
+  const accept = button(ackArea, 'Explicitly accept this synthetic quote', 'accept', () => controller.acknowledge('accept', acknowledgment()));
+  right.append(ackArea);
+  append(grid, left, right);
+
+  const checkout = el('section', undefined, {class: 'panel checkout-panel'});
+  checkout.append(el('h2', '3. Inspect or resume the same Checkout'));
+  checkout.append(el('p', 'After a reload or fresh sign-in, read the quote and use Resume by quote. This operation never creates or retries a Checkout. A current owner/admin may resume a known session. Unknown dispatch recovery is restricted to the original actor and session.'));
+  const actions = el('div', undefined, {class: 'button-row'});
+  const resume = button(actions, 'Resume by quote / check existing', 'resume', () => controller.resumeByQuote());
+  const inspect = button(actions, 'Inspect retained attempt', 'inspect', () => controller.inspect());
+  const reconcile = button(actions, 'Reconcile existing session', 'reconcile', () => controller.reconcile());
+  const attemptText = el('pre', '', {id: 'attempt'});
+  const checkoutLink = el('a', 'Open the same validated sandbox Checkout', {id: 'checkout-link', target: '_blank', rel: 'noopener noreferrer', referrerpolicy: 'no-referrer'});
+  checkoutLink.addEventListener('click', event => { controller.tick(); const s = controller.getState(); if (!s.checkoutUrl || s.busy) event.preventDefault(); });
+  append(checkout, actions, attemptText, checkoutLink);
+  const purchase = el('fieldset'); purchase.append(el('legend', 'Initial one-time sandbox purchase'));
+  const acceptedDigest = field(purchase, 'Enter the exact accepted-document digest', 'accepted-digest');
+  const purchaseAck = check(purchase, 'I explicitly acknowledge a one-time sandbox Checkout for this exact accepted document, total, and terms. No automatic renewal.', 'purchase-ack');
+  const start = button(purchase, 'Start one sandbox Checkout', 'start', () => controller.start({purchaseAcknowledged: purchaseAck.checked, acceptedDocumentDigest: acceptedDigest.value.trim()}));
+  purchase.append(el('p', 'Requires a current no-attempt result. Retries retain the original key and body. This interface never creates a replacement session.', {class: 'muted'}));
+  checkout.append(purchase);
+  const recovery = el('fieldset'); recovery.append(el('legend', 'Explicit unknown-dispatch recovery'));
+  const revision = field(recovery, 'Enter the currently inspected attempt revision', 'retry-revision');
+  const retryDigest = field(recovery, 'Enter the exact accepted-document digest', 'retry-digest');
+  const retryAck = check(recovery, 'I am using the original actor and session and explicitly request a retry of the retained provider key and body at this exact revision. Server fencing and deadline checks still apply.', 'retry-ack');
+  const recover = button(recovery, 'Request same-key unknown recovery', 'recover', () => controller.recoverUnknown({retryAcknowledged: retryAck.checked, revision: /^\d+$/.test(revision.value.trim()) ? Number(revision.value.trim()) : NaN, acceptedDocumentDigest: retryDigest.value.trim()}));
+  checkout.append(recovery);
+  const uncertain = el('div', undefined, {class: 'uncertain'});
+  const retryOriginalAck = check(uncertain, 'I inspected the available server state and request an unchanged retry of the retained uncertain operation in this same session.', 'unchanged-ack');
+  const retryOriginal = button(uncertain, 'Retry exact retained request', 'retry-original', () => controller.retryUncertain(retryOriginalAck.checked));
+  const cancel = button(uncertain, 'Stop waiting / clear display', 'cancel', () => controller.cancel());
+  uncertain.append(el('p', 'Stop waiting is not a server cancellation. Sign-out or company change discards all local retry state. After reload, recover known results through quote read and Resume by quote.', {class: 'muted'}));
+  checkout.append(uncertain);
+  const footer = el('footer', 'Test project: jrpsnqzoalwlovwtrvkn · Employer sandbox: acct_1UGSV9KBbgZLd711 · Redirects and payment observations never grant service.');
+  append(root, header, status, error, trust, grid, checkout, footer);
+  const sensitiveInputs = [org, quoteId, sourceId, offerDigest, offerVersion, termsVersion, acceptedDigest, revision, retryDigest];
+  const checks = [accepted, purchaseAck, retryAck, retryOriginalAck];
+  function resetAcknowledgments() { [offerDigest, offerVersion, termsVersion, acceptedDigest, revision, retryDigest].forEach(n => n.value = ''); checks.forEach(n => n.checked = false); }
+  function render(s) {
+    current = s;
+    const binding = (s.actorId ?? '') + ':' + s.organizationId;
+    if (binding !== previousBinding) { sensitiveInputs.forEach(n => n.value = ''); checks.forEach(n => n.checked = false); password.value = ''; previousQuote = ''; if (!s.signedIn) email.value = ''; org.value = s.organizationId; previousBinding = binding; }
+    const q = s.quote;
+    const quoteKey = q ? [q.quoteId, q.revision, q.presentationId, q.acceptedDocumentDigest].join(':') : '';
+    if (quoteKey !== previousQuote) { resetAcknowledgments(); previousQuote = quoteKey; }
+    badge.textContent = s.enabled ? 'SYNTHETIC / SANDBOX ONLY' : 'DISABLED LOCAL CANDIDATE';
+    status.textContent = s.notice;
+    const errorCode = localError || s.error;
+    error.textContent = errorCode === 'FIXTURE_ACCOUNT_REQUIRED' ? 'Choose one of the six reserved Forge fixture accounts. No Auth request was sent.' : errorCode;
+    identity.textContent = s.signedIn ? 'Authenticated actor: ' + s.actorId : 'No authenticated test session';
+    const busy = s.busy, disabled = !s.enabled;
+    signIn.disabled = disabled || busy || s.signedIn; email.disabled = password.disabled = disabled || busy || s.signedIn;
+    signOut.disabled = disabled || (!s.signedIn && !busy);
+    useOrg.disabled = disabled || !s.signedIn; org.disabled = disabled || !s.signedIn;
+    read.disabled = prepare.disabled = disabled || busy || !s.organizationId;
+    quoteId.disabled = sourceId.disabled = audience.disabled = disabled || busy || !s.organizationId;
+    summary.textContent = q ? `${q.document.plan_code} · ${q.state} · total ${q.document.total_minor} ${q.document.currency} minor units · ${q.document.starts_at} to ${q.document.ends_at} (${q.document.timezone})` : 'No quote loaded.';
+    metadata.textContent = q ? JSON.stringify({quoteId:q.quoteId,state:q.state,revision:q.revision,offerDigest:q.offerDigest,offerVersion:q.offerVersion,termsVersion:q.termsVersion,termsDigest:q.document.terms_document.digest,issuanceDigest:q.issuanceDigest,issuedAt:q.issuedAt,expiresAt:q.expiresAt,presentationExpiresAt:q.presentationExpiresAt ?? null,acceptedDocumentDigest:q.acceptedDocumentDigest,forgeAcceptanceReference:q.forgeAcceptanceReference,customerAcceptanceReference:q.customerAcceptanceReference}, null, 2) : '';
+    terms.textContent = q?.document.terms_document.content ?? 'Read a server quote to display its full authoritative terms.';
+    fullDocument.textContent = q ? JSON.stringify(q.document, null, 2) : '';
+    ackArea.disabled = disabled || busy || (!s.canIssue && !s.canAccept);
+    issue.disabled = !s.canIssue || busy; accept.disabled = !s.canAccept || busy;
+    resume.disabled = !s.canResume || busy; inspect.disabled = reconcile.disabled = !s.canInspect || busy;
+    attemptText.textContent = s.attempt ? JSON.stringify({...s.attempt, checkoutUrl: undefined}, null, 2) : 'No attempt inspected. Use Resume by quote first.';
+    checkoutLink.hidden = !s.checkoutUrl || busy;
+    checkoutLink.removeAttribute('href'); if (s.checkoutUrl && !busy) checkoutLink.setAttribute('href', s.checkoutUrl);
+    purchase.disabled = !s.canStart || busy; start.disabled = !s.canStart || busy;
+    recovery.disabled = !s.canRecoverUnknown || busy; recover.disabled = !s.canRecoverUnknown || busy;
+    retryOriginal.disabled = !s.pending || busy || !s.signedIn; retryOriginalAck.disabled = retryOriginal.disabled;
+    cancel.disabled = disabled;
+    uncertain.dataset.pending = s.pending ? s.pending.operation : '';
+  }
+  const unsubscribe = controller.subscribe(render);
+  // No timers or SDK initialization in the default-disabled artifact.
+  const timer = controller.getState().enabled ? setInterval(() => controller.tick(), 1000) : null;
+  const onPageHide = () => controller.signOut();
+  doc.defaultView?.addEventListener('pagehide', onPageHide);
+  return {destroy() { if (timer) clearInterval(timer); unsubscribe(); doc.defaultView?.removeEventListener('pagehide', onPageHide); controller.signOut(); root.replaceChildren(); }, getState: () => current};
+}
+
+mountValidation(document.getElementById("app"), createController());
+</script></body></html>
