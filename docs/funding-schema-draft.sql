@@ -65,3 +65,4 @@ CREATE TRIGGER stamp_funding_opportunity BEFORE INSERT OR UPDATE ON public.cerbt
 CREATE INDEX cerbtek_funding_updated_idx ON public.cerbtek_funding_opportunities (updated_at DESC);
 COMMENT ON TABLE public.cerbtek_funding_opportunities IS 'CerbTek LLC private fundraising research. Active platform admins only. Never expose through public pages, tenant exports, or bundled seed data.';
 COMMIT;
+

@@ -1,5 +1,7 @@
 export const FUNDING_TABLE = 'cerbtek_funding_opportunities'
 export const VENTURES = ['CerbTek AI Enablement', 'ForgeCIF Career Intelligence', 'Company-wide']
+// Keep stored values stable; product naming is a presentation concern.
+export function ventureLabel(value) { return value === 'CerbTek AI Enablement' ? 'Kairo' : value }
 export const CATEGORIES = ['Grant', 'Accelerator', 'Equity', 'Cloud credits', 'Competition', 'Other']
 export const STATUSES = ['Researching', 'Eligibility review', 'Preparing', 'Submitted', 'In conversation', 'Awarded', 'Declined', 'Closed']
 export const READINESS = ['Unreviewed', 'Potential fit', 'Needs evidence', 'Ready', 'Not eligible']
@@ -36,3 +38,4 @@ export function deadlineLabel(row, today = new Date().toISOString().slice(0,10))
   return row.deadline_state === 'Rolling' ? 'Rolling · verify intake' : 'Next deadline unannounced'
 }
 export function filterOpportunities(rows, query, status, venture) { const term = query.trim().toLowerCase(); return rows.filter(r => (status === 'All' || r.status === status) && (venture === 'All' || r.venture === venture) && (!term || [r.opportunity, r.provider, r.owner, r.next_action].some(x => String(x || '').toLowerCase().includes(term)))) }
+

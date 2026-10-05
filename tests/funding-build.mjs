@@ -15,3 +15,4 @@ const publicFiles=await readdir(new URL('../public/',import.meta.url))
 assert.ok(!publicFiles.some(name=>/funding|seed|tracker/i.test(name)))
 console.log('PASS public entry has no backend/private imports, links are integrated and no seed assets are public')
 
+

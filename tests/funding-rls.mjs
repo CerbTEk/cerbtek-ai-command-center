@@ -29,3 +29,4 @@ await test('source, status and date constraints reject misleading data',async()=
 await test('staff revocation immediately removes access',async()=>{await db.exec(`UPDATE staff_accounts SET active=false WHERE user_id='${ids.admin}'`);await actor(ids.admin);assert.equal((await db.query('SELECT * FROM cerbtek_funding_opportunities')).rows.length,0);await deny(insert)})
 console.log(`${count} offline RLS tests passed`)
 await db.close()
+

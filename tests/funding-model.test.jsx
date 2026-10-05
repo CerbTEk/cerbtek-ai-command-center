@@ -9,3 +9,4 @@ describe('funding data boundaries', () => {
   it('does not send immutable/server fields or obsolete dates', () => { const p=opportunityPayload({...valid(),created_by:'other',version:9,deadline_date:'2026-11-04'}); expect(p).not.toHaveProperty('created_by'); expect(p).not.toHaveProperty('version'); expect(p.deadline_date).toBe(null) })
   it('marks closed and past deadlines honestly', () => { expect(deadlineLabel({deadline_state:'Closed',deadline_date:'2026-08-24'},'2026-10-02')).toContain('Closed'); expect(deadlineLabel({deadline_state:'Fixed',deadline_date:'2026-08-24'},'2026-10-02')).toContain('Past date') })
 })
+
