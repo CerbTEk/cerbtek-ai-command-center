@@ -10,7 +10,10 @@
     "test:funding": "vitest run --config vitest.funding.config.js",
     "test:funding-db": "node tests/funding-rls.mjs",
     "test:funding-build": "node tests/funding-build.mjs",
-    "check:funding": "npm run test:funding && npm run test:funding-db && npm run build && npm run test:funding-build"
+    "check:funding": "npm run test:funding && npm run test:funding-db && npm run build && npm run test:funding-build",
+    "test:marketing": "node --test tests/marketing-routing.test.mjs",
+    "test:marketing-build": "node tests/marketing-build.mjs",
+    "check:marketing": "npm run test:marketing && npm run build && npm run test:marketing-build"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.58.0",

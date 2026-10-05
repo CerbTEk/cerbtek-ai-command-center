@@ -27,7 +27,7 @@ describe('funding integration with current navigation', () => {
   it('guards browser back/forward state and restores the funding route on cancellation', () => {
     window.history.replaceState({}, '', '/?kairoCompany=tenant#Funding')
     render(<Navigation guard={() => false}/>)
-    window.history.replaceState({}, '', '/?kairoCompany=tenant#Overview')
+    window.history.replaceState({}, '', '/app/?kairoCompany=tenant#Overview')
     fireEvent.popState(window)
     expect(screen.getByTestId('active').textContent).toBe('Funding')
     expect(window.location.hash).toBe('#Funding')
@@ -42,8 +42,8 @@ describe('funding integration with current navigation', () => {
     fireEvent(window, new HashChangeEvent('hashchange'))
     expect(guard).toHaveBeenCalledTimes(1)
   })
-  it('preserves the previous entry after cancelling and later accepting actual Back', async () => {
-    window.history.replaceState({ existing: 'keep' }, '', '/?kairoCompany=tenant#Overview')
+  it('preserves /app history after cancelling and later accepting actual Back and Forward', async () => {
+    window.history.replaceState({ existing: 'keep' }, '', '/app/?kairoCompany=tenant#Overview')
     const guard=vi.fn(() => true)
     render(<Navigation guard={guard}/>)
     fireEvent.click(screen.getByText('Funding'))
