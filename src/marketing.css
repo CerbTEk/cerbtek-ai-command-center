@@ -3,3 +3,5 @@
 
 /* Secondary labels remain legible at small viewport sizes. */
 .visual-heading,.flow-label,.flow-step small,.visual-caption,.status-label{font-size:12px;letter-spacing:.9px}.flow-step p{font-size:14px}.tiny-mark{width:28px;height:28px;border-radius:4px}.visual-caption{max-width:none}.flow-label{margin-block:24px 18px}.hero-note{font-size:14px}.principles .wrap{font-size:11px}.contact-action .contact-note{font-size:12px!important}@media(max-width:760px){.principles .wrap{font-size:9px;letter-spacing:.3px}.hero .eyebrow{font-size:11px}.visual-heading{font-size:10px}.flow-step p{font-size:13px}}
+
+.arrow-icon{display:inline-block;vertical-align:middle;flex:none}.sign-in .arrow-icon,.text-link .arrow-icon{margin-left:12px}.site-footer .arrow-icon{width:15px;height:15px}.step-icon svg{display:block;margin-top:6px}
