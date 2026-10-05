@@ -11,6 +11,10 @@ import { assessmentComplete, deriveNextStep, onboardingComplete } from './first-
 import { useSectionNavigation } from './use-section-navigation'
 import KairoHelp from './KairoHelp'
 import './styles.css'
+import { FundingWorkspace } from './FundingWorkspace'
+import { canManageFunding } from './funding-model'
+
+const APP_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/`
 
 const baseNav = [
   ['Overview', Gauge],
@@ -31,7 +35,9 @@ const baseNav = [
 function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [active, setActive, sectionHeadingRef] = useSectionNavigation()
+  const [fundingDirty, setFundingDirty] = useState(false)
+  const [fundingSaving, setFundingSaving] = useState(false)
+  const [active, setActive, sectionHeadingRef] = useSectionNavigation((next, current) => current !== 'Funding' || next === current || (!fundingSaving && (!fundingDirty || window.confirm('Leave the funding workspace and discard unsaved changes?'))))
   const [orgs, setOrgs] = useState([])
   const [org, setOrg] = useState(null)
   const [staff, setStaff] = useState(null)
@@ -120,7 +126,7 @@ function App() {
     const isCurrent=()=>request===staffLoadRequest.current&&currentContext.current.userId===userId
     setStaffLoading(true)
     try {
-      const {data}=await supabase.from('staff_accounts').select('*').maybeSingle()
+      const {data}=await supabase.from('staff_accounts').select('*').eq('user_id', userId).eq('active', true).maybeSingle()
       if(isCurrent()) setStaff(data||null)
     } catch {
       if(isCurrent()) setStaff(null)
@@ -217,15 +223,17 @@ function App() {
 
   if (loading) return <div className="center">Loading Kairo…</div>
   if (!session) return <Auth />
+  const fundingAllowed = canManageFunding(staff, session.user.id)
+  if (active === 'Funding') return <div className="funding-shell"><div className="funding-shell-nav"><button className="secondary" disabled={fundingSaving} onClick={() => setActive('Overview')}>Back to command center</button><button className="secondary" disabled={fundingSaving} onClick={() => { if (!fundingSaving && (!fundingDirty || window.confirm('Sign out and discard unsaved funding changes?'))) supabase.auth.signOut() }}>Sign out</button></div>{fundingSaving && <p role="status">Saving is in progress. Wait for the result before leaving or signing out.</p>}{staffLoading ? <p role="status">Checking funding access…</p> : <FundingWorkspace session={session} staff={staff} onDirtyChange={setFundingDirty} onSavingChange={setFundingSaving}/>}</div>
   if (orgsLoading||orgsUserId!==session.user.id) return <div className="center" role="status">Loading your companies…</div>
   if (orgsError) return <div className="auth-shell"><div className="auth-card"><h1>Could not load your companies</h1><p role="alert">{orgsError}</p><button className="primary" onClick={()=>loadOrgs()}>Try again</button></div></div>
-  if (!orgs.length) return <CreateOrganization session={session} onCreated={loadOrgs} />
+  if (!orgs.length) return <>{fundingAllowed && <div className="funding-shell-nav"><button className="secondary" onClick={() => setActive('Funding')}>Internal funding workspace</button></div>}<CreateOrganization session={session} onCreated={loadOrgs} /></>
 
-  const nav = staff ? [...baseNav, ['CerbTek Staff', Users]] : baseNav
+  const nav = staff ? [...baseNav, ['CerbTek Staff', Users], ...(fundingAllowed ? [['Funding', Building2]] : [])] : baseNav
 
   return <div className="app">
     <aside className="sidebar">
-      <div className="brand"><img className="brand-mark" src="/kairo-mark.svg" alt="Kairo" width="42" height="42" /><div><strong>Kairo</strong><span>AI Enablement by CerbTek</span></div></div>
+      <div className="brand"><img className="brand-mark" src={`${APP_BASE}kairo-mark.svg`} alt="Kairo" width="42" height="42" /><div><strong>Kairo</strong><span>AI Enablement by CerbTEK LLC</span></div></div>
       <div className="org-switcher">
         <span>Client organization</span>
         <select value={org?.id || ''} onChange={e => selectCompany(orgs.find(x=>x.id===e.target.value))}>
@@ -234,7 +242,7 @@ function App() {
       </div>
       <nav>{nav.map(([label, Icon]) =>
         <button key={label} className={active === label ? 'active' : ''} onClick={() => setActive(label)}>
-          <Icon size={17}/>{label}
+          <Icon size={17}/>{label === 'CerbTek Staff' ? 'CerbTEK LLC Staff' : label}
         </button>
       )}</nav>
       <button className="signout" onClick={() => supabase.auth.signOut()}><LogOut size={16}/>Sign out</button>
@@ -242,7 +250,7 @@ function App() {
 
     <main>
       <header>
-        <div><p className="eyebrow">KAIRO COMMAND CENTER</p><h1 ref={sectionHeadingRef} tabIndex={-1}>{active}</h1></div>
+        <div><p className="eyebrow">KAIRO COMMAND CENTER</p><h1 ref={sectionHeadingRef} tabIndex={-1}>{active === 'CerbTek Staff' ? 'CerbTEK LLC Staff' : active}</h1></div>
         <div className="header-actions">
           {staff && <div className="staff-pill">{staff.role.replaceAll('_',' ')}</div>}
           <div className="tenant-pill"><Building2 size={15}/>{org.name}</div>
@@ -295,7 +303,7 @@ function Auth() {
     else if (mode === 'signup') setMessage('Account created. Check your email if confirmation is enabled.')
   }
   return <div className="auth-shell"><div className="auth-card">
-    <div className="auth-brand"><img className="brand-banner" src="/kairo-banner.png" alt="Kairo — AI Enablement by CerbTek. Connect, Automate, Empower." width="2048" height="683" /></div>
+    <div className="auth-brand"><img className="brand-banner" src={`${APP_BASE}kairo-banner.png`} alt="Kairo — AI Enablement by CerbTEK LLC. Connect, Automate, Empower." width="2048" height="683" /></div>
     <h1>{mode === 'signin' ? 'Sign in' : 'Create account'}</h1>
     <p>Secure access to Kairo Command Center.</p>
     <form onSubmit={submit}>
@@ -307,6 +315,7 @@ function Auth() {
     <button className="link" onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}>
       {mode === 'signin' ? 'Need an account? Create one' : 'Already have an account? Sign in'}
     </button>
+    <a className="auth-investor-link" href={`${APP_BASE}investors/`}>Investors & strategic partners →</a>
   </div></div>
 }
 
@@ -1552,7 +1561,7 @@ function StaffWorkspace({orgs,current,setOrg,role}) {
       <Metric label="Staff role" value={role.replaceAll('_',' ')}/>
     </div>
     <Panel title="Client portfolio">
-      <p>Manage the CerbTek delivery pipeline, then open the tenant to perform the work.</p>
+      <p>Manage the CerbTEK LLC delivery pipeline, then open the tenant to perform the work.</p>
       <div className="portfolio-table">
         <div className="portfolio-head"><span>Client</span><span>Stage</span><span>Health</span><span>Onboarding</span><span>Readiness</span><span>Next action</span><span></span></div>
         {orgs.map(o=>{
@@ -1608,7 +1617,7 @@ function blueprintHtml(org,bp,data){
     .score span{font-size:18px;color:#666}table{width:100%;border-collapse:collapse;margin:18px 0}th{background:#fff7eb}th,td{border-bottom:1px solid #ddd;padding:10px;text-align:left}
     .phase{border-left:3px solid #ff9f0a;padding:2px 0 2px 14px;margin:16px 0}.muted{color:#666}@media print{body{margin:.45in}}
   </style></head><body>
-    <div class="top"><img class="report-brand" src="${window.location.origin}/kairo-banner.png" alt="Kairo — AI Enablement by CerbTek"/><div class="ey">KAIRO AI ENABLEMENT BLUEPRINT</div><h1>${escapeHtml(org.name)}</h1><p class="muted">Generated by Kairo — AI Enablement by CerbTek</p></div>
+    <div class="top"><img class="report-brand" src="${window.location.origin}/kairo-banner.png" alt="Kairo — AI Enablement by CerbTEK LLC"/><div class="ey">KAIRO AI ENABLEMENT BLUEPRINT</div><h1>${escapeHtml(org.name)}</h1><p class="muted">Generated by Kairo — AI Enablement by CerbTEK LLC</p></div>
     <h2>AI Readiness</h2><div class="score">${bp.maturity_score ?? 0}<span>/100</span></div>
     <h2>Executive Summary</h2><p>${escapeHtml(bp.executive_summary||'')}</p>
     <h2>Priority Opportunities & Business Case</h2><table><thead><tr><th>Opportunity</th><th>Score</th><th>Control</th><th>Benefit</th><th>Net Value</th><th>ROI</th><th>Payback</th></tr></thead><tbody>${recs||'<tr><td colspan="7">No prioritized opportunities yet.</td></tr>'}</tbody></table>
@@ -1626,4 +1635,5 @@ function Progress({label,done}) { return <div className="progress-row"><span cla
 function Panel({title,children}) { return <div className="panel"><h3>{title}</h3>{children}</div> }
 
 createRoot(document.getElementById('root')).render(<App/>)
+
 

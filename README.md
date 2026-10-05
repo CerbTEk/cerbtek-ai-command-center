@@ -1,6 +1,6 @@
 # Kairo Command Center
 
-Kairo is CerbTek's AI Enablement and Workflow Orchestration platform.
+Kairo is CerbTEK LLC's AI Enablement and Workflow Orchestration platform.
 
 ## Included
 - Supabase Auth sign-in/sign-up
@@ -29,3 +29,12 @@ npm run dev
 ```bash
 npm run build
 ```
+
+
+## Investor overview and private funding workspace
+
+`/investors/` is a public, backend-free overview of Kairo, operated by CerbTEK LLC.
+
+Funding is a company-wide workspace for active platform administrators, separate from client tenants. The stored venture identifiers are unchanged; the AI enablement venture is displayed as Kairo. Real opportunity research is stored only in the private database, never bundled in this repository or public assets.
+
+Run `npm run check:funding` for UI/model tests, isolated database policy tests, the production build and public-bundle checks. `docs/funding-schema-draft.sql` records the reviewed funding schema; it is not executed by the frontend build.
