@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'none'; connect-src https://jrpsnqzoalwlovwtrvkn.supabase.co/functions/v1/inquiry-workspace; script-src 'sha256-jcsCop2R3G101cE25E5BZwFlkGRoIFyeW4h/ljBS23U='; style-src 'sha256-J5hnbv9sBRSavYGbZhdbTjePT5cc4ST3DPMQVompFsg='; img-src data:; frame-src 'none'; worker-src 'none'; manifest-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Kairo construction diagnostic · proposal</title>
+<style>:root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif; }
+body { margin: 0 auto; max-width: 48rem; padding: 2rem 1.25rem; }
+h1 { font-size: 1.6rem; line-height: 1.2; }
+p, li { max-width: 72ch; }
+.warning { padding: 1rem; border: 2px solid #b77900; border-radius: .5rem; }
+button { font: inherit; padding: .75rem 1rem; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .6; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 1rem; border: 1px solid #888; border-radius: .5rem; }
+small { display: block; margin-top: 1.5rem; }
+</style>
+</head>
+<body>
+<main>
+<h1>Kairo construction diagnostic</h1>
+<p class="warning">Proposal only. Run solely after separate approval, during the separately approved runtime window of at most five minutes. This page does not enable the runtime or grant permission to test it.</p>
+<p>One click starts at most one explicit application fetch configured as POST to the retained Kairo test endpoint. A browser OPTIONS preflight is normally expected, and the backend may make one Auth GET. The request uses only a fixed invalid bearer and an empty object.</p>
+<ul>
+<li>No login, real credential, new account, session, database grant, or workflow operation.</li>
+<li>Twelve-second client abort and acceptance deadline for response and full body; 16 KiB application body-processing limit. Browser scheduling and transport buffering can exceed those limits.</li>
+<li>The button stays disabled after one trusted click in this document. Do not reload, reopen, duplicate the tab, or retry.</li>
+</ul>
+<button id="run-once" type="button" disabled>Run one approved diagnostic</button>
+<pre id="result" role="status" aria-live="polite">Not run.</pre>
+<p id="summary">Only an exact inner application 401 match supports construction reaching the authentication boundary. No result here establishes Auth health, database access, or workspace acceptance.</p>
+<small>Unknown bodies, headers, and error messages are never displayed. This page requires the exact approved HTTPS origin, a top-level document, and no controlling service worker. One explicit fetch is enforced per document; browser/proxy transport retries are outside JavaScript control. A network, CORS, timeout, 503, gateway 401, or other nonmatching result is inconclusive. Stop and retire the separately approved runtime window; no retry is authorized.</small>
+</main>
+<script>(() => {
+  'use strict';
+// Offline classifier only. This module performs no HTTP or filesystem operations.
+function classifyProbeResponse(status, rawBody) {
+  const record = { status: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
+    error: null, simulation: null, live: null, constructionContractMatched: false };
+  if (typeof rawBody !== 'string' || rawBody.length > 16384) return record;
+  let body;
+  try { body = JSON.parse(rawBody); } catch { return record; }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return record;
+  // No raw values outside this exact allowlist can leave the classifier.
+  if (body.error === 'authorization_denied') record.error = 'authorization_denied';
+  if (body.simulation === true) record.simulation = true;
+  if (body.live === false) record.live = false;
+  const keys = Object.keys(body).sort();
+  record.constructionContractMatched = record.status === 401 && record.error === 'authorization_denied' &&
+    record.simulation === true && record.live === false &&
+    keys.length === 3 && keys.join(',') === 'error,live,simulation';
+  return record;
+}
+  const TARGET = 'https://jrpsnqzoalwlovwtrvkn.supabase.co/functions/v1/inquiry-workspace';
+  const PAGE_ORIGIN = 'https://cerbtek-ai-command-center.webflow.io';
+  const HEADERS = Object.freeze({
+    Authorization: 'Bearer KAIRO_DIAGNOSTIC_INVALID',
+    'Content-Type': 'application/json'
+  });
+  const MAX_BYTES = 16384;
+  const MAX_READS = 16385;
+  const TIMEOUT_MS = 12000;
+  const button = document.getElementById('run-once');
+  const result = document.getElementById('result');
+  const summary = document.getElementById('summary');
+  const fetchOnce = globalThis.fetch.bind(globalThis);
+  let consumed = false;
+  let disposed = false;
+  let settled = false;
+  let deadline = 0;
+  let timer = null;
+  let controller = null;
+  let reader = null;
+
+  function connected() {
+    return button.isConnected && result.isConnected && summary.isConnected;
+  }
+  function cancelReader() {
+    const current = reader;
+    reader = null;
+    if (!current) return;
+    try { void current.cancel().catch(() => {}); } catch {}
+    try { current.releaseLock(); } catch {}
+  }
+  function discard(response) {
+    try { void response.body?.cancel().catch(() => {}); } catch {}
+  }
+  function cleanup() {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+    controller?.abort();
+    cancelReader();
+  }
+  function finish(outcome, record = classifyProbeResponse(null, null)) {
+    if (settled || disposed) return;
+    settled = true;
+    cleanup();
+    button.disabled = true;
+    if (!connected()) return;
+    result.textContent = JSON.stringify({ outcome, ...record }, null, 2);
+    summary.textContent = record.constructionContractMatched
+      ? 'The exact inner 401 contract matched. This supports resource construction reaching the authentication boundary only. It does not prove Auth health, database access, or workspace acceptance.'
+      : 'Inconclusive. Stop here. This result does not authorize a retry, new window, credential, grant, or workflow action.';
+  }
+  function dispose() {
+    if (disposed) return;
+    if (!settled && consumed) finish('cancelled');
+    disposed = true;
+    consumed = true;
+    settled = true;
+    cleanup();
+    button.disabled = true;
+    button.removeEventListener('click', start);
+    observer.disconnect();
+  }
+  function active() {
+    if (settled || disposed) return false;
+    if (!connected()) { dispose(); return false; }
+    if (performance.now() >= deadline) { finish('timed_out'); return false; }
+    return true;
+  }
+  async function execute() {
+    try {
+      const response = await fetchOnce(TARGET, Object.freeze({
+        method: 'POST', headers: HEADERS, body: '{}',
+        mode: 'cors', credentials: 'omit', redirect: 'error',
+        referrerPolicy: 'no-referrer', referrer: '',
+        cache: 'no-store', keepalive: false, signal: controller.signal
+      }));
+      if (!active()) { discard(response); return; }
+      if (response.redirected || response.type === 'opaque' || response.type === 'opaqueredirect') {
+        discard(response);
+        finish('request_failed');
+        return;
+      }
+      const bytes = new Uint8Array(MAX_BYTES);
+      let size = 0;
+      if (response.body) {
+        reader = response.body.getReader();
+        let complete = false;
+        for (let count = 0; count < MAX_READS; count += 1) {
+          if (!active()) return;
+          const { done, value } = await reader.read();
+          if (!active()) return;
+          if (done) { complete = true; break; }
+          if (!(value instanceof Uint8Array)) { finish('invalid_body'); return; }
+          if (value.byteLength > MAX_BYTES - size) { finish('body_limit'); return; }
+          bytes.set(value, size);
+          size += value.byteLength;
+        }
+        if (!complete) { finish('stream_limit'); return; }
+      }
+      if (!active()) return;
+      let raw;
+      try { raw = new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, size)); }
+      catch { finish('invalid_body'); return; }
+      const record = classifyProbeResponse(response.status, raw);
+      raw = null;
+      bytes.fill(0);
+      if (active()) finish('response', record);
+    } catch {
+      if (active()) finish('request_failed');
+    } finally {
+      cancelReader();
+    }
+  }
+  function start(event) {
+    if (consumed || disposed || !event.isTrusted) return;
+    consumed = true;
+    button.disabled = true;
+    button.removeEventListener('click', start);
+    if (!connected()) { dispose(); return; }
+    if (location.protocol !== 'https:' || location.origin !== PAGE_ORIGIN ||
+        !globalThis.isSecureContext || globalThis.top !== globalThis.self ||
+        navigator.serviceWorker?.controller) {
+      finish('unavailable_context');
+      return;
+    }
+    controller = new AbortController();
+    deadline = performance.now() + TIMEOUT_MS;
+    result.textContent = 'Running one approved diagnostic. This document cannot retry.';
+    timer = setTimeout(() => finish('timed_out'), TIMEOUT_MS);
+    void execute();
+  }
+  const watchedAncestors = new Set();
+  for (const element of [button, result, summary]) {
+    for (let node = element; node; node = node.parentNode) watchedAncestors.add(node);
+  }
+  const observer = new MutationObserver(records => {
+    const removed = records.some(record => Array.from(record.removedNodes).some(node =>
+      watchedAncestors.has(node) || node.contains(button) || node.contains(result) || node.contains(summary)));
+    if (removed || !connected()) dispose();
+  });
+  observer.observe(document, { childList: true, subtree: true });
+  globalThis.addEventListener('pagehide', dispose, { once: true });
+  globalThis.addEventListener('beforeunload', dispose, { once: true });
+  button.addEventListener('click', start);
+  button.disabled = false;
+})();
+</script>
+</body>
+</html>
