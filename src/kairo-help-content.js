@@ -6,7 +6,7 @@ import { HELP_QUESTIONS } from './kairo-help-questions'
 
 // Curated product guidance, reviewed against application revision e9e1c66.
 // This is local documentation, not generated advice or an execution policy.
-export const HELP_VERSION = '2026-10-03.4'
+export const HELP_VERSION = '2026-10-08.safety1'
 export const HELP_REVIEWED_AT = '2026-10-03'
 export const HELP_CATEGORIES = Object.freeze(['Getting started','Integrations and cloud providers','Workflows and approvals','Microsoft 365','Access and governance','Everyday AI reference','AI implementation reference','Telephony reference'])
 export const HELP_SECTIONS = Object.freeze(['Overview','Team Access','Onboarding','AI Readiness','Systems','Workflows','Opportunities','Integrations','Agents','AI Ops','Governance','Blueprints','Audit'])
@@ -94,9 +94,9 @@ const PRODUCT_HELP_ARTICLES = [
     id:'email-approval', title:'Review an email approval request', section:'Integrations',
     keywords:['approval','approve','reject','email','send','pending','waiting','approved','message','recipient'],
     summary:'Check the exact recipient, subject, and message before approving or sending.',
-    prerequisites:['A connected Microsoft account with Mail.Send permission.','An authorized approver role.'],
+    prerequisites:['A verified Microsoft account with Mail.Send permission to approve or send.','A different authorized person must approve the requester’s email.'],
     steps:['Open the pending request in Integrations and review its full contents.','Approve or reject the request as appropriate.','For an approved request, choose Send approved email only when you intend to send it.','Review the recorded result and the linked workflow status.'],
-    note:'If an error appears after sending, check Microsoft sent items before retrying. A later workflow error can occur after an email has already been sent.',
+    note:'An Executing or unknown outcome needs review. Do not resend or recreate it to clear the status. Check the saved request and Microsoft account. Microsoft acceptance does not confirm delivery; a later workflow error does not undo an accepted email.',
     related:['automation','run-status','team-access']
   },
   {
@@ -104,8 +104,8 @@ const PRODUCT_HELP_ARTICLES = [
     keywords:['agent','agents','ai','confidence','threshold','human','control','autonomous','propose'],
     summary:'Configure agent records and explicitly assigned workflows.',
     prerequisites:['A reviewed, active workflow to assign.','The appropriate management role.'],
-    steps:['Create the agent record and describe its purpose and intended boundaries.','Assign a workflow using Workflow permissions.','Review the control mode and execution mode carefully before activating the record.','Review the agent request status in Agents. Open Workflows and check Workflow run history for the execution result; review any linked email request separately in Integrations.'],
-    note:'This screen configures workflow controls. It does not connect a language model or interpret arbitrary instructions. The execution-confidence field is entered manually; it is not a measured AI certainty score.',
+    steps:['Create the agent record and describe its purpose and intended boundaries.','Assign a reviewed workflow using Workflow permissions. Every run requires human approval.','Request a plan. A different authorized person must review its immutable saved steps, policy, integration bindings and context before approving.','Execute the approved plan once. A linked workflow or unknown outcome must not be executed again.','Read request status and workflow status separately. Only Executed completes the agent request; Waiting Approval still requires separate email review in Integrations.'],
+    note:'This screen configures workflow controls. It does not connect a language model or interpret arbitrary instructions. User-entered confidence cannot authorize execution or bypass human review.',
     related:['automation','email-approval','run-status']
   },
   {

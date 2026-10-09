@@ -1,3 +1,4 @@
+import AIDraftSetup from './AIDraftSetup'
 import WorkflowMonitor from './WorkflowMonitor'
 import IntegrationProviderPlanner from './IntegrationProviderPlanner'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
@@ -13,6 +14,7 @@ import KairoHelp from './KairoHelp'
 import './styles.css'
 import { FundingWorkspace } from './FundingWorkspace'
 import { canManageFunding } from './funding-model'
+import { useSafeOperation, useExecutionAttempts, needsReconciliation, acceptedEmail, reviewEmailMessage } from './use-safe-operation'
 
 const APP_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/`
 
@@ -21,6 +23,7 @@ const baseNav = [
   ['Team Access', Users],
   ['Onboarding', Building2],
   ['AI Readiness', Sparkles],
+  ['AI Setup', Sparkles],
   ['Systems', ServerCog],
   ['Workflows', Workflow],
   ['Opportunities', Sparkles],
@@ -32,7 +35,7 @@ const baseNav = [
   ['Audit', Activity],
 ]
 
-function App() {
+export function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [fundingDirty, setFundingDirty] = useState(false)
@@ -264,10 +267,11 @@ function App() {
         {active === 'Onboarding' && <Onboarding org={org} session={session} current={data.onboarding} reload={() => loadOrg(org.id)} onGo={setActive}/>}
         {active === 'AI Readiness' && <Readiness org={org} session={session} data={data} reload={() => loadOrg(org.id)} onGo={setActive}/>}
         {active === 'Systems' && <Systems org={org} session={session} rows={data.systems} reload={() => loadOrg(org.id)}/>}
-        {active === 'Workflows' && <Workflows org={org} session={session} rows={data.workflows} definitions={data.workflowDefinitions} runs={data.workflowRuns} approvalPolicies={data.approvalPolicies} schedules={data.workflowSchedules} reload={() => loadOrg(org.id)}/>} 
+        {active === 'Workflows' && <Workflows key={session.user.id+':'+org.id} org={org} session={session} rows={data.workflows} definitions={data.workflowDefinitions} runs={data.workflowRuns} approvalPolicies={data.approvalPolicies} schedules={data.workflowSchedules} reload={() => loadOrg(org.id)}/>} 
         {active === 'Opportunities' && <Opportunities org={org} session={session} workflows={data.workflows} rows={data.opps} reload={() => loadOrg(org.id)}/>}
-        {active === 'Integrations' && <Integrations org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} runs={data.integrationRuns} requests={data.actionRequests} reload={() => loadOrg(org.id)}/>}
-        {active === 'Agents' && <Agents org={org} session={session} rows={data.agents} integrations={data.integrations} workflows={data.workflowDefinitions} mappings={data.agentWorkflows} requests={data.agentRunRequests} reload={() => loadOrg(org.id)}/>}
+        {active === 'Integrations' && <Integrations key={session.user.id+':'+org.id} org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} runs={data.integrationRuns} requests={data.actionRequests} reload={() => loadOrg(org.id)}/>}
+        {active === 'AI Setup' && <AIDraftSetup key={session.user.id+':'+org.id} organizationId={org.id} client={supabase}/>}
+        {active === 'Agents' && <Agents key={session.user.id+':'+org.id} org={org} session={session} rows={data.agents} integrations={data.integrations} workflows={data.workflowDefinitions} mappings={data.agentWorkflows} requests={data.agentRunRequests} runs={data.workflowRuns} reload={() => loadOrg(org.id)}/>}
         {active === 'AI Ops' && <><WorkflowMonitor key={session.user.id+':'+org.id} organizationId={org.id} userId={session.user.id} definitions={data.workflowDefinitions} schedules={data.workflowSchedules} agents={data.agents} client={supabase} onManage={()=>setActive('Workflows')}/><AIOps data={data} reload={() => loadOrg(org.id)}/></>}
         {active === 'Governance' && <Governance org={org} session={session} rows={data.policies} dataPolicy={data.dataPolicy} reload={() => loadOrg(org.id)}/>} 
         {active === 'Blueprints' && <Blueprints org={org} session={session} data={data} reload={() => loadOrg(org.id)}/>}
@@ -661,12 +665,15 @@ function Systems({org,session,rows,reload}) {
   </Panel>
 }
 
-function Workflows({org,session,rows,definitions,runs,approvalPolicies,schedules,reload}) {
+export function Workflows({org,session,rows,definitions,runs,approvalPolicies,schedules,reload}) {
+  const scope=session.user.id+':'+org.id+':workflows'
+  const {busy,run}=useSafeOperation(scope)
+  const attempts=useExecutionAttempts(scope)
   const [name,setName]=useState('')
   const [department,setDepartment]=useState('')
   const [risk,setRisk]=useState('Moderate')
   const [inventoryMessage,setInventoryMessage]=useState('')
-  const [savingInventory,setSavingInventory]=useState(false)
+  const savingInventory=busy
   const [automationName,setAutomationName]=useState('')
   const [automationDescription,setAutomationDescription]=useState('')
   const [stepType,setStepType]=useState('microsoft.health')
@@ -681,60 +688,39 @@ function Workflows({org,session,rows,definitions,runs,approvalPolicies,schedules
   const [scheduleCadence,setScheduleCadence]=useState('hourly')
   const [firstRun,setFirstRun]=useState('')
 
+  const showError=error=>setWorkflowMessage('The change was not confirmed. '+(error.message||'Check the saved record before continuing.'))
   async function save(e) {
     e.preventDefault()
-    if(savingInventory) return
-    setSavingInventory(true);setInventoryMessage('Saving workflow…')
-    try {
-      const {error}=await supabase.from('workflows').insert({
-        organization_id:org.id,name,department:department||null,current_risk_level:risk,created_by:session.user.id
-      })
+    await run(async current=>{
+      setInventoryMessage('Saving workflow…')
+      const {error}=await supabase.from('workflows').insert({organization_id:org.id,name,department:department||null,current_risk_level:risk,created_by:session.user.id})
+      if(!current()) return
       if(error) throw error
-      setName('');setDepartment('');setInventoryMessage('Business workflow saved.');reload()
-    } catch(error) {
-      setInventoryMessage('Save was not confirmed. Your entries are still here. '+(error.message||'Check your connection before trying again.'))
-    } finally { setSavingInventory(false) }
+      setName('');setDepartment('');setInventoryMessage('Business workflow saved.');await reload()
+    },error=>setInventoryMessage('Save was not confirmed. Your entries are still here. '+(error.message||'Check the saved inventory before continuing.')))
   }
 
   async function savePolicy(e){
     e.preventDefault()
-    const {error}=await supabase.from('approval_policies').insert({
-      organization_id:org.id,
-      name:policyName,
-      action_type:'send_email',
-      required_roles:['owner','admin','consultant'],
-      require_approval:true,
-      auto_execute_after_approval:autoExecute,
-      active:true,
-      created_by:session.user.id
-    })
-    setWorkflowMessage(error?error.message:'Approval policy created')
-    if(!error){setPolicyName('');reload()}
+    await run(async current=>{
+      const {error}=await supabase.from('approval_policies').insert({organization_id:org.id,name:policyName,action_type:'send_email',required_roles:['owner','admin','consultant'],require_approval:true,auto_execute_after_approval:autoExecute,active:true,created_by:session.user.id})
+      if(!current()) return
+      if(error) throw error
+      setWorkflowMessage('Approval policy created');setPolicyName('');await reload()
+    },showError)
   }
 
   async function createAutomation(e){
     e.preventDefault()
-    const steps=[]
-    if(stepType==='microsoft.health') steps.push({type:'microsoft.health'})
-    if(stepType==='microsoft.profile') steps.push({type:'microsoft.profile'})
-    if(stepType==='microsoft.inbox-status') steps.push({type:'microsoft.inbox-status'})
-    if(stepType==='microsoft.calendar-next') steps.push({type:'microsoft.calendar-next'})
-    if(stepType==='approval.email') steps.push({type:'approval.email',to:emailTo,subject:emailSubject,message:emailMessage})
-    const {error}=await supabase.from('workflow_definitions').insert({
-      organization_id:org.id,
-      name:automationName,
-      description:automationDescription||null,
-      status:'Draft',
-      trigger_type:'Manual',
-      steps,
-      default_approval_policy_id:approvalPolicies.find(p=>p.action_type==='send_email'&&p.active)?.id||null,
-      created_by:session.user.id
-    })
-    setWorkflowMessage(error?error.message:'Workflow created as draft')
-    if(!error){
-      setAutomationName('');setAutomationDescription('');setEmailTo('');setEmailSubject('');setEmailMessage('')
-      reload()
-    }
+    await run(async current=>{
+      const steps=[]
+      if(['microsoft.health','microsoft.profile','microsoft.inbox-status','microsoft.calendar-next'].includes(stepType)) steps.push({type:stepType})
+      if(stepType==='approval.email') steps.push({type:'approval.email',to:emailTo,subject:emailSubject,message:emailMessage})
+      const {error}=await supabase.from('workflow_definitions').insert({organization_id:org.id,name:automationName,description:automationDescription||null,status:'Draft',trigger_type:'Manual',steps,default_approval_policy_id:approvalPolicies.find(p=>p.action_type==='send_email'&&p.active)?.id||null,created_by:session.user.id})
+      if(!current()) return
+      if(error) throw error
+      setWorkflowMessage('Workflow created as draft');setAutomationName('');setAutomationDescription('');setEmailTo('');setEmailSubject('');setEmailMessage('');await reload()
+    },showError)
   }
 
   function cadenceCron(cadence){
@@ -745,42 +731,47 @@ function Workflows({org,session,rows,definitions,runs,approvalPolicies,schedules
 
   async function createSchedule(e){
     e.preventDefault()
-    const workflow=definitions.find(w=>w.id===scheduleWorkflow)
-    if(!workflow){setWorkflowMessage('Select an active workflow');return}
-    const next=firstRun?new Date(firstRun).toISOString():new Date(Date.now()+3600000).toISOString()
-    const {error}=await supabase.from('workflow_schedules').insert({
-      organization_id:org.id,
-      workflow_id:scheduleWorkflow,
-      name:scheduleName||workflow.name+' schedule',
-      cron_expression:cadenceCron(scheduleCadence),
-      timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',
-      active:true,
-      next_run_at:next,
-      created_by:session.user.id
-    })
-    setWorkflowMessage(error?error.message:'Schedule created')
-    if(!error){setScheduleName('');setFirstRun('');reload()}
+    await run(async current=>{
+      const workflow=definitions.find(w=>w.id===scheduleWorkflow)
+      if(!workflow){setWorkflowMessage('Select an active workflow');return}
+      const next=firstRun?new Date(firstRun).toISOString():new Date(Date.now()+3600000).toISOString()
+      const {error}=await supabase.from('workflow_schedules').insert({organization_id:org.id,workflow_id:scheduleWorkflow,name:scheduleName||workflow.name+' schedule',cron_expression:cadenceCron(scheduleCadence),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',active:true,next_run_at:next,created_by:session.user.id})
+      if(!current()) return
+      if(error) throw error
+      setWorkflowMessage('Schedule created');setScheduleName('');setFirstRun('');await reload()
+    },showError)
   }
 
   async function toggleSchedule(id,active){
-    const {error}=await supabase.from('workflow_schedules').update({active}).eq('id',id)
-    setWorkflowMessage(error?error.message:(active?'Schedule resumed':'Schedule paused'))
-    if(!error) reload()
+    await run(async current=>{
+      const {error}=await supabase.from('workflow_schedules').update({active}).eq('id',id)
+      if(!current()) return
+      if(error) throw error
+      setWorkflowMessage(active?'Schedule resumed':'Schedule paused');await reload()
+    },showError)
   }
 
   async function setWorkflowStatus(id,status){
-    const {error}=await supabase.from('workflow_definitions').update({status}).eq('id',id)
-    setWorkflowMessage(error?error.message:('Workflow '+status.toLowerCase()))
-    if(!error) reload()
+    await run(async current=>{
+      const {error}=await supabase.from('workflow_definitions').update({status}).eq('id',id)
+      if(!current()) return
+      if(error) throw error
+      setWorkflowMessage('Workflow '+status.toLowerCase());await reload()
+    },showError)
   }
 
   async function runWorkflow(id){
-    setWorkflowMessage('Running workflow…')
-    const {data,error}=await supabase.functions.invoke('workflow-runner',{body:{workflow_id:id,context:{}}})
-    if(error) setWorkflowMessage(error.message)
-    else if(data?.error) setWorkflowMessage(data.error)
-    else setWorkflowMessage(data?.status==='Success'?'Workflow completed':data?.status==='Waiting Approval'?'Workflow paused for approval':data?.status==='Error'?'Workflow reported an error. Check AI Ops for details.':'Run request submitted. Check AI Ops for the recorded outcome.')
-    reload()
+    if(attempts.get(id)) return
+    await run(async current=>{
+      attempts.mark(id);setWorkflowMessage('Running workflow…')
+      const {data,error}=await supabase.functions.invoke('workflow-runner',{body:{workflow_id:id,context:{}}})
+      if(!current()) return
+      if(!error&&data?.ok===true&&['Success','Waiting Approval'].includes(data.status)&&!needsReconciliation(data)){
+        attempts.clear(id)
+        setWorkflowMessage(data.status==='Success'?'Workflow completed.':'Workflow paused for human approval. It is not complete.')
+      } else setWorkflowMessage('Workflow execution outcome needs review. Do not run it again until its saved outcome has been checked.')
+      await reload()
+    },()=>setWorkflowMessage('Workflow execution outcome needs review. Do not run it again until its saved outcome has been checked.'))
   }
 
   return <>
@@ -802,7 +793,7 @@ function Workflows({org,session,rows,definitions,runs,approvalPolicies,schedules
         <form className="policy-form" onSubmit={savePolicy}>
           <label>Policy name<input value={policyName} onChange={e=>setPolicyName(e.target.value)} placeholder="Outbound communication approval" required/></label>
           <label className="toggle-line"><input type="checkbox" checked={autoExecute} onChange={e=>setAutoExecute(e.target.checked)}/><span>Execute automatically after approval</span></label>
-          <button className="primary small">Create policy</button>
+          <button disabled={busy} className="primary small">Create policy</button>
         </form>
         <div className="compact-list">{approvalPolicies.length?approvalPolicies.map(p=>
           <div className="compact-row" key={p.id}><div><b>{p.name}</b><span>{p.action_type.replaceAll('_',' ')} • {p.require_approval?'Approval required':'No approval'} • {p.active?'Active':'Inactive'}</span></div></div>
@@ -826,7 +817,7 @@ function Workflows({org,session,rows,definitions,runs,approvalPolicies,schedules
             <label>Subject<input value={emailSubject} onChange={e=>setEmailSubject(e.target.value)} required/></label>
             <label className="span-2">Message<textarea value={emailMessage} onChange={e=>setEmailMessage(e.target.value)} required/></label>
           </>}
-          <div className="span-2 workflow-builder-actions"><span role={workflowMessage?'status':undefined}>{workflowMessage}</span><button className="primary">Save draft automation</button></div>
+          <div className="span-2 workflow-builder-actions"><span role={workflowMessage?'status':undefined}>{workflowMessage}</span><button disabled={busy} className="primary">Save draft automation</button></div>
         </form>
       </Panel>
     </div>
@@ -837,11 +828,11 @@ function Workflows({org,session,rows,definitions,runs,approvalPolicies,schedules
         const latest=runs.find(r=>r.workflow_id===w.id)
         return <div className="orchestration-row" key={w.id}>
           <div><b>{w.name}</b><span>{w.description||'No description'} • {Array.isArray(w.steps)?w.steps.length:0} step(s)</span></div>
-          <div className="orchestration-status"><span className={'workflow-state '+w.status.toLowerCase().replace(' ','-')}>{w.status}</span>{latest&&<em>Last: {latest.status}</em>}</div>
+          <div className="orchestration-status"><span className={'workflow-state '+w.status.toLowerCase().replace(' ','-')}>{w.status}</span>{latest&&<em>Last: {latest.status}</em>}{attempts.get(w.id)&&<em role="status">Needs review before another run</em>}</div>
           <div className="orchestration-actions">
-            {w.status==='Draft' && <button className="secondary" onClick={()=>setWorkflowStatus(w.id,'Active')}>Activate</button>}
-            {w.status==='Active' && <><button className="primary small" onClick={()=>runWorkflow(w.id)}>Run</button><button className="secondary" onClick={()=>setWorkflowStatus(w.id,'Paused')}>Pause</button></>}
-            {w.status==='Paused' && <button className="secondary" onClick={()=>setWorkflowStatus(w.id,'Active')}>Resume</button>}
+            {w.status==='Draft' && <button disabled={busy} className="secondary" onClick={()=>setWorkflowStatus(w.id,'Active')}>Activate</button>}
+            {w.status==='Active' && <><button disabled={busy||!!attempts.get(w.id)} className="primary small" onClick={()=>runWorkflow(w.id)}>Run</button><button disabled={busy} className="secondary" onClick={()=>setWorkflowStatus(w.id,'Paused')}>Pause</button></>}
+            {w.status==='Paused' && <button disabled={busy} className="secondary" onClick={()=>setWorkflowStatus(w.id,'Active')}>Resume</button>}
           </div>
         </div>
       }):<div className="empty">No orchestrated workflows yet.</div>}</div>
@@ -854,13 +845,13 @@ function Workflows({org,session,rows,definitions,runs,approvalPolicies,schedules
         <label>Schedule name<input value={scheduleName} onChange={e=>setScheduleName(e.target.value)} placeholder="Daily operations check"/></label>
         <label>Cadence<select value={scheduleCadence} onChange={e=>setScheduleCadence(e.target.value)}><option value="hourly">Hourly</option><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
         <label>First run<input type="datetime-local" value={firstRun} onChange={e=>setFirstRun(e.target.value)}/></label>
-        <button className="primary small">Create schedule</button>
+        <button disabled={busy} className="primary small">Create schedule</button>
       </form>
       <div className="schedule-list">{schedules.length?schedules.map(s=>
         <div className="schedule-row" key={s.id}>
           <div><b>{s.name}</b><span>{definitions.find(w=>w.id===s.workflow_id)?.name||'Workflow'} • {s.active?'Active':'Paused'}</span></div>
           <div><span>Next run</span><b>{s.next_run_at?new Date(s.next_run_at).toLocaleString():'Not scheduled'}</b></div>
-          <button className="secondary" onClick={()=>toggleSchedule(s.id,!s.active)}>{s.active?'Pause':'Resume'}</button>
+          <button disabled={busy} className="secondary" onClick={()=>toggleSchedule(s.id,!s.active)}>{s.active?'Pause':'Resume'}</button>
         </div>
       ):<div className="empty">No workflow schedules yet.</div>}</div>
     </Panel>
@@ -955,7 +946,10 @@ function Opportunities({org,session,workflows,rows,reload}) {
   </>
 }
 
-function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
+export function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
+  const scope=session.user.id+':'+org.id+':integrations'
+  const {busy,run}=useSafeOperation(scope)
+  const attempts=useExecutionAttempts(scope)
   async function saveProviderPlan(plan) {
     const {error}=await supabase.from('integrations').insert({...plan,organization_id:org.id,created_by:session.user.id})
     if(error) throw error
@@ -968,7 +962,7 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
   const [system,setSystem]=useState('')
   const [classification,setClassification]=useState('Internal')
   const [inventoryMessage,setInventoryMessage]=useState('')
-  const [savingInventory,setSavingInventory]=useState(false)
+  const savingInventory=busy
   const [tenantId,setTenantId]=useState('organizations')
   const [clientId,setClientId]=useState('')
   const [clientSecret,setClientSecret]=useState('')
@@ -977,37 +971,42 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
   const [runMessage,setRunMessage]=useState('')
   const [runningAction,setRunningAction]=useState('')
   const microsoft=oauth.find(x=>x.provider==='microsoft')
+  const verifiedConnected=microsoft?.status==='Connected'&&microsoft.oauth_verified_version===1
+  const canSendEmail=verifiedConnected&&(microsoft.scopes||[]).includes('Mail.Send')
+  const emailRequests=(requests||[]).filter(request=>request.action_type==='send_email')
 
   async function save(e){
     e.preventDefault()
-    if(savingInventory) return
-    setSavingInventory(true);setInventoryMessage('Saving integration…')
-    try {
+    await run(async current=>{
+      setInventoryMessage('Saving integration…')
       const {error}=await supabase.from('integrations').insert({
         organization_id:org.id,system_id:system||null,name,provider:provider||null,
         integration_type:type,status:'Planned',data_classification:classification,created_by:session.user.id
       })
+      if(!current()) return
       if(error) throw error
-      setName('');setProvider('');setInventoryMessage('Integration saved.');reload()
-    } catch(error) {
-      setInventoryMessage('Save was not confirmed. Your entries are still here. '+(error.message||'Check your connection before trying again.'))
-    } finally { setSavingInventory(false) }
+      setName('');setProvider('');setInventoryMessage('Integration saved.');await reload()
+    },error=>setInventoryMessage('Save was not confirmed. Your entries are still here. '+(error.message||'Check the saved inventory before continuing.')))
   }
 
   async function connectMicrosoft(e){
     e.preventDefault()
-    setConnectMessage('Preparing Microsoft consent…')
-    const scopes=['openid','profile','offline_access','User.Read']
-    if(scopeFlags.mail) scopes.push('Mail.Read')
-    if(scopeFlags.sendMail) scopes.push('Mail.Send')
-    if(scopeFlags.calendar) scopes.push('Calendars.Read')
-    if(scopeFlags.files) scopes.push('Files.Read.All')
-    const {data,error}=await supabase.functions.invoke('microsoft-connect',{
-      body:{organization_id:org.id,tenant_id:tenantId,client_id:clientId,client_secret:clientSecret,scopes}
-    })
-    if(error){setConnectMessage(error.message);return}
-    if(data?.error){setConnectMessage(data.error);return}
-    if(data?.authorize_url) window.location.assign(data.authorize_url)
+    await run(async current=>{
+      setConnectMessage('Preparing Microsoft consent…')
+      const scopes=['openid','profile','offline_access','User.Read']
+      if(scopeFlags.mail) scopes.push('Mail.Read')
+      if(scopeFlags.sendMail) scopes.push('Mail.Send')
+      if(scopeFlags.calendar) scopes.push('Calendars.Read')
+      if(scopeFlags.files) scopes.push('Files.Read.All')
+      const {data,error}=await supabase.functions.invoke('microsoft-connect',{
+        body:{organization_id:org.id,tenant_id:tenantId,client_id:clientId,client_secret:clientSecret,scopes}
+      })
+      if(!current()) return
+      if(error) throw error
+      if(data?.error) throw new Error(data.error)
+      if(data?.authorize_url) window.location.assign(data.authorize_url)
+      else setConnectMessage('Microsoft consent could not be prepared. Check the saved connection before continuing.')
+    },error=>setConnectMessage(error.message||'Microsoft consent could not be prepared.'))
   }
 
   const [emailTo,setEmailTo]=useState('')
@@ -1017,37 +1016,50 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
 
   async function queueEmail(e){
     e.preventDefault()
-    setApprovalMessage('Submitting for approval…')
-    const {data,error}=await supabase.functions.invoke('microsoft-action',{body:{
-      op:'queue-email',organization_id:org.id,to:emailTo,subject:emailSubject,message:emailMessage
-    }})
-    if(error) setApprovalMessage(error.message)
-    else if(data?.error) setApprovalMessage(data.error)
-    else {
-      setApprovalMessage('Email queued for human approval')
-      setEmailTo('');setEmailSubject('');setEmailMessage('')
-      reload()
-    }
+    await run(async current=>{
+      setApprovalMessage('Submitting for approval…')
+      const {data,error}=await supabase.functions.invoke('microsoft-action',{body:{
+        op:'queue-email',organization_id:org.id,to:emailTo,subject:emailSubject,message:emailMessage
+      }})
+      if(!current()) return
+      if(error) throw error
+      if(data?.ok!==true||data.request?.status!=='Pending') throw new Error(data?.error||'The saved proposal could not be confirmed. Review the saved requests before submitting another.')
+      setApprovalMessage('Email queued for human approval. A different authorized person must review it.')
+      setEmailTo('');setEmailSubject('');setEmailMessage('');await reload()
+    },error=>setApprovalMessage(error.message||'The saved proposal could not be confirmed.'))
   }
 
-  async function actOnRequest(op,requestId){
-    setApprovalMessage(op==='execute'?'Executing approved action…':(op==='approve'?'Approving…':'Rejecting…'))
-    const {data,error}=await supabase.functions.invoke('microsoft-action',{body:{op,request_id:requestId}})
-    if(error) setApprovalMessage(error.message)
-    else if(data?.error) setApprovalMessage(data.error)
-    else setApprovalMessage(data?.summary||('Request '+op+'d'))
-    reload()
+  async function actOnRequest(op,request){
+    if(op==='approve'&&(!request.requested_by||request.requested_by===session.user.id)) return
+    if(op==='execute'&&(!canSendEmail||attempts.get(request.id)||request.status!=='Approved')) return
+    await run(async current=>{
+      if(op==='execute') attempts.mark(request.id)
+      setApprovalMessage(op==='execute'?'Submitting approved email to Microsoft…':op==='approve'?'Approving…':'Rejecting…')
+      const {data,error}=await supabase.functions.invoke('microsoft-action',{body:{op,request_id:request.id}})
+      if(!current()) return
+      if(op==='execute'){
+        if(!error&&acceptedEmail(data)){
+          attempts.mark(request.id,'accepted')
+          setApprovalMessage('Microsoft accepted the approved email. Delivery is not confirmed.'+(data.workflow_status==='Needs review'?' The linked workflow needs review. Do not resend.':data.workflow_status==='Waiting Approval'?' The linked workflow is waiting for another human approval.':''))
+        } else setApprovalMessage(reviewEmailMessage(data))
+      } else {
+        if(error) throw error
+        if(data?.ok!==true||data.request?.status!==(op==='approve'?'Approved':'Rejected')) throw new Error(data?.error||'The review was not confirmed.')
+        setApprovalMessage(op==='approve'?'Email approved. It has not been sent.':'Email request rejected.')
+      }
+      await reload()
+    },error=>setApprovalMessage(op==='execute'?reviewEmailMessage():error.message||'The review was not confirmed.'))
   }
 
   async function executeMicrosoft(action){
-    setRunningAction(action)
-    setRunMessage('Running '+action.replaceAll('-',' ')+'…')
-    const {data,error}=await supabase.functions.invoke('microsoft-execute',{body:{organization_id:org.id,action}})
-    if(error) setRunMessage(error.message)
-    else if(data?.error) setRunMessage(data.error)
-    else setRunMessage(data?.summary||'Execution completed')
-    setRunningAction('')
-    reload()
+    await run(async current=>{
+      setRunningAction(action);setRunMessage('Running '+action.replaceAll('-',' ')+'…')
+      const {data,error}=await supabase.functions.invoke('microsoft-execute',{body:{organization_id:org.id,action}})
+      if(!current()) return
+      if(error) throw error
+      if(data?.error||data?.ok!==true) throw new Error(data?.error||'The read result could not be confirmed.')
+      setRunMessage(data?.summary||'Microsoft read completed.');setRunningAction('');await reload()
+    },error=>{setRunningAction('');setRunMessage(error.message||'The read result could not be confirmed.')})
   }
 
   return <>
@@ -1060,9 +1072,10 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
           <p>Connect an authorized Microsoft Entra application using OAuth 2.0. Client secrets and refresh tokens are stored server-side in Supabase Vault, never in the browser database.</p>
           {microsoft?.status!=='Connected'&&<p><b>Microsoft administrator setup:</b> ask your Microsoft 365 administrator for the approved app registration details below. Choose only the access the planned workflow needs. Your connection uses ongoing access so Kairo can run authorized actions later.</p>}
         </div>
-        <div className={microsoft?.status==='Connected'?'connection-badge connected':'connection-badge'}>{microsoft?.status||'Not Connected'}</div>
+        <div className={verifiedConnected?'connection-badge connected':'connection-badge'}>{microsoft?.status==='Connected'&&!verifiedConnected?'Authorization required':microsoft?.status||'Not Connected'}</div>
       </div>
-      {microsoft?.status==='Connected' ? <>
+      {microsoft?.status==='Connected'&&!verifiedConnected&&<p role="status">This Microsoft connection needs renewed authorization before it can read or send. Complete the setup below.</p>}
+      {verifiedConnected ? <>
       <div className="connected-details">
         <div><span>Account</span><b>{microsoft.external_account_name||'Microsoft account connected'}</b></div>
         <div><span>Scopes</span><b>{(microsoft.scopes||[]).join(', ')}</b></div>
@@ -1071,10 +1084,10 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
       <div className="execution-strip">
         <div><span>Safe live actions</span><b>Read-only Microsoft Graph execution</b></div>
         <div className="execution-actions">
-          <button className="secondary" disabled={!!runningAction} onClick={()=>executeMicrosoft('health')}>Health check</button>
-          <button className="secondary" disabled={!!runningAction} onClick={()=>executeMicrosoft('profile')}>Verify profile</button>
-          <button className="secondary" disabled={!!runningAction || !(microsoft.scopes||[]).includes('Mail.Read')} onClick={()=>executeMicrosoft('inbox-status')}>Inbox status</button>
-          <button className="secondary" disabled={!!runningAction || !(microsoft.scopes||[]).includes('Calendars.Read')} onClick={()=>executeMicrosoft('calendar-next')}>Upcoming calendar</button>
+          <button className="secondary" disabled={busy||!!runningAction} onClick={()=>executeMicrosoft('health')}>Health check</button>
+          <button className="secondary" disabled={busy||!!runningAction} onClick={()=>executeMicrosoft('profile')}>Verify profile</button>
+          <button className="secondary" disabled={busy||!!runningAction || !(microsoft.scopes||[]).includes('Mail.Read')} onClick={()=>executeMicrosoft('inbox-status')}>Inbox status</button>
+          <button className="secondary" disabled={busy||!!runningAction || !(microsoft.scopes||[]).includes('Calendars.Read')} onClick={()=>executeMicrosoft('calendar-next')}>Upcoming calendar</button>
         </div>
       </div>
       {!(microsoft.scopes||[]).includes('Mail.Read')&&<p className="permission-help">Inbox status needs Mail.Read permission. Ask your Microsoft 365 administrator to review access if this workflow needs it.</p>}
@@ -1092,25 +1105,26 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
           <label className="permission"><input type="checkbox" checked={scopeFlags.calendar} onChange={e=>setScopeFlags({...scopeFlags,calendar:e.target.checked})}/><span><b>Calendar read</b><em>Calendars.Read</em><small>Read calendar events.</small></span></label>
           <label className="permission"><input type="checkbox" checked={scopeFlags.files} onChange={e=>setScopeFlags({...scopeFlags,files:e.target.checked})}/><span><b>Files read</b><em>Files.Read.All</em><small>Read files the connected account can access.</small></span></label>
         </div>
-        <div className="span-2 connect-actions"><span>{connectMessage}</span><button className="primary">Connect Microsoft 365</button></div>
+        <div className="span-2 connect-actions"><span>{connectMessage}</span><button className="primary" disabled={busy}>Connect Microsoft 365</button></div>
       </form>}
     </Panel>
 
-    {microsoft?.status==='Connected' && (microsoft.scopes||[]).includes('Mail.Send') && <Panel title="Controlled Microsoft email">
+    {(canSendEmail||emailRequests.length>0) && <Panel title="Controlled Microsoft email">
       <p>Create an email action, require human approval, then execute it through Microsoft Graph. Nothing is sent at request time.</p>
-      <form className="approval-email-form" onSubmit={queueEmail}>
+      {canSendEmail?<form className="approval-email-form" onSubmit={queueEmail}>
         <label>Recipient<input type="email" value={emailTo} onChange={e=>setEmailTo(e.target.value)} required/></label>
         <label>Subject<input value={emailSubject} onChange={e=>setEmailSubject(e.target.value)} required/></label>
         <label className="span-2">Message<textarea value={emailMessage} onChange={e=>setEmailMessage(e.target.value)} required/></label>
-        <div className="span-2 connect-actions"><span>{approvalMessage}</span><button className="primary">Submit for approval</button></div>
-      </form>
-      <div className="approval-list">{requests?.length ? requests.filter(r=>r.action_type==='send_email').map(r=>
+        <div className="span-2 connect-actions"><span role="status">{approvalMessage}</span><button className="primary" disabled={busy}>Submit for approval</button></div>
+      </form>:<p role="status">New email proposals and sending require a verified Microsoft connection with Mail.Send. Saved requests remain available for review.</p>}
+      {!canSendEmail&&approvalMessage&&<p role="status">{approvalMessage}</p>}
+      <div className="approval-list">{emailRequests.length ? emailRequests.map(r=>
         <div className="approval-row" key={r.id}>
-          <div className="approval-preview"><b>{r.payload?.subject||r.title}</b><span>To {r.payload?.to||'—'} • {r.status} • {new Date(r.created_at).toLocaleString()}</span><span className="approval-preview-label">Message to be sent</span><p className="approval-message">{r.payload?.message||'Message preview unavailable. Review the original request before approving.'}</p>{r.error_message&&<span role="status">Last action: {r.error_message}</span>}</div>
+          <div className="approval-preview"><b>{r.payload?.subject||r.title}</b><span>To {r.payload?.to||'—'} • {r.status==='Executing'?'Needs review':r.status==='Executed'?'Microsoft accepted':r.status} • {new Date(r.created_at).toLocaleString()}</span><span className="approval-preview-label">Message to be sent</span><p className="approval-message">{r.payload?.message||'Message preview unavailable. Review the original request before approving.'}</p>{r.error_message&&<span role="status">Last action: {r.error_message}</span>}{r.status==='Pending'&&r.requested_by===session.user.id&&<p>A different authorized person must approve your email.</p>}{r.status!=='Executed'&&(r.status==='Executing'||attempts.get(r.id)==='review')&&<p role="status">Email outcome needs review. Do not resend.</p>}</div>
           <div className="approval-actions">
-            {r.status==='Pending' && <><button className="secondary" disabled={!r.payload?.message} onClick={()=>actOnRequest('approve',r.id)}>Approve</button><button className="secondary" onClick={()=>actOnRequest('reject',r.id)}>Reject</button></>}
-            {r.status==='Approved' && <button className="primary small" disabled={!r.payload?.message} onClick={()=>actOnRequest('execute',r.id)}>Send approved email</button>}
-            {r.status==='Executed' && <span className="status-text">Executed</span>}
+            {r.status==='Pending' && <><button className="secondary" disabled={busy||!canSendEmail||!r.payload?.message||!r.requested_by||r.requested_by===session.user.id} onClick={()=>actOnRequest('approve',r)}>Approve</button><button className="secondary" disabled={busy} onClick={()=>actOnRequest('reject',r)}>Reject</button></>}
+            {r.status==='Approved' && canSendEmail && <button className="primary small" disabled={busy||!r.payload?.message||!!attempts.get(r.id)||!r.requested_by||!r.approved_by||r.approved_by===r.requested_by} onClick={()=>actOnRequest('execute',r)}>Send approved email</button>}
+            {(r.status==='Executed'||attempts.get(r.id)==='accepted') && <span className="status-text">Microsoft accepted. Delivery is not confirmed.</span>}
             {r.status==='Failed' && <span className="status-text">Failed</span>}
           </div>
         </div>
@@ -1142,11 +1156,12 @@ function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
   </>
 }
 
-function Agents({org,session,rows,integrations,workflows,mappings,requests,reload}) {
+export function Agents({org,session,rows,integrations,workflows,mappings,requests,runs=[],reload}) {
+  const scope=session.user.id+':'+org.id+':agents'
+  const {busy,run}=useSafeOperation(scope)
+  const attempts=useExecutionAttempts(scope)
   const [name,setName]=useState('')
   const [purpose,setPurpose]=useState('')
-  const [control,setControl]=useState('Assist')
-  const [threshold,setThreshold]=useState(85)
   const [dailyLimit,setDailyLimit]=useState(25)
   const [allowed,setAllowed]=useState('Read approved business data; draft responses')
   const [prohibited,setProhibited]=useState('Change financial terms; delete records')
@@ -1154,101 +1169,122 @@ function Agents({org,session,rows,integrations,workflows,mappings,requests,reloa
   const [selectedAgent,setSelectedAgent]=useState('')
   const [selectedWorkflow,setSelectedWorkflow]=useState('')
   const [executionMode,setExecutionMode]=useState('Propose')
-  const [confidence,setConfidence]=useState(90)
   const [agentMessage,setAgentMessage]=useState('')
+  const showError=error=>setAgentMessage('The change was not confirmed. '+(error.message||'Refresh the saved records before continuing.'))
 
   async function save(e){
     e.preventDefault()
-    const {data,error}=await supabase.from('ai_agents').insert({
-      organization_id:org.id,name,purpose,status:'Draft',human_control_mode:control,
-      allowed_data_classifications:['Public','Internal'],
-      allowed_actions:allowed.split(';').map(x=>x.trim()).filter(Boolean),
-      prohibited_actions:prohibited.split(';').map(x=>x.trim()).filter(Boolean),
-      confidence_threshold:+threshold,
-      minimum_execution_confidence:+threshold,
-      max_daily_runs:+dailyLimit,
-      audit_logging_enabled:true,created_by:session.user.id
-    }).select().single()
-    if(!error && data){
-      if(integration) await supabase.from('agent_integrations').insert({agent_id:data.id,integration_id:integration,access_mode:'Read'})
-      setName('');setPurpose('');reload()
-    } else if(error) setAgentMessage(error.message)
+    await run(async current=>{
+      const {data,error}=await supabase.from('ai_agents').insert({
+        organization_id:org.id,name,purpose,status:'Draft',human_control_mode:'Approve',
+        allowed_data_classifications:['Public','Internal'],
+        allowed_actions:allowed.split(';').map(x=>x.trim()).filter(Boolean),
+        prohibited_actions:prohibited.split(';').map(x=>x.trim()).filter(Boolean),
+        max_daily_runs:+dailyLimit,audit_logging_enabled:true,created_by:session.user.id
+      }).select().single()
+      if(!current()) return
+      if(error) throw error
+      if(!data?.id) throw new Error('No saved agent was returned.')
+      if(integration){
+        const {error:bindingError}=await supabase.from('agent_integrations').insert({agent_id:data.id,integration_id:integration,access_mode:'Read'})
+        if(!current()) return
+        if(bindingError){setAgentMessage('Agent saved, but its integration permission was not saved. Review the agent before continuing.');await reload();return}
+      }
+      setName('');setPurpose('');setAgentMessage('Controlled agent saved. Every run requires independent human approval.');await reload()
+    },showError)
   }
 
   async function mapWorkflow(e){
     e.preventDefault()
-    const {error}=await supabase.from('agent_workflows').upsert({
-      agent_id:selectedAgent,workflow_id:selectedWorkflow,execution_mode:executionMode,active:true
-    })
-    setAgentMessage(error?error.message:'Workflow permission saved')
-    if(!error) reload()
+    await run(async current=>{
+      const {error}=await supabase.from('agent_workflows').upsert({agent_id:selectedAgent,workflow_id:selectedWorkflow,execution_mode:executionMode,active:true})
+      if(!current()) return
+      if(error) throw error
+      setAgentMessage('Workflow permission saved. Human approval is required for every run.');await reload()
+    },showError)
   }
 
   async function setAgentStatus(id,status){
-    const {error}=await supabase.from('ai_agents').update({status}).eq('id',id)
-    setAgentMessage(error?error.message:('Agent '+status.toLowerCase()))
-    if(!error) reload()
+    await run(async current=>{
+      const {error}=await supabase.from('ai_agents').update({status}).eq('id',id)
+      if(!current()) return
+      if(error) throw error
+      setAgentMessage('Agent '+status.toLowerCase());await reload()
+    },showError)
   }
 
   async function requestRun(agentId,workflowId){
-    setAgentMessage('Submitting agent run…')
-    const {data,error}=await supabase.functions.invoke('agent-run',{body:{
-      op:'request',organization_id:org.id,agent_id:agentId,workflow_id:workflowId,confidence:+confidence,context:{}
-    }})
-    if(error) setAgentMessage(error.message)
-    else if(data?.error) setAgentMessage(data.error)
-    else setAgentMessage(data?.status==='Pending'?'Agent run waiting for approval':('Agent run '+String(data?.status||'submitted').toLowerCase()))
-    reload()
+    await run(async current=>{
+      setAgentMessage('Submitting agent proposal for human review…')
+      const {data,error}=await supabase.functions.invoke('agent-run',{body:{op:'request',organization_id:org.id,agent_id:agentId,workflow_id:workflowId,context:{}}})
+      if(!current()) return
+      if(error) throw error
+      if(data?.ok!==true||data.status!=='Pending') throw new Error(data?.error||'The pending proposal could not be confirmed. Check the saved requests before submitting another.')
+      setAgentMessage('Agent proposal saved. A different authorized person must review its saved plan.');await reload()
+    },showError)
   }
 
-  async function actOnAgentRequest(op,id){
-    setAgentMessage(op==='execute'?'Executing agent run…':(op==='approve'?'Approving agent run…':'Rejecting agent run…'))
-    const {data,error}=await supabase.functions.invoke('agent-run',{body:{op,request_id:id}})
-    if(error) setAgentMessage(error.message)
-    else if(data?.error) setAgentMessage(data.error)
-    else setAgentMessage('Agent run '+(op==='approve'?'approved':op==='reject'?'rejected':'executed'))
-    reload()
+  async function actOnAgentRequest(op,request){
+    if(op==='approve'&&(!validAgentPlan(request.execution_snapshot)||!request.requested_by||request.requested_by===session.user.id)) return
+    if(op==='execute'&&(!validAgentPlan(request.execution_snapshot)||request.workflow_run_id||attempts.get(request.id))) return
+    await run(async current=>{
+      if(op==='execute') attempts.mark(request.id)
+      setAgentMessage(op==='execute'?'Executing approved agent plan…':op==='approve'?'Approving agent plan…':'Rejecting agent plan…')
+      const {data,error}=await supabase.functions.invoke('agent-run',{body:{op,request_id:request.id}})
+      if(!current()) return
+      if(op==='execute'){
+        if(!error&&data?.ok===true&&data.status==='Executed'&&data.workflow_status==='Success'){
+          attempts.mark(request.id,'executed');setAgentMessage('Agent run executed. The linked workflow reports Success.')
+        } else if(!error&&data?.ok===true&&data.status==='Approved'&&data.workflow_status==='Waiting Approval'&&data.workflow_run_id){
+          attempts.mark(request.id,'linked');setAgentMessage('Agent plan started. Its linked workflow is waiting for human approval; the agent run is not complete.')
+        } else setAgentMessage('Agent execution outcome needs review. Do not execute this request again. Check its linked workflow and saved run before continuing.')
+      } else {
+        if(error) throw error
+        if(data?.ok!==true||data.status!==(op==='approve'?'Approved':'Rejected')) throw new Error(data?.error||'The review was not confirmed.')
+        setAgentMessage(op==='approve'?'Saved agent plan approved. It has not executed.':'Agent proposal rejected.')
+      }
+      await reload()
+    },error=>op==='execute'?setAgentMessage('Agent execution outcome needs review. Do not execute this request again. Check its saved run before continuing.'):showError(error))
   }
 
   return <>
     <Panel title="Agent Builder">
+      <p>Every agent run requires a saved plan and approval by a different authorized person.</p>
       <form className="agent-form" onSubmit={save}>
         <label>Agent name<input value={name} onChange={e=>setName(e.target.value)} required/></label>
         <label>Purpose<input value={purpose} onChange={e=>setPurpose(e.target.value)} required placeholder="What business outcome does this agent own?"/></label>
-        <label>Human control<select value={control} onChange={e=>setControl(e.target.value)}><option>Assist</option><option>Approve</option><option>Autonomous</option></select></label>
-        <label>Confidence threshold<input type="number" min="0" max="100" value={threshold} onChange={e=>setThreshold(e.target.value)}/></label>
+        <div>Human control: approval required for every run</div>
         <label>Daily run limit<input type="number" min="1" value={dailyLimit} onChange={e=>setDailyLimit(e.target.value)}/></label>
         <label>Initial integration<select value={integration} onChange={e=>setIntegration(e.target.value)}><option value="">None</option>{integrations.map(i=><option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
         <label className="span-2">Allowed actions<input value={allowed} onChange={e=>setAllowed(e.target.value)} /></label>
         <label className="span-2">Prohibited actions<input value={prohibited} onChange={e=>setProhibited(e.target.value)} /></label>
-        <div className="form-actions"><button className="primary"><Bot size={15}/>Create controlled agent</button></div>
+        <div className="form-actions"><button className="primary" disabled={busy}><Bot size={15}/>Create controlled agent</button></div>
       </form>
     </Panel>
 
     <div className="grid two">
       <Panel title="Workflow permissions">
-        <p>Agents can only access workflows explicitly assigned here.</p>
+        <p>Agents can only access assigned workflows. Neither execution mode bypasses human review.</p>
         <form className="agent-permission-form" onSubmit={mapWorkflow}>
           <label>Agent<select value={selectedAgent} onChange={e=>setSelectedAgent(e.target.value)} required><option value="">Select agent</option>{rows.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
           <label>Workflow<select value={selectedWorkflow} onChange={e=>setSelectedWorkflow(e.target.value)} required><option value="">Select active workflow</option>{workflows.filter(w=>w.status==='Active').map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
           <label>Execution mode<select value={executionMode} onChange={e=>setExecutionMode(e.target.value)}><option>Propose</option><option>Execute</option></select></label>
-          <button className="primary small">Allow workflow</button>
+          <button className="primary small" disabled={busy}>Allow workflow</button>
         </form>
         <div className="compact-list">{mappings.length?mappings.map(m=>{
           const a=rows.find(x=>x.id===m.agent_id); const w=workflows.find(x=>x.id===m.workflow_id)
-          return <div className="compact-row" key={m.agent_id+'-'+m.workflow_id}><div><b>{a?.name||'Agent'} → {w?.name||'Workflow'}</b><span>{m.execution_mode} • {m.active?'Active':'Inactive'}</span></div></div>
+          return <div className="compact-row" key={m.agent_id+'-'+m.workflow_id}><div><b>{a?.name||'Agent'} → {w?.name||'Workflow'}</b><span>{m.execution_mode} • {m.active?'Active':'Inactive'} • Human review required</span></div></div>
         }):<div className="empty">No agent workflow permissions yet.</div>}</div>
       </Panel>
 
       <Panel title="Agent execution controls">
-        <p>Test the same request path the agent runtime uses, including confidence thresholds and approval gates.</p>
-        <label className="confidence-control">Execution confidence<input type="number" min="0" max="100" value={confidence} onChange={e=>setConfidence(e.target.value)}/></label>
+        <p>Request an immutable plan for human review. A request does not start a workflow or send email.</p>
         <div className="agent-exec-list">{mappings.filter(m=>m.active).map(m=>{
           const a=rows.find(x=>x.id===m.agent_id); const w=workflows.find(x=>x.id===m.workflow_id)
           if(!a||!w)return null
           return <div className="agent-exec-row" key={m.agent_id+'-'+m.workflow_id}>
-            <div><b>{a.name}</b><span>{w.name} • {m.execution_mode} • {a.human_control_mode}</span></div>
-            <button className="secondary" disabled={a.status!=='Active'} onClick={()=>requestRun(a.id,w.id)}>Request run</button>
+            <div><b>{a.name}</b><span>{w.name} • {m.execution_mode} • Human approval required</span></div>
+            <button className="secondary" disabled={busy||a.status!=='Active'||w.status!=='Active'} onClick={()=>requestRun(a.id,w.id)}>Request run</button>
           </div>
         })}</div>
       </Panel>
@@ -1260,15 +1296,14 @@ function Agents({org,session,rows,integrations,workflows,mappings,requests,reloa
           <div><b>{r.name}</b><span>{r.purpose}</span></div>
           <div className="agent-stats">
             <MiniMetric label="Status" value={r.status}/>
-            <MiniMetric label="Control" value={r.human_control_mode}/>
-            <MiniMetric label="Confidence" value={(r.minimum_execution_confidence??r.confidence_threshold??0)+'%'}/>
+            <MiniMetric label="Control" value="Human approval required"/>
             <MiniMetric label="Daily limit" value={r.max_daily_runs??'—'}/>
           </div>
           <div className="agent-card-actions">
-            {r.status==='Draft'&&<button className="secondary" onClick={()=>setAgentStatus(r.id,'Testing')}>Start testing</button>}
-            {r.status==='Testing'&&<button className="primary small" onClick={()=>setAgentStatus(r.id,'Active')}>Activate</button>}
-            {r.status==='Active'&&<button className="secondary" onClick={()=>setAgentStatus(r.id,'Paused')}>Pause</button>}
-            {r.status==='Paused'&&<button className="secondary" onClick={()=>setAgentStatus(r.id,'Active')}>Resume</button>}
+            {r.status==='Draft'&&<button className="secondary" disabled={busy} onClick={()=>setAgentStatus(r.id,'Testing')}>Start testing</button>}
+            {r.status==='Testing'&&<button className="primary small" disabled={busy} onClick={()=>setAgentStatus(r.id,'Active')}>Activate</button>}
+            {r.status==='Active'&&<button className="secondary" disabled={busy} onClick={()=>setAgentStatus(r.id,'Paused')}>Pause</button>}
+            {r.status==='Paused'&&<button className="secondary" disabled={busy} onClick={()=>setAgentStatus(r.id,'Active')}>Resume</button>}
           </div>
         </div>
       ):<div className="empty">No AI agents yet.</div>}</div>
@@ -1276,20 +1311,43 @@ function Agents({org,session,rows,integrations,workflows,mappings,requests,reloa
 
     <Panel title="Agent run approvals">
       <div className="approval-list">{requests.length?requests.map(r=>{
-        const a=rows.find(x=>x.id===r.agent_id); const w=workflows.find(x=>x.id===r.workflow_id)
+        const snapshot=r.execution_snapshot
+        const workflowStatus=r.workflow_status||runs.find(run=>run.id===r.workflow_run_id)?.status
+        const attempt=attempts.get(r.id)
+        const needsReview=attempt==='review'||['Running','Reconciliation required','Needs review','Error'].includes(workflowStatus)
         return <div className="approval-row" key={r.id}>
-          <div><b>{a?.name||'Agent'} → {w?.name||'Workflow'}</b><span>{r.status} • Confidence {r.confidence??'—'}% • {new Date(r.created_at).toLocaleString()}</span></div>
+          <div className="approval-preview"><b>{snapshot?.agent?.name||'Agent'} → {snapshot?.workflow?.name||'Workflow'}</b><span>Request: {r.status} • Workflow: {workflowStatus||(r.workflow_run_id?'Linked run pending':'Not started')} • {new Date(r.created_at).toLocaleString()}</span>
+            <SavedAgentPlan snapshot={snapshot}/>
+            {r.status==='Pending'&&r.requested_by===session.user.id&&<p>A different authorized person must approve your proposal.</p>}
+            {r.status!=='Executed'&&needsReview&&<p role="status">Execution needs review. Do not execute this request again.</p>}
+            {r.status!=='Executed'&&(workflowStatus==='Waiting Approval'||attempt==='linked')&&<p role="status">The linked workflow is waiting for human approval. This agent run is not complete.</p>}
+          </div>
           <div className="approval-actions">
-            {r.status==='Pending'&&<><button className="secondary" onClick={()=>actOnAgentRequest('approve',r.id)}>Approve</button><button className="secondary" onClick={()=>actOnAgentRequest('reject',r.id)}>Reject</button></>}
-            {r.status==='Approved'&&<button className="primary small" onClick={()=>actOnAgentRequest('execute',r.id)}>Execute</button>}
-            {r.status==='Executed'&&<span className="status-text">Executed</span>}
-            {r.status==='Failed'&&<span className="status-text">Failed</span>}
+            {r.status==='Pending'&&<><button className="secondary" disabled={busy||!validAgentPlan(snapshot)||!r.requested_by||r.requested_by===session.user.id} onClick={()=>actOnAgentRequest('approve',r)}>Approve</button><button className="secondary" disabled={busy} onClick={()=>actOnAgentRequest('reject',r)}>Reject</button></>}
+            {r.status==='Approved'&&<button className="primary small" disabled={busy||!validAgentPlan(snapshot)||!!r.workflow_run_id||!!attempt} onClick={()=>actOnAgentRequest('execute',r)}>Execute</button>}
+            {(r.status==='Executed'||attempt==='executed')&&<span className="status-text">Executed</span>}
           </div>
         </div>
       }):<div className="empty">No agent run requests yet.</div>}</div>
-      {agentMessage&&<div className="message">{agentMessage}</div>}
+      {agentMessage&&<div className="message" role="status">{agentMessage}</div>}
     </Panel>
   </>
+}
+
+function validAgentPlan(snapshot) {
+  return snapshot?.version===1&&!!snapshot.agent&&!!snapshot.workflow_mapping&&Array.isArray(snapshot.workflow?.steps)&&snapshot.workflow.steps.length>0&&Object.hasOwn(snapshot,'policy')&&Array.isArray(snapshot.integration_bindings)&&!!snapshot.context
+}
+
+function SavedAgentPlan({snapshot}) {
+  if(!validAgentPlan(snapshot)) return <p role="status">The saved plan is unavailable or incompatible. Approval and execution are disabled.</p>
+  return <div className="saved-agent-plan">
+    <h4>Immutable saved plan</h4>
+    <p>Review the saved agent, workflow steps, policy, integration bindings and context below. Later configuration changes do not alter this proposal.</p>
+    <ol>{(Array.isArray(snapshot.workflow?.steps)?snapshot.workflow.steps:[]).map((step,index)=><li key={index}>
+      <b>{step.type}</b>{step.to&&<p>To: {step.to}</p>}{step.subject&&<p>Subject: {step.subject}</p>}{step.message&&<p className="approval-message">{step.message}</p>}
+    </li>)}</ol>
+    <details><summary>Review complete saved plan (version {snapshot.version??'unknown'})</summary><pre className="saved-plan-json">{JSON.stringify(snapshot,null,2)}</pre></details>
+  </div>
 }
 
 function AIOps({data,reload}) {
@@ -1352,7 +1410,7 @@ function AIOps({data,reload}) {
         <div className="ops-health-list">{data.agents.length?data.agents.map(a=>
           <div className="ops-health-row" key={a.id}>
             <span className={'ops-status '+String(a.status||'unknown').toLowerCase()}></span>
-            <div><b>{a.name}</b><span>{a.human_control_mode} • threshold {a.minimum_execution_confidence??a.confidence_threshold??'—'}%</span></div>
+            <div><b>{a.name}</b><span>Human approval required</span></div>
             <em>{a.max_daily_runs?('Limit '+a.max_daily_runs+'/day'):'No daily limit'}</em>
           </div>
         ):<div className="empty">No agents configured.</div>}</div>
@@ -1634,6 +1692,7 @@ function Metric({label,value}) { return <div className="metric"><span>{label}</s
 function Progress({label,done}) { return <div className="progress-row"><span className={done?'dot done':'dot'}></span><span>{label}</span><b>{done?'Complete':'Pending'}</b></div> }
 function Panel({title,children}) { return <div className="panel"><h3>{title}</h3>{children}</div> }
 
-createRoot(document.getElementById('root')).render(<App/>)
+const rootElement = document.getElementById('root')
+if (rootElement) createRoot(rootElement).render(<App/>)
 
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-export const SECTIONS=['Overview','Team Access','Onboarding','AI Readiness','Systems','Workflows','Opportunities','Integrations','Agents','AI Ops','Governance','Blueprints','Audit','CerbTek Staff','Funding']
+export const SECTIONS=['Overview','Team Access','Onboarding','AI Readiness','AI Setup','Systems','Workflows','Opportunities','Integrations','Agents','AI Ops','Governance','Blueprints','Audit','CerbTek Staff','Funding']
 export function sectionFromHash(hash) {
   let value
   try { value=decodeURIComponent(hash.replace(/^#/,'')) } catch { return 'Overview' }

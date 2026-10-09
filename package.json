@@ -13,7 +13,11 @@
     "check:funding": "npm run test:funding && npm run test:funding-db && npm run build && npm run test:funding-build",
     "test:marketing": "node --test tests/marketing-routing.test.mjs",
     "test:marketing-build": "node tests/marketing-build.mjs",
-    "check:marketing": "npm run test:marketing && npm run build && npm run test:marketing-build"
+    "check:marketing": "npm run test:marketing && npm run build && npm run test:marketing-build",
+    "test:ai:backend": "node --test backend/tests/ai-*.test.mjs",
+    "test:ai:ui": "vitest run --config vitest.ai.config.js",
+    "test:ai": "npm run test:ai:backend && npm run test:ai:ui",
+    "check:ai": "npm run test:ai && npm run build"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.58.0",
