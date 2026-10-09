@@ -208,3 +208,12 @@ test('linked waiting approval is never finalized as an executed agent request',a
 test('workflow Microsoft read forwards only trusted server run linkage',async()=>{
  const s=fixture();s.tables.workflow_definitions[0].steps=[{type:'microsoft.profile'}];const out=await invoke(runnerHandler,s,{workflow_id:'workflow'});assert.equal(out.response.status,200);assert.deepEqual(JSON.parse(s.graph[0].options.body),{organization_id:'org',action:'profile',workflow_run_id:'run'});assert.equal(s.graph[0].options.redirect,'error');
 });
+
+test('linked customer replies require company reviewer membership before claim even for platform staff',async()=>{
+ const s=fixture();s.tables.action_requests[0].customer_workflow_id='customer-workflow';s.tables.organization_members=[];s.tables.staff_accounts=[{user_id:s.userId,role:'platform_admin',active:true}];
+ const out=await execute(s);assert.equal(out.response.status,403);assert.equal(s.tables.action_requests[0].status,'Approved');assert.equal(s.tokenCalls,0);assert.equal(s.graph.length,0);assert(!s.events.some(e=>e[0]==='rpc'&&e[1]==='claim_microsoft_action'));
+});
+test('linked customer replies retain allowed current company reviewer path',async()=>{
+ const s=fixture();s.tables.action_requests[0].customer_workflow_id='customer-workflow';
+ const out=await execute(s);assert.equal(out.response.status,200);assert.equal(out.body.outcome,'provider_accepted');assert.equal(s.graph.length,1);
+});

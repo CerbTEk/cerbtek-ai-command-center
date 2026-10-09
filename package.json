@@ -20,7 +20,17 @@
     "check:ai": "npm run test:ai && npm run build",
     "test:team:ui": "vitest run --config vitest.team.config.js",
     "test:team:backend": "node --test backend/tests/team-*.test.mjs",
-    "check:team": "npm run test:team:ui && npm run test:team:backend && npm run build"
+    "check:team": "npm run test:team:ui && npm run test:team:backend && npm run build",
+    "test:customer:backend": "node --test backend/tests/customer-*.test.mjs backend/tests/ai-customer-workflow.test.mjs backend/tests/action-workflow.test.mjs",
+    "test:customer:ui": "vitest run --config vitest.customer.config.js",
+    "check:customer": "npm run test:customer:backend && npm run test:customer:ui && npm run build",
+    "test:knowledge:ui": "vitest run --config vitest.knowledge.config.js",
+    "test:knowledge:backend": "node --test backend/tests/company-knowledge-*.test.mjs",
+    "test:knowledge:build": "node tests/company-knowledge-build.mjs",
+    "check:knowledge": "npm run test:knowledge:backend && npm run test:knowledge:ui && npm run build && npm run test:knowledge:build",
+    "test:backend": "node --test --test-concurrency=1 backend/tests/*.test.mjs",
+    "test:ui": "vitest run --config vitest.all.config.js",
+    "check:all": "npm run test:backend && npm run test:ui && npm run test:funding-db && npm run test:marketing && npm run build && npm run test:funding-build && npm run test:marketing-build && npm run test:knowledge:build"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.58.0",

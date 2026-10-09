@@ -2,7 +2,7 @@ import TeamRoles from './TeamRoles'
 import AIDraftSetup from './AIDraftSetup'
 import WorkflowMonitor from './WorkflowMonitor'
 import IntegrationProviderPlanner from './IntegrationProviderPlanner'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   Activity, Bot, Building2, FileText, Gauge, LogOut, Plus, Plug, Printer,
@@ -18,9 +18,13 @@ import { canManageFunding } from './funding-model'
 import { useSafeOperation, useExecutionAttempts, needsReconciliation, acceptedEmail, reviewEmailMessage } from './use-safe-operation'
 
 const APP_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/`
+const CustomerReplyWorkspace = lazy(() => import('./CustomerReplyWorkspace'))
+const CompanyKnowledge = lazy(() => import('./CompanyKnowledge'))
 
 const baseNav = [
   ['Overview', Gauge],
+  ['Customer Follow-up', Users],
+  ['Company Knowledge', FileText],
   ['Team Access', Users],
   ['Onboarding', Building2],
   ['AI Readiness', Sparkles],
@@ -41,7 +45,18 @@ export function App() {
   const [loading, setLoading] = useState(true)
   const [fundingDirty, setFundingDirty] = useState(false)
   const [fundingSaving, setFundingSaving] = useState(false)
-  const [active, setActive, sectionHeadingRef] = useSectionNavigation((next, current) => current !== 'Funding' || next === current || (!fundingSaving && (!fundingDirty || window.confirm('Leave the funding workspace and discard unsaved changes?'))))
+  const [customerDirty, setCustomerDirty] = useState(false)
+  const [customerBusy, setCustomerBusy] = useState(false)
+  const [knowledgeDirty, setKnowledgeDirty] = useState(false)
+  const [knowledgeBusy, setKnowledgeBusy] = useState(false)
+  const mayLeaveCustomer = () => !customerBusy && (!customerDirty || window.confirm('Leave customer follow-up and discard unsaved changes?'))
+  const mayLeaveKnowledge = () => !knowledgeBusy && (!knowledgeDirty || window.confirm('Leave company knowledge and discard unsaved changes?'))
+  const [active, setActive, sectionHeadingRef] = useSectionNavigation((next, current) => {
+    if (next === current) return true
+    if (current === 'Customer Follow-up' && !mayLeaveCustomer()) return false
+    if (current === 'Company Knowledge' && !mayLeaveKnowledge()) return false
+    return current !== 'Funding' || (!fundingSaving && (!fundingDirty || window.confirm('Leave the funding workspace and discard unsaved changes?')))
+  })
   const [orgs, setOrgs] = useState([])
   const [org, setOrg] = useState(null)
   const [staff, setStaff] = useState(null)
@@ -109,14 +124,25 @@ export function App() {
       if(orgsUserId!==session?.user?.id) return
       const id=new URLSearchParams(window.location.search).get('kairoCompany')
       const target=orgs.find(item=>item.id===id)
-      if(target&&target.id!==currentContext.current.orgId) setOrg(target)
+      if(target&&target.id!==currentContext.current.orgId) {
+        if ((active==='Customer Follow-up' && !mayLeaveCustomer()) || (active==='Company Knowledge' && !mayLeaveKnowledge())) {
+          const url=new URL(window.location.href)
+          url.searchParams.set('kairoCompany',currentContext.current.orgId)
+          window.history.replaceState(window.history.state,'',url.pathname+url.search+url.hash)
+          return
+        }
+        setOrg(target)
+      }
     }
     window.addEventListener('popstate',restoreCompany)
     return ()=>window.removeEventListener('popstate',restoreCompany)
-  },[orgs,orgsUserId,session?.user?.id])
+  },[orgs,orgsUserId,session?.user?.id,active,customerDirty,customerBusy,knowledgeDirty,knowledgeBusy])
 
   function selectCompany(next) {
     if(!next||!orgs.some(item=>item.id===next.id)) return
+    if(next.id===org?.id) return
+    if(active==='Customer Follow-up'&&!mayLeaveCustomer()) return
+    if(active==='Company Knowledge'&&!mayLeaveKnowledge()) return
     setOrg(next)
     const url=new URL(window.location.href)
     url.searchParams.set('kairoCompany',next.id)
@@ -240,7 +266,7 @@ export function App() {
       <div className="brand"><img className="brand-mark" src={`${APP_BASE}kairo-mark.svg`} alt="Kairo" width="42" height="42" /><div><strong>Kairo</strong><span>AI Enablement by CerbTEK LLC</span></div></div>
       <div className="org-switcher">
         <span>Client organization</span>
-        <select value={org?.id || ''} onChange={e => selectCompany(orgs.find(x=>x.id===e.target.value))}>
+        <select value={org?.id || ''} disabled={active==='Customer Follow-up'&&customerBusy||active==='Company Knowledge'&&knowledgeBusy} onChange={e => selectCompany(orgs.find(x=>x.id===e.target.value))}>
           {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
         </select>
       </div>
@@ -249,7 +275,7 @@ export function App() {
           <Icon size={17}/>{label === 'CerbTek Staff' ? 'CerbTEK LLC Staff' : label === 'Team Access' ? 'Team & Roles' : label}
         </button>
       )}</nav>
-      <button className="signout" onClick={() => supabase.auth.signOut()}><LogOut size={16}/>Sign out</button>
+      <button className="signout" disabled={active==='Customer Follow-up'&&customerBusy||active==='Company Knowledge'&&knowledgeBusy} onClick={() => {if((active!=='Customer Follow-up'||mayLeaveCustomer())&&(active!=='Company Knowledge'||mayLeaveKnowledge()))supabase.auth.signOut()}}><LogOut size={16}/>Sign out</button>
     </aside>
 
     <main>
@@ -264,6 +290,8 @@ export function App() {
         {dataLoading&&loadedOrgId===org.id&&loadedUserId===session.user.id&&!dataError&&<p role="status">Refreshing workspace…</p>}
         {dataError?<Panel title="Workspace information unavailable"><p role="alert">{dataError}</p><button className="primary" onClick={()=>loadOrg(org.id)}>Refresh workspace</button></Panel>:loadedOrgId!==org.id||loadedUserId!==session.user.id?<p role="status">Loading workspace…</p>:<>
         {active === 'Overview' && <Overview data={data} onGo={setActive}/>}
+        {active === 'Customer Follow-up' && <Suspense fallback={<p role="status">Opening customer follow-up…</p>}><CustomerReplyWorkspace key={session.user.id+':'+org.id} org={org} session={session} client={supabase} members={data.members} onGo={setActive} onDirtyChange={setCustomerDirty} onBusyChange={setCustomerBusy}/></Suspense>}
+        {active === 'Company Knowledge' && <Suspense fallback={<p role="status">Opening company knowledge…</p>}><CompanyKnowledge key={session.user.id+':'+org.id} org={org} session={session} client={supabase} onDirtyChange={setKnowledgeDirty} onBusyChange={setKnowledgeBusy}/></Suspense>}
         {active === 'Team Access' && <TeamRoles key={session.user.id+':'+org.id} org={org} session={session} members={data.members} invitations={data.invitations} client={supabase} refreshing={dataLoading} reload={() => loadOrg(org.id)}/>}
         {active === 'Onboarding' && <Onboarding org={org} session={session} current={data.onboarding} reload={() => loadOrg(org.id)} onGo={setActive}/>}
         {active === 'AI Readiness' && <Readiness org={org} session={session} data={data} reload={() => loadOrg(org.id)} onGo={setActive}/>}
@@ -357,6 +385,10 @@ function Overview({data,onGo}) {
   const avg = data.opps.length ? Math.round(data.opps.reduce((a,b)=>a+(b.opportunity_score||0),0)/data.opps.length) : 0
   return <>
     <NextStepCard data={data} onGo={onGo}/>
+    <Panel title="Your daily customer work">
+      <p>Capture an inquiry, use saved company reply guidance, and review the exact email before requesting approval. Track the recorded result in one workspace.</p>
+      <button className="primary" onClick={()=>onGo('Customer Follow-up')}>Open customer follow-up</button>
+    </Panel>
     <div className="metrics">
       <Metric label="Systems mapped" value={data.systems.length}/>
       <Metric label="Workflows mapped" value={data.workflows.length}/>

@@ -36,6 +36,12 @@ export function createHandler({ supabase, supabaseUrl, fetchImpl = fetch, now = 
       if (error || !proposal) throw new BoundaryError("Action request not found", 404);
       const permission = await permissions(supabase, proposal.organization_id, userId);
       if (!permission.approve) throw new BoundaryError("Action requires owner/admin/consultant authorization", 403);
+      if (proposal.customer_workflow_id) {
+        // A company customer inquiry has no staff-wide execution shortcut. The
+        // database rechecks current membership again when recording dispatch.
+        const { data: member, error: memberError } = await supabase.from("organization_members").select("role").eq("organization_id", proposal.organization_id).eq("user_id", userId).maybeSingle();
+        if (memberError || !member || !["owner", "admin", "consultant"].includes(member.role)) throw new BoundaryError("Customer replies require current company reviewer authorization", 403);
+      }
       if (proposal.provider !== "microsoft" || proposal.action_type !== "send_email") throw new BoundaryError("Unsupported action", 409);
       if (op === "approve" || op === "reject") {
         if (proposal.status !== "Pending") throw new BoundaryError("Only pending requests can be reviewed", 409);

@@ -6,12 +6,33 @@ import { HELP_QUESTIONS } from './kairo-help-questions'
 
 // Curated product guidance, reviewed against application revision e9e1c66.
 // This is local documentation, not generated advice or an execution policy.
-export const HELP_VERSION = '2026-10-08.safety1'
+export const HELP_VERSION = '2026-10-09.customer1'
 export const HELP_REVIEWED_AT = '2026-10-03'
 export const HELP_CATEGORIES = Object.freeze(['Getting started','Integrations and cloud providers','Workflows and approvals','Microsoft 365','Access and governance','Everyday AI reference','AI implementation reference','Telephony reference'])
-export const HELP_SECTIONS = Object.freeze(['Overview','Team Access','Onboarding','AI Readiness','Systems','Workflows','Opportunities','Integrations','Agents','AI Ops','Governance','Blueprints','Audit'])
+export const HELP_SECTIONS = Object.freeze(['Overview','Customer Follow-up','Company Knowledge','Team Access','Onboarding','AI Readiness','AI Setup','Systems','Workflows','Opportunities','Integrations','Agents','AI Ops','Governance','Blueprints','Audit'])
 
 const PRODUCT_HELP_ARTICLES = [
+  {
+    id:'company-knowledge', title:'Publish reviewed company reference material', section:'Company Knowledge',
+    keywords:['knowledge','source','document','reference','publish','audience','review','freshness','search'],
+    summary:'Save short text or Markdown sources with a clear audience and review date.',
+    prerequisites:['A company owner or admin manages source material. Other roles read only sources explicitly published to all company members.'],
+    steps:['Create a source with its title, text and review deadline. Keep credentials and unnecessary personal data out of the library.','Choose Company admins only or All company members. Saving creates a draft and does not publish it.','Review the exact version and audience before confirming publication.','Search published current sources and open an excerpt to verify its original version.','Review overdue sources or archive those that should no longer appear in search. History is retained.'],
+    troubleshooting:['A saved replacement withdraws the previous publication until the new version is explicitly published.','Draft, archived, superseded and overdue sources are excluded from search.','Only text/Markdown sources up to 32 KiB are supported in this first version.'],
+    note:'This reference library is not yet connected to AI draft generation. No source is sent to an AI provider by saving, publishing or searching it.',
+    related:['customer-follow-up','company-profile']
+  },
+  {
+    id:'customer-follow-up', title:'Move a customer inquiry through review', section:'Customer Follow-up',
+    keywords:['inquiry','customer','reply','employee','daily','queue','draft','context','approval'],
+    summary:'Keep the request, saved reply guidance, draft, approval and recorded email outcome together.',
+    prerequisites:['An installed customer workflow contract and current company membership.','A configured customer-reply model and separately enabled inference before generating AI drafts.','A verified Microsoft connection with Mail.Send before queuing or sending an email.'],
+    steps:['Save company reply guidance using only information approved for the chosen AI provider. This is manually maintained guidance, not automatic document retrieval.','Record the customer inquiry and verify the recipient. The saved inquiry remains inside Kairo until an authorized generation or send action.','An owner, admin or consultant can prepare and generate a draft using the saved context. Review its facts and warnings before accepting it.','Queue the exact proposed email. A different authorized person must approve the complete recipient, subject and body. Approval does not send it.','Use the separate send action only after approval. Check the recorded outcome; Microsoft acceptance does not prove delivery.'],
+    troubleshooting:['If setup or the backend contract is unavailable, mutation controls remain disabled.','After a timeout or unknown outcome, refresh the saved request. Do not create a replacement or resend to guess what happened.','Changed guidance, assignment, configuration or authority can invalidate a pending step. Refresh and review the current saved version.'],
+    successChecks:['The intended request is linked to one reviewed email and its recorded provider outcome.'],
+    note:'This first workflow keeps existing role limits. Employees can capture assigned work; AI generation and email approval retain owner/admin/consultant requirements. No paid inference is enabled by saving setup.',
+    related:['email-approval','run-status','company-profile']
+  },
   {
     id:'getting-started', title:'Find your next setup step', section:'Overview',
     keywords:['start','setup','next','begin','onboarding','progress','help'],

@@ -86,7 +86,21 @@ export function createHandler({supabase,catalog=[],liveEnabled=false,resolveCred
    if(b.operation!=='run'||!uuid(b.configuration_id)||!uuid(b.request_key))throw new DraftError('invalid_operation');
    const {data:record,error}=await supabase.from('ai_draft_configurations').select('*').eq('organization_id',b.organization_id).eq('id',b.configuration_id).single();
    if(error||!record)throw new DraftError('configuration_not_found',404);
-   const config=validateConfig(record.configuration);const input=validateInput(b.input,config);
+   const config=validateConfig(record.configuration);
+   let suppliedInput=b.input;
+   if(b.customer_workflow_id!==undefined||b.expected_revision!==undefined){
+    // A connected inquiry never accepts pasted replacement context or client
+    // lineage. SQL derives the exact saved request/context after fresh authority
+    // checks; its reserve trigger rechecks the binding before paid dispatch.
+    const allowed=['operation','organization_id','configuration_id','request_key','customer_workflow_id','expected_revision'];
+    if(Object.keys(b).some(key=>!allowed.includes(key))||!uuid(b.customer_workflow_id)||!Number.isSafeInteger(b.expected_revision)||b.expected_revision<1||config.task!=='customer_reply')throw new DraftError('invalid_customer_workflow');
+    const {data,error}=await supabase.rpc('customer_workflow_draft_input',{
+     ...common,p_workflow:b.customer_workflow_id,p_expected_revision:b.expected_revision,p_config:record.id,p_request_key:b.request_key,
+    });
+    if(error||!data||typeof data.context!=='string'||Object.keys(data).some(key=>key!=='context'))throw new DraftError('customer_workflow_conflict',409);
+    suppliedInput=data;
+   }
+   const input=validateInput(suppliedInput,config);
    if(!liveEnabled)throw new DraftError('live_inference_disabled',409);
    const credential=await availableModel(config);
    const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({configuration_id:record.id,input})));
