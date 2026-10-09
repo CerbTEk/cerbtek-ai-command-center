@@ -186,8 +186,8 @@ export async function discoverModels(provider,catalog,options={}){
 export async function runDraft({config,input,catalog,liveEnabled,credentialConfigured,requestKey,requestHash,store,invoke,trustedSources}){
  validateConfig(config);const admittedInput=draftInput(input,config,trustedSources);
  const allowedSourceIds=citationIds({allowedSourceIds:['manual-1',...(admittedInput.sources||[]).map(s=>s.source_id)]});
- if(!liveEnabled)throw new DraftError('live_inference_disabled',409);
- if(!credentialConfigured)throw new DraftError('provider_unconfigured',409);
+ if(liveEnabled!==true)throw new DraftError('live_inference_disabled',409);
+ if(credentialConfigured!==true)throw new DraftError('provider_unconfigured',409);
  const spec=providerSpec(config,catalog);const body=buildRequest(config,{context:admittedInput.context},{trustedSources:admittedInput.sources});const reserve=reservationCost(body,config,spec);
  const admission=await store.reserve({requestKey,requestHash,reserve});
  if(!admission.created)return admission.run; // A retry must never issue a second paid request.
@@ -195,8 +195,7 @@ export async function runDraft({config,input,catalog,liveEnabled,credentialConfi
  // failed requests remain recoverable; only a newly reserved request may dispatch.
  try{
   if(admittedInput.sources)validateTrustedInput(admittedInput,config);
-  if(store.authorizeDispatch!==undefined&&(typeof store.authorizeDispatch!=='function'||await store.authorizeDispatch({runId:admission.run.id,requestKey,requestHash})!==true))throw new DraftError('draft_dispatch_denied',409);
-  if(admittedInput.sources)validateTrustedInput(admittedInput,config);
+  if(typeof store.authorizeDispatch!=='function'||await store.authorizeDispatch({runId:admission.run.id,requestKey,requestHash})!==true)throw new DraftError('draft_dispatch_denied',409);
  }catch(e){
   return await store.finish(admission.run.id,{status:'failed',failure_code:e instanceof DraftError?e.code:'draft_dispatch_denied',draft:null,usage:null});
  }

@@ -7,8 +7,8 @@ import {validateProvider} from './core.mjs';
 let catalog=[];try{const parsed=JSON.parse(Deno.env.get('KAIRO_AI_MODEL_CATALOG')||'[]');if(Array.isArray(parsed))catalog=parsed}catch{}
 Deno.serve(createHandler({
  supabase:createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}}),
- // This release cannot dispatch paid inference. Enabling it is a separate approved release.
- catalog,liveEnabled:false,
+ // Database activation is OFF unless an exact separately approved record exists.
+ catalog,
  // Existing deployment-wide OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY are
  // deliberately NOT tenant connections. Only explicitly organization-bound secrets count.
  // Provisioning a secret requires its own approved secure setup; this code provisions none.
@@ -17,7 +17,12 @@ Deno.serve(createHandler({
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organizationId))return null;
   const name=`KAIRO_AI_${provider.toUpperCase()}_${organizationId.replaceAll('-','').toUpperCase()}_KEY`;
   const apiKey=Deno.env.get(name)||'';
-  return apiKey?{organizationId,provider,apiKey}:null;
+  if(!apiKey)return null;
+  // Provisioned only through separately approved secure account setup. No fallback.
+  const accountReference=Deno.env.get(name.replace(/_KEY$/,'_ACCOUNT_REFERENCE'))||'';
+  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(apiKey));
+  const credentialFingerprint=Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');
+  return {organizationId,provider,apiKey,accountReference,credentialFingerprint};
  },
  // Verified existing Kairo Webflow Cloud origin; retain exact-match CORS and mandatory JWT auth.
  allowedOrigins:['https://cerbtek-ai-command-center.webflow.io']

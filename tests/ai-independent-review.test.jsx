@@ -1,10 +1,11 @@
+import {aiReadinessFixture} from './activation-fixture'
 import React from 'react';
 import {it,expect,vi,afterEach} from 'vitest';
 import {render,screen,fireEvent,waitFor,cleanup} from '@testing-library/react';
 import AIDraftSetup from '../src/AIDraftSetup';
 afterEach(cleanup);
 const configuration={id:'config',version:1,configuration:{schema_version:1,provider:'openai',model:'mock-only',task:'customer_reply',instructions:'Draft from supplied context.',source:'manual_context',max_input_bytes:12000,max_output_tokens:128,max_daily_runs:10,daily_budget_microusd:1000000,human_review:true}};
-const loaded={configuration,catalog:[{provider:'openai',model:'mock-only'}],runs:[],readiness:{live_enabled:true,credential_configured:true,status:'configured'}};
+const loaded={configuration,catalog:[{provider:'openai',model:'mock-only',available:true,structured_outputs:true}],runs:[],readiness:aiReadinessFixture('org','config')};
 it('reload with unresolved reservation cannot enable a replacement',async()=>{
  const client={functions:{invoke:vi.fn(async()=>({data:{...loaded,runs:[{id:'run1',request_key:'key',status:'reserved',reserved_microusd:1000}]}}))}};
  render(<AIDraftSetup organizationId="org" client={client}/>);

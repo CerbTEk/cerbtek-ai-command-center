@@ -1,4 +1,5 @@
 import { REVIEW_ROLES, validContext, verifyWorkspace } from './customer-reply-model'
+import { activationState, savedActivationAuthorized } from './ai-activation-readiness'
 import { assessmentComplete, onboardingComplete } from './first-use-guidance'
 
 const present = value => typeof value === 'string' && Boolean(value.trim())
@@ -36,6 +37,7 @@ export function deriveCustomerSetup(workspace, documents, planning = {}, now = D
   const blockers = steps.filter(step => !step.complete).map(step => ({ id: step.id, detail: step.detail, section: step.section }))
   if (!manager) blockers.unshift({ id: 'role', detail: 'Your current role can inspect this guide. An owner, admin, or consultant must manage the model and approve draft work.', section: 'Team Access' })
   if (uncertain) blockers.unshift({ id: 'outcome', detail: 'A visible AI or email outcome is pending or uncertain. Inspect the saved request before considering another attempt; this guide will not retry it.', section: 'Customer Follow-up' })
-  blockers.push({ id: 'activation', detail: ready.live_inference_enabled ? 'The saved workflow flag reports enabled, but this endpoint does not verify the deployed inference gate or provider acceptance. An authorized deployment review is still required.' : 'Live AI generation is disabled in the current customer-workflow contract. Saving setup cannot enable it. An authorized deployment review and live-provider acceptance are still required.', section: 'AI Setup' })
+  const activation = activationState(ready.activation, workspace.organization_id, config?.id, now)
+  blockers.push({ id: 'activation', detail: `${savedActivationAuthorized(workspace, now) ? activation.detail : activation.authorized ? 'Live AI generation is disabled in the current workflow contract.' : activation.detail} This saved-record check does not verify credentials, account binding, current model availability, or provider acceptance. Saving setup cannot enable paid inference.`, section: 'AI Setup' })
   return { steps, blockers, manager, uncertain, accepted, knowledgeCount, next: blockers[0], profileComplete: onboardingComplete(planning.onboarding), assessmentComplete: assessmentComplete(planning.readiness), configuredCount: steps.filter(step => step.complete).length }
 }

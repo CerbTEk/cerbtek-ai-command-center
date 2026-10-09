@@ -1,3 +1,4 @@
+import { activationFixture } from './activation-fixture'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -18,7 +19,7 @@ function fixture({ role = 'admin', status = 'intake', actionStatus, live = false
   const workflow = { id: 'workflow-1', organization_id: organizationId, request_key: 'intake-key', revision: 1, requested_by: requester, assigned_to: requester, customer_name: 'Synthetic customer', customer_email: 'customer@example.test', subject: 'Delivery question', message: 'Please confirm our delivery date.', status, context_version_id: null, configuration_id: null, ai_request_key: null, draft_requested_by: null, action_request_id: null, ai_run: null, action_request: null, receipt: null, context_stale: false, configuration_stale: false, created_at: '2026-10-09T12:00:00Z' }
   if (status !== 'intake') Object.assign(workflow, { context_version_id: context.id, context_version: context, configuration_id: configuration.id, configuration, ai_request_key: 'draft-key', draft_requested_by: requester, ai_run: { id: 'ai-1', organization_id: organizationId, configuration_id: configuration.id, request_key: 'draft-key', requested_by: requester, status: status === 'draft_ready' ? 'awaiting_review' : status === 'draft_rejected' ? 'rejected' : status === 'ai_unknown' ? 'unknown' : status === 'ai_failed' ? 'failed' : status === 'drafting' ? 'reserved' : 'accepted', draft } })
   if (actionStatus) Object.assign(workflow, { status: 'awaiting_approval', action_request_id: 'action-1', action_request: { id: 'action-1', organization_id: organizationId, customer_workflow_id: workflow.id, status: actionStatus, provider: 'microsoft', action_type: 'send_email', requested_by: requester, approved_by: actionStatus === 'Pending' ? null : actorId, connection_id: 'connection-1', approved_connection_binding: actionStatus === 'Pending' ? null : { id: 'connection-1', organization_id: organizationId, external_account_id: 'microsoft-account-1' }, payload: { to: workflow.customer_email, subject: draft.title, message: draft.body } } })
-  const data = { ok: true, contract_version: 1, organization_id: organizationId, actor: { id: actorId, role }, context, configuration, workflows: [workflow], people: [{ user_id: requester, role: 'member' }, { user_id: actorId, role }, { user_id: 'another-reviewer', role: 'owner' }], readiness: { context_ready: true, configuration_ready: true, live_inference_enabled: live, microsoft_ready: true, microsoft_account: 'microsoft-account-1', microsoft_connection_id: 'connection-1', distinct_reviewer_available: true }, limit: 100 }
+  const data = { ok: true, contract_version: 1, organization_id: organizationId, actor: { id: actorId, role }, context, configuration, workflows: [workflow], people: [{ user_id: requester, role: 'member' }, { user_id: actorId, role }, { user_id: 'another-reviewer', role: 'owner' }], readiness: { context_ready: true, configuration_ready: true, live_inference_enabled: live, activation: activationFixture(organizationId, configuration.id, { enabled: live, status: live ? 'activation_authorized' : 'activation_disabled', account_binding_verified: false }), microsoft_ready: true, microsoft_account: 'microsoft-account-1', microsoft_connection_id: 'connection-1', distinct_reviewer_available: true }, limit: 100 }
   const client = { functions: { invoke: vi.fn(async (name, { body }) => {
     if (name === 'customer-workflow' && body.operation === 'load') return { data: clone(data), error: null }
     throw new Error('Unexpected synthetic request')
@@ -109,7 +110,7 @@ describe('intake, context, and role-aware daily work', () => {
     expect(document.activeElement).toBe(screen.getByRole('heading', { name: f.workflow.subject }))
   })
   it('disabled paid inference is visible and never bypassed by a direct handler', async () => {
-    const f = fixture(); await select(f); const generate = screen.getByRole('button', { name: 'Generate AI draft' }); act(() => { directClick(generate) }); expect(generate.disabled).toBe(true); expect(operations(f)).toHaveLength(0); expect(screen.getByText(/Live AI generation is disabled/)).toBeTruthy()
+    const f = fixture(); await select(f); const generate = screen.getByRole('button', { name: 'Generate AI draft' }); act(() => { directClick(generate) }); expect(generate.disabled).toBe(true); expect(operations(f)).toHaveLength(0); expect(screen.getAllByText(/Live AI generation is disabled/).length).toBeGreaterThan(0)
   })
   it('viewer sees saved records without mutation controls', async () => {
     const f = fixture({ role: 'viewer' }); await select(f); expect(screen.getByRole('button', { name: 'New request' }).disabled).toBe(true); expect(screen.queryByRole('button', { name: 'Cancel request' })).toBeNull(); expect(screen.queryByRole('button', { name: 'Save assignment' })).toBeNull()
@@ -502,5 +503,31 @@ describe('explicit Company Knowledge selection and pinned citations', () => {
     await select(f); const approve = screen.getByRole('button', { name: 'Approve exact email' })
     expect(approve.disabled).toBe(true); act(() => { directClick(approve) }); expect(operations(f)).toHaveLength(0)
     expect(screen.getByText('No complete, validated draft is available.')).toBeTruthy()
+  })
+})
+
+describe('saved activation is necessary but does not prove provider acceptance', () => {
+  it.each(['missing', 'malformed', 'disabled', 'expired', 'changed', 'account_mismatch'])('blocks %s approval even when the workflow flag says enabled', async kind => {
+    const f = fixture({ live: true }), activation = f.data.readiness.activation
+    if (kind === 'missing') delete f.data.readiness.activation
+    if (kind === 'malformed') activation.limits = { daily_runs: 10 }
+    if (kind === 'disabled') Object.assign(activation, { enabled: false, status: 'activation_disabled' })
+    if (kind === 'expired') activation.expires_at = '2020-01-01T00:00:00Z'
+    if (kind === 'changed') activation.configuration_id = 'old-config'
+    if (kind === 'account_mismatch') Object.assign(activation, { enabled: false, status: 'activation_account_mismatch' })
+    await select(f)
+    const button = screen.getByRole('button', { name: 'Generate AI draft' })
+    expect(button.disabled).toBe(true)
+    act(() => directClick(button))
+    expect(operations(f)).toHaveLength(0)
+    expect(screen.queryByText(/Saved activation authorization is current/)).toBeNull()
+  })
+  it('labels valid saved authorization honestly without claiming live readiness', async () => {
+    const f = fixture({ live: true }); await select(f)
+    expect(screen.getByRole('heading', { name: 'Saved AI activation authorization' })).toBeTruthy()
+    expect(screen.getByText(/Saved activation authorization is current/).textContent).toContain('does not verify credentials, account binding, model availability, or provider acceptance')
+    expect(screen.queryByText('Enabled by deployment configuration')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Generate AI draft' }).disabled).toBe(false)
+    expect(operations(f)).toHaveLength(0)
   })
 })

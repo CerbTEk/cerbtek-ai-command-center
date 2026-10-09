@@ -1,3 +1,4 @@
+import {aiReadinessFixture} from './activation-fixture'
 import React from 'react';
 import {it,expect,vi,afterEach} from 'vitest';
 import {render,screen,fireEvent,waitFor,cleanup} from '@testing-library/react';
@@ -5,8 +6,8 @@ import AIDraftSetup from '../src/AIDraftSetup';
 afterEach(cleanup);
 const configuration={id:'config',version:1,configuration:{schema_version:1,provider:'openai',model:'fixture-openai',task:'customer_reply',instructions:'Use the supplied context for a draft.',source:'manual_context',max_input_bytes:6000,max_output_tokens:1000,max_daily_runs:10,daily_budget_microusd:1000000,human_review:true}};
 const providers=[{id:'openai',label:'OpenAI',credential_configured:true},{id:'anthropic',label:'Anthropic Claude',credential_configured:true},{id:'gemini',label:'Google Gemini',credential_configured:false}];
-const loaded={configuration,providers,model_status:'ready',catalog:[{provider:'openai',model:'fixture-openai',label:'Friendly OpenAI model',available:true}],runs:[],readiness:{live_enabled:false,credential_configured:true,status:'live_inference_disabled'}};
-const models=(provider,model='fixture-claude')=>({provider,credential_configured:true,model_status:'ready',catalog:[{provider,model,label:'Friendly Claude model',available:true}]});
+const loaded={configuration,providers,model_status:'ready',catalog:[{provider:'openai',model:'fixture-openai',label:'Friendly OpenAI model',available:true,structured_outputs:true}],runs:[],readiness:{live_enabled:false,credential_configured:true,status:'live_inference_disabled'}};
+const models=(provider,model='fixture-claude')=>({provider,credential_configured:true,model_status:'ready',catalog:[{provider,model,label:'Friendly Claude model',available:true,structured_outputs:true}]});
 const clientFor=fn=>({functions:{invoke:vi.fn(async(_,{body})=>({data:await fn(body)}))}});
 const ready=async client=>{render(<AIDraftSetup organizationId="org" client={client}/>);await screen.findByText(/version 1/)};
 it('uses a labeled dropdown and three explicit supported providers without a raw model ID input',async()=>{
@@ -82,14 +83,14 @@ it('selected provider/model are saved without credential or endpoint payload',as
  const payload=client.functions.invoke.mock.calls.at(-1)[1].body;expect(payload.configuration.provider).toBe('anthropic');expect(payload.configuration.model).toBe('fixture-claude');expect(payload.configuration.api_key).toBeUndefined();expect(payload.configuration.endpoint).toBeUndefined();
 });
 it('uncertain run blocks provider switching and model controls while pending',async()=>{
- const client=clientFor(b=>b.operation==='load'?{...loaded,readiness:{live_enabled:true,credential_configured:true,status:'configured'}}:Promise.reject(Error('unknown')));await ready(client);
+ const client=clientFor(b=>b.operation==='load'?{...loaded,readiness:aiReadinessFixture('org','config')}:Promise.reject(Error('unknown')));await ready(client);
  fireEvent.change(screen.getByLabelText('Business context'),{target:{value:'Synthetic context'}});fireEvent.click(screen.getByText('Generate review-only draft'));
  await screen.findByText(/A request is unresolved/);
  expect(screen.getByLabelText('AI provider').closest('fieldset').disabled).toBe(true);
  expect(screen.getByText('Generate review-only draft').disabled).toBe(true);
 });
 it('pre-admission model discovery rejection does not create an uncertain inference request',async()=>{
- const client={functions:{invoke:vi.fn(async(_,{body})=>body.operation==='load'?{data:{...loaded,readiness:{live_enabled:true,credential_configured:true,status:'configured'}}}:{data:{error:'model_unavailable'}})}};await ready(client);
+ const client={functions:{invoke:vi.fn(async(_,{body})=>body.operation==='load'?{data:{...loaded,readiness:aiReadinessFixture('org','config')}}:{data:{error:'model_unavailable'}})}};await ready(client);
  fireEvent.change(screen.getByLabelText('Business context'),{target:{value:'Synthetic context'}});fireEvent.click(screen.getByText('Generate review-only draft'));
  await screen.findByText(/This model is no longer available/);
  expect(screen.queryByText(/A request is unresolved/)).toBeNull();

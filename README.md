@@ -149,3 +149,9 @@ Run `npm run check:setup` for focused DOM/app tests, production build, and read-
 ## Customer operational reporting
 
 AI Ops now offers a read-only Customer requests view using the existing scoped customer-workflow load contract. It reports saved request milestones, current explicitly linked AI model/token facts, independent approval and Microsoft acceptance. Customer Follow-up includes the same per-request evidence. Missing usage is not zero, reservations are not measured spend, and acceptance is separate from delivery and business resolution. The latest 100 visible requests and current bound AI attempts form a disclosed sample, not a complete company audit log. No permissions or backend contracts are expanded. See `docs/customer-reporting-release.md` and run `npm run check:reporting`.
+
+## Organization-scoped activation (OFF-only candidate)
+
+The activation controls candidate replaces separate hardcoded inference flags with one private, append-only organization approval contract. Installation creates no enabled records. Exact configuration, provider/model, server account/credential binding, expiry, approved spend and run limits are checked before reservation and before a one-use provider dispatch. Browser setup cannot create spending authority. UI readiness fails closed and remains separate from live acceptance.
+
+See `docs/ai-activation-release.md` for the exact new access-control approval scope, installation order, recovery limits, and safe release/rollback guidance. New SQL must be installed last, after the existing knowledge-draft contract. This source candidate is not installed or published. Local activation tests are included in `npm run check:all` and use no real providers.

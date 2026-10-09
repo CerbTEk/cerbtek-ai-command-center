@@ -10,11 +10,11 @@ function fixture({storageError=false,role='owner'}={}){
   const query={table,filters:[]};queries.push(query);
   const q={select(value){query.selected=value;return q},eq(field,value){query.filters.push([field,value]);return q},limit(n){query.limit=n;return q},maybeSingle(){query.single=true;return q},then(resolve){return Promise.resolve(table==='organization_members'?{data:{role}}:storageError?{error:{message:'INTERNAL_DATABASE_SECRET'}}:{data:{id,status:'unknown'}}).then(resolve)}};return q;
  }};
- const handler=createHandler({supabase,liveEnabled:false,allowedOrigins:['http://localhost:5173'],invoke:async()=>{inferences++;throw Error('Unexpected provider call')}});
+ const handler=createHandler({supabase,allowedOrigins:['http://localhost:5173'],invoke:async()=>{inferences++;throw Error('Unexpected provider call')}});
  const request=async body=>{const r=await handler(new Request('http://localhost/ai-draft',{method:'POST',headers:{authorization:'Bearer fixture',origin:'http://localhost:5173'},body:JSON.stringify({organization_id:org,operation:'lookup',...body})}));return {status:r.status,body:await r.json()}};
  return {request,queries,counts:()=>({mutations,inferences})};
 }
-test('lookup is available with live inference disabled, is tenant-filtered and bounded to one record',async()=>{
+test('lookup is available without an inference activation, is tenant-filtered and bounded to one record',async()=>{
  const x=fixture();const r=await x.request({run_id:id,p_actor:'attacker',limit:999});
  assert.equal(r.status,200);assert.equal(r.body.run.id,id);
  assert.deepEqual(x.queries[0].filters,[['organization_id',org],['user_id',actor]]);

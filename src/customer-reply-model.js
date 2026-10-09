@@ -1,3 +1,5 @@
+import { activationMessages } from './ai-activation-readiness'
+
 // The workspace only displays saved, tenant-bound records. Availability is never
 // inferred from a configured provider, a draft, or an accepted approval.
 export const CUSTOMER_WORKFLOW_CONTRACT = 1
@@ -113,6 +115,7 @@ export const formatTime = value => value && !Number.isNaN(Date.parse(value)) ? n
 export const employeeName = (id, people = []) => people.find(person => person.user_id === id)?.email || people.find(person => person.user_id === id)?.name || (id ? `Account ${id}` : 'Unassigned')
 
 const errorMessages = {
+  ...activationMessages,
   knowledge_source_unavailable: 'A selected Company Knowledge excerpt is no longer current or accessible. Refresh, then review the available sources before continuing.',
   knowledge_selection_invalid: 'Choose up to five current company-wide excerpts and review each source before generating.',
   workspace_unverified: 'The customer workspace could not be verified for this company and account. Actions are unavailable. Refresh to check again.',

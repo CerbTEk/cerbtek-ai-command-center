@@ -1,3 +1,4 @@
+import { activationFixture } from './activation-fixture'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -50,7 +51,8 @@ describe('truthful saved readiness', () => {
     f.data.workflows = [{ action_request: { status: 'Executed' } }]
     const setup = deriveCustomerSetup(f.data, [])
     expect(setup.blockers.map(item => item.id)).toEqual(['activation'])
-    expect(setup.blockers[0].detail).toContain('does not verify the deployed inference gate')
+    expect(setup.blockers[0].detail).toContain('No saved activation approval is available')
+    expect(setup.blockers[0].detail).toContain('does not verify credentials')
     expect(setup.accepted).toBe(1)
   })
   it.each(['member', 'viewer'])('explains %s role and independent reviewer requirements', async role => {
@@ -167,4 +169,28 @@ it('invalidates the entire snapshot when a later service proves the company role
   const f = fixture(); const original = f.client.functions.invoke.getMockImplementation()
   f.client.functions.invoke.mockImplementation(async (name, options) => { const result = await original(name, options); if (name === 'company-knowledge') Object.assign(result.data, { actor_role: 'member', can_manage: false }); return result })
   render(<CustomerSetupJourney {...f.props}/>); await screen.findByRole('alert'); expect(screen.queryByText(/of 4 setup prerequisites/)).toBeNull()
+})
+
+it('reports valid saved activation separately from live-provider acceptance', async () => {
+  const f = fixture(); configured(f)
+  f.data.readiness.live_inference_enabled = true
+  f.data.readiness.activation = activationFixture(f.props.org.id, f.data.configuration.id, { account_binding_verified: false })
+  await mount(f)
+  const blockers = screen.getByRole('list', { name: 'Activation blockers' }).textContent
+  expect(blockers).toContain('Saved activation authorization is current for this exact configuration')
+  expect(blockers).toContain('does not verify credentials, account binding, current model availability, or provider acceptance')
+  expect(screen.getByRole('heading', { name: 'Live activation is not confirmed' })).toBeTruthy()
+  expect(f.client.functions.invoke.mock.calls.map(([name]) => name)).not.toContain('ai-draft')
+})
+
+it.each(['missing', 'malformed', 'expired', 'changed', 'account_mismatch'])('keeps the guide blocked for %s activation despite a true flag', kind => {
+  const f = fixture(); configured(f); f.data.readiness.live_inference_enabled = true
+  const activation = activationFixture(f.props.org.id, f.data.configuration.id, { account_binding_verified: false })
+  if (kind === 'expired') activation.expires_at = '2020-01-01T00:00:00Z'
+  if (kind === 'changed') activation.configuration_id = 'old-config'
+  if (kind === 'account_mismatch') Object.assign(activation, { enabled: false, status: 'activation_account_mismatch' })
+  f.data.readiness.activation = kind === 'missing' ? undefined : kind === 'malformed' ? {} : activation
+  const detail = deriveCustomerSetup(f.data, []).blockers.find(item => item.id === 'activation').detail
+  expect(detail).toContain('Live AI generation is disabled')
+  expect(detail).not.toContain('authorization is current')
 })

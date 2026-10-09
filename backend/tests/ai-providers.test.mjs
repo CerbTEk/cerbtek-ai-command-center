@@ -104,20 +104,37 @@ test('bad/repeated pagination, withdrawn capabilities and provider errors fail c
  }
 });
 
-function routeFixture({provider='openai',connected=true,binding,role='owner',liveEnabled=false,fetchOverride,approved=catalog,resolverFailure=false}={}){
- const calls=[],resolutions=[];let writes=0,saved={id:configId,version:1,configuration:{...base,provider}},run=null;
+const account='synthetic-account',fingerprint='a'.repeat(64),activationId='40000000-0000-4000-8000-000000000001';
+// Synthetic database verdicts are fixture-only; real authorization is exercised by activation SQL tests.
+const activation=enabled=>({contract_version:1,organization_id:org,configuration_id:configId,enabled,status:enabled?'activation_authorized':'activation_disabled',activation_id:activationId,expires_at:'2099-01-01T00:00:00.000Z',account_binding_verified:enabled,limits:{request_microusd:1000000,daily_microusd:1000000,total_microusd:1000000,daily_runs:3,total_runs:3}});
+function routeFixture({provider='openai',connected=true,binding,role='owner',activated=false,fetchOverride,approved=catalog,resolverFailure=false,readinessResult,dispatchResult={data:true}}={}){
+ const calls=[],resolutions=[],events=[],rpcCalls=[],queries=[];let writes=0,saved={id:configId,version:1,configuration:{...base,provider}},run=null;
  const supabase={auth:{getUser:async token=>token==='valid'?{data:{user:{id:actor}}}:{error:{message:'bad'}}},from:table=>{
-  const filters=[];let single=false,count=false;const q={select(_,opts){count=!!opts?.head;return q},eq(k,v){filters.push([k,v]);return q},in(){return q},order(){return q},limit(){return q},maybeSingle(){single=true;return q},single(){single=true;return q},then(resolve){
+  events.push(table);const filters=[];queries.push({table,filters});let single=false,count=false;const q={select(_,opts){count=!!opts?.head;return q},eq(k,v){filters.push([k,v]);return q},in(){return q},order(){return q},limit(){return q},maybeSingle(){single=true;return q},single(){single=true;return q},then(resolve){
    const correct=filters.find(([k])=>k==='organization_id')?.[1]===org;
-   const data=table==='organization_members'?(correct?{role}:null):table==='ai_draft_configurations'?(single?saved:[saved]):[];
+   const matchesRun=run&&filters.every(([k,v])=>run[k]===v);
+   const data=table==='organization_members'?(correct?{role}:null):table==='ai_draft_configurations'?(single?saved:[saved]):single?(matchesRun?run:null):[];
    return Promise.resolve(count?{count:0,data:null}:{data}).then(resolve);
   }};return q;
- },rpc:async(name,args)=>{writes++;if(name==='ai_draft_save')saved={id:configId,version:2,configuration:args.p_config};if(name==='ai_draft_reserve'){if(run)return {data:{created:false,run}};run={id:configId,status:'reserved'};return {data:{created:true,run}}}if(name==='ai_draft_finish')run={...run,...args.p_result};return {data:name==='ai_draft_save'?saved:run}}};
- const handler=createHandler({supabase,catalog:approved,liveEnabled,allowedOrigins:['https://kairo.test'],resolveCredential:async args=>{
-  resolutions.push(args);if(resolverFailure)throw Error('SECRET RESOLVER FAILURE');return connected?{organizationId:org,provider:args.provider,apiKey:'synthetic-key',...binding}:null;
- },fetchImpl:async(url,opts)=>{calls.push({url,method:opts.method});if(fetchOverride)return fetchOverride(url,opts);const provider=new URL(url).host==='api.openai.com'?'openai':new URL(url).host==='api.anthropic.com'?'anthropic':'gemini';return response(opts.method==='GET'?modelsFor(provider):resultFor(provider))}});
+ },rpc:async(name,args)=>{
+  events.push(name);rpcCalls.push({name,args});
+  if(name==='ai_inference_readiness'){
+   if(typeof readinessResult==='function')return readinessResult(args);
+   if(readinessResult!==undefined)return readinessResult;
+   const result=activation(activated);result.account_binding_verified=activated&&args.p_account===account&&args.p_fingerprint===fingerprint;return {data:result};
+  }
+  writes++;
+  if(name==='ai_draft_save'){saved={id:configId,version:2,configuration:args.p_config};return {data:saved}}
+  if(name==='ai_inference_reserve'){if(run)return {data:{created:false,run}};run={id:configId,organization_id:args.p_org,configuration_id:args.p_config,request_key:args.p_request_key,request_hash:args.p_request_hash,requested_by:args.p_actor,status:'reserved'};return {data:{created:true,run}}}
+  if(name==='ai_inference_dispatch')return dispatchResult;
+  if(name==='ai_draft_finish'){run={...run,...args.p_result};return {data:run}}
+  throw Error('Unexpected mutation');
+ }};
+ const handler=createHandler({supabase,catalog:approved,allowedOrigins:['https://kairo.test'],resolveCredential:async args=>{
+  events.push('resolve_credential');resolutions.push(args);if(resolverFailure)throw Error('SECRET RESOLVER FAILURE');return connected?{organizationId:org,provider:args.provider,apiKey:'synthetic-key',accountReference:account,credentialFingerprint:fingerprint,...binding}:null;
+ },fetchImpl:async(url,opts)=>{events.push(opts.method==='GET'?'discover_models':'invoke_provider');calls.push({url,method:opts.method});if(fetchOverride)return fetchOverride(url,opts);const provider=new URL(url).host==='api.openai.com'?'openai':new URL(url).host==='api.anthropic.com'?'anthropic':'gemini';return response(opts.method==='GET'?modelsFor(provider):resultFor(provider))}});
  const request=async(body,token='valid')=>{const r=await handler(new Request('https://kairo.test/ai-draft',{method:'POST',headers:{authorization:`Bearer ${token}`,origin:'https://kairo.test'},body:JSON.stringify({organization_id:org,...body})}));return {status:r.status,body:await r.json()}};
- return {request,calls,resolutions,writes:()=>writes};
+ return {request,calls,resolutions,events,rpcCalls,queries,writes:()=>writes,setActivation:value=>{activated=value},patchRun:patch=>{run={...run,...patch}}};
 }
 
 test('load discovers only the saved provider, returns all provider choices and exposes no secret or pricing',async()=>{
@@ -156,22 +173,22 @@ test('save rejects unapproved, unpriced, unavailable, disconnected, and oversize
 
 test('each provider saves and routes its normalized draft; repeated request keys never dispatch paid inference twice',async()=>{
  for(const {id} of providers){
-  const x=routeFixture({provider:id,liveEnabled:true});const saved=await x.request({operation:'save',configuration:{...base,provider:id},expected_version:1});assert.equal(saved.status,200);
+  const x=routeFixture({provider:id,activated:true});const saved=await x.request({operation:'save',configuration:{...base,provider:id},expected_version:1});assert.equal(saved.status,200);
   const args={operation:'run',configuration_id:configId,request_key:'30000000-0000-4000-8000-000000000001',input:{context:'Synthetic context'}};
   const r=await x.request(args);assert.equal(r.status,200);assert.equal(r.body.run.status,'awaiting_review');assert.deepEqual(r.body.run.draft,draft);assert.deepEqual(r.body.run.usage,{input_tokens:10,output_tokens:20});
   assert.equal((await x.request(args)).body.run.id,r.body.run.id);assert.equal(x.calls.filter(c=>c.method==='POST').length,1);
  }
 });
 
-test('hard-disabled run cannot resolve keys, discover models, reserve budget or invoke any provider',async()=>{
+test('authoritatively disabled run cannot discover models, reserve budget or invoke any provider',async()=>{
  const x=routeFixture();const r=await x.request({operation:'run',configuration_id:configId,request_key:'30000000-0000-4000-8000-000000000001',input:{context:'Synthetic context'}});
- assert.equal(r.body.error,'live_inference_disabled');assert.equal(x.resolutions.length,0);assert.equal(x.calls.length,0);assert.equal(x.writes(),0);
- const deployed=await fs.readFile(new URL('../candidate/edge/ai-draft/index.ts',import.meta.url),'utf8');assert.match(deployed,/liveEnabled:false/);assert.doesNotMatch(deployed,/Deno\.env\.get\(['"](?:OPENAI|ANTHROPIC|GEMINI)_API_KEY/);
+ assert.equal(r.body.error,'activation_disabled');assert.equal(x.resolutions.length,1);assert.equal(x.calls.length,0);assert.equal(x.writes(),0);assert.deepEqual(x.rpcCalls.map(c=>c.name),['ai_inference_readiness']);
+ const deployed=await fs.readFile(new URL('../candidate/edge/ai-draft/index.ts',import.meta.url),'utf8');assert.doesNotMatch(deployed,/liveEnabled\s*:/);assert.match(deployed,/createHandler/);assert.doesNotMatch(deployed,/Deno\.env\.get\(['"](?:OPENAI|ANTHROPIC|GEMINI)_API_KEY/);
 });
 
 test('all providers retain reserved/unknown accounting on one transport-ambiguous attempt',async()=>{
  for(const {id} of providers){
-  let count=0;let run=null;const c={...base,provider:id};const args={config:c,input:{context:'fixture'},catalog,liveEnabled:true,credentialConfigured:true,requestKey:'same-key',requestHash:'same-hash',store:{reserve:async()=>run?{created:false,run}:{created:true,run:run={id:'reserved',status:'reserved'}},finish:async(_,result)=>run={...run,...result}},invoke:body=>providerResponse(id,c.model,body,{apiKey:'synthetic-key',fetchImpl:async()=>{count++;throw Error('SECRET TRANSPORT ERROR')}})};
+  let count=0;let run=null;const c={...base,provider:id};const args={config:c,input:{context:'fixture'},catalog,liveEnabled:true,credentialConfigured:true,requestKey:'same-key',requestHash:'same-hash',store:{authorizeDispatch:async()=>true,reserve:async()=>run?{created:false,run}:{created:true,run:run={id:'reserved',status:'reserved'}},finish:async(_,result)=>run={...run,...result}},invoke:body=>providerResponse(id,c.model,body,{apiKey:'synthetic-key',fetchImpl:async()=>{count++;throw Error('SECRET TRANSPORT ERROR')}})};
   assert.equal((await runDraft(args)).status,'unknown');assert.equal((await runDraft(args)).status,'unknown');assert.equal(count,1);assert.equal(run.failure_code,'provider_transport_unknown');assert.equal(run.draft,null);
  }
 });
@@ -192,4 +209,45 @@ test('Anthropic lifecycle controls retirement; overdue deprecated models remain 
   assert.equal(models.length,1);assert.equal(models[0].available,true);assert.match(models[0].label,/deprecated/);
  }
  assert.deepEqual(await discoverModels('anthropic',catalog,{apiKey:'synthetic-key',fetchImpl:async()=>response({data:[{...baseRow,lifecycle:'retired',retires_at:'2099-01-01T00:00:00Z'}],has_more:false})}),[]);
+});
+
+const runRequest={operation:'run',configuration_id:configId,request_key:'30000000-0000-4000-8000-000000000001',input:{context:'Synthetic context'}};
+test('missing, unavailable and malformed activation responses fail closed before discovery or mutation',async()=>{
+ const authorized=activation(true);
+ const invalid=[undefined,null,{},[],{...authorized,contract_version:2},{...authorized,organization_id:other},{...authorized,configuration_id:other},{...authorized,enabled:'true'},{...authorized,status:'activation_disabled'},{...authorized,account_binding_verified:'true'},{...authorized,activation_id:'invalid'},{...authorized,expires_at:'invalid'},{...authorized,expires_at:'2000-01-01T00:00:00.000Z'},{...authorized,limits:null},...[{request_microusd:1000001},{daily_microusd:100000001},{total_microusd:100000001},{daily_runs:101},{total_runs:10001},{daily_runs:4,total_runs:3},{daily_microusd:999999},{total_microusd:999999},{request_microusd:0},{daily_runs:1.5}].map(limits=>({...authorized,limits:{...authorized.limits,...limits}}))];
+ for(const readinessResult of [...invalid.map(data=>({data})),{error:{message:'PRIVATE DATABASE FAILURE'}},async()=>{throw Error('PRIVATE UNAVAILABLE RPC')}]){
+  const x=routeFixture({activated:true,readinessResult});const r=await x.request(runRequest);
+  assert.deepEqual(r,{status:409,body:{error:'activation_unavailable'}});assert.equal(x.calls.length,0);assert.equal(x.writes(),0);assert.deepEqual(x.rpcCalls.map(c=>c.name),['ai_inference_readiness']);assert(!JSON.stringify(r).includes('PRIVATE'));
+ }
+});
+test('approved credential binding and both fresh-run authorization gates precede paid dispatch',async()=>{
+ const x=routeFixture({activated:true});const r=await x.request(runRequest);assert.equal(r.status,200);assert.equal(r.body.run.status,'awaiting_review');
+ assert.deepEqual(x.events,['organization_members','ai_draft_configurations','ai_draft_runs','resolve_credential','ai_inference_readiness','discover_models','ai_inference_reserve','ai_inference_dispatch','invoke_provider','ai_draft_finish']);
+ const readiness=x.rpcCalls.find(c=>c.name==='ai_inference_readiness').args;assert.deepEqual(readiness,{p_org:org,p_actor:actor,p_config:configId,p_account:account,p_fingerprint:fingerprint});
+ for(const name of ['ai_inference_reserve','ai_inference_dispatch']){const args=x.rpcCalls.find(c=>c.name===name).args;assert.equal(args.p_account,account);assert.equal(args.p_fingerprint,fingerprint);assert.equal(args.p_config,configId);assert.equal(args.p_request_key,runRequest.request_key)}
+ for(const binding of [{accountReference:undefined},{credentialFingerprint:undefined},{accountReference:'wrong-account'},{credentialFingerprint:'b'.repeat(64)}]){
+  const y=routeFixture({activated:true,binding});assert.deepEqual(await y.request(runRequest),{status:409,body:{error:'activation_account_mismatch'}});assert.equal(y.calls.length,0);assert.equal(y.writes(),0);
+ }
+});
+test('manual fresh-run dispatch denial is durable and cannot trigger paid inference on replay',async()=>{
+ for(const dispatchResult of [{data:false},{data:null},{data:{authorized:true}},{error:{message:'PRIVATE DISPATCH FAILURE'}}]){
+  const x=routeFixture({activated:true,dispatchResult});const r=await x.request(runRequest);assert.equal(r.status,200);assert.equal(r.body.run.status,'failed');assert.equal(x.calls.filter(c=>c.method==='POST').length,0);assert(!JSON.stringify(r).includes('PRIVATE'));
+  assert.equal((await x.request(runRequest)).body.run.id,r.body.run.id);assert.equal(x.rpcCalls.filter(c=>c.name==='ai_inference_dispatch').length,1);assert.equal(x.calls.filter(c=>c.method==='POST').length,0);
+ }
+});
+test('exact-key OFF recovery checks scoped hash and actor before any activation or model discovery',async()=>{
+ const x=routeFixture({activated:true});const first=await x.request(runRequest);assert.equal(first.status,200);x.setActivation(false);x.events.length=0;
+ const calls=x.calls.length,resolutions=x.resolutions.length,rpcs=x.rpcCalls.length,writes=x.writes();
+ const recovered=await x.request(runRequest);assert.deepEqual(recovered,first);assert.deepEqual(x.events,['organization_members','ai_draft_configurations','ai_draft_runs']);assert.equal(x.calls.length,calls);assert.equal(x.resolutions.length,resolutions);assert.equal(x.rpcCalls.length,rpcs);assert.equal(x.writes(),writes);
+ assert.deepEqual(x.queries.at(-1),{table:'ai_draft_runs',filters:[['organization_id',org],['request_key',runRequest.request_key]]});
+ const mismatch=await x.request({...runRequest,input:{context:'Changed context'}});assert.deepEqual(mismatch,{status:409,body:{error:'configuration_or_run_conflict'}});assert.equal(x.resolutions.length,resolutions);assert.equal(x.rpcCalls.length,rpcs);assert.equal(x.writes(),writes);
+ const fresh=await x.request({...runRequest,request_key:'30000000-0000-4000-8000-000000000002'});assert.deepEqual(fresh,{status:409,body:{error:'activation_disabled'}});assert.equal(x.calls.length,calls);assert.equal(x.writes(),writes);
+});
+
+test('recovery rejects a matching request key with a different recorded configuration, actor or hash',async()=>{
+ for(const patch of [{configuration_id:other},{requested_by:other},{request_hash:'0'.repeat(64)}]){
+  const x=routeFixture({activated:true});assert.equal((await x.request(runRequest)).status,200);x.setActivation(false);x.patchRun(patch);x.events.length=0;
+  const counts={calls:x.calls.length,resolutions:x.resolutions.length,rpcs:x.rpcCalls.length,writes:x.writes()};
+  assert.deepEqual(await x.request(runRequest),{status:409,body:{error:'configuration_or_run_conflict'}});assert.deepEqual(x.events,['organization_members','ai_draft_configurations','ai_draft_runs']);assert.deepEqual({calls:x.calls.length,resolutions:x.resolutions.length,rpcs:x.rpcCalls.length,writes:x.writes()},counts);
+ }
 });

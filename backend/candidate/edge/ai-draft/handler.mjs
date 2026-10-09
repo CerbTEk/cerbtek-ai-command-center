@@ -1,6 +1,7 @@
+import {readActivation} from './activation.mjs';
 import {DraftError,providers,validateProvider,validateConfig,validateInput,validateTrustedInput,providerSpec,runDraft,providerResponse,discoverModels} from './core.mjs';
 const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
-export function createHandler({supabase,catalog=[],liveEnabled=false,resolveCredential=async()=>null,allowedOrigins=[],invoke,discover=discoverModels,fetchImpl=fetch}){
+export function createHandler({supabase,catalog=[],resolveCredential=async()=>null,allowedOrigins=[],invoke,discover=discoverModels,fetchImpl=fetch}){
  return async request=>{
   const origin=request.headers.get('origin');
   const headers={'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin'};
@@ -41,7 +42,7 @@ export function createHandler({supabase,catalog=[],liveEnabled=false,resolveCred
     if(!connections.has(provider))connections.set(provider,(async()=>{
      try{
       const c=await resolveCredential({organizationId:b.organization_id,actorId:auth.user.id,provider});
-      return c?.organizationId===b.organization_id&&c?.provider===provider&&typeof c.apiKey==='string'&&c.apiKey.trim()?{apiKey:c.apiKey}:null;
+      return c?.organizationId===b.organization_id&&c?.provider===provider&&typeof c.apiKey==='string'&&c.apiKey.trim()?{apiKey:c.apiKey,accountReference:c.accountReference,credentialFingerprint:c.credentialFingerprint}:null;
      }catch{throw new DraftError('provider_connection_unavailable',503)}
     })());
     return connections.get(provider);
@@ -87,7 +88,10 @@ export function createHandler({supabase,catalog=[],liveEnabled=false,resolveCred
      try{const configured=!!(await connectionFor(p.id));return {...p,credential_configured:configured,connection_status:configured?'configured':'not_connected'}}
      catch{return {...p,credential_configured:false,connection_status:'unavailable'}}
     }));
-    return reply({configuration,runs:await Promise.all(runs.data.map(visibleRun)),unresolved_count:pending.count||0,unresolved_runs:unresolved.data,unresolved_limit:20,providers:connectionsMetadata,...models,readiness:{live_enabled:liveEnabled,credential_configured:models.credential_configured,status:models.model_status==='discovery_failed'?'model_discovery_failed':!models.credential_configured?'provider_unconfigured':!liveEnabled?'live_inference_disabled':models.catalog.length?'configured':'model_not_configured'}});
+    const credential=configuration?await connectionFor(selected).catch(()=>null):null;
+    const activation=await readActivation(supabase,{organizationId:b.organization_id,actorId:auth.user.id,configurationId:configuration?.id,credential});
+    const liveEnabled=activation.enabled===true&&activation.account_binding_verified===true&&models.catalog.some(m=>m.model===configuration?.configuration?.model&&m.available===true&&m.structured_outputs===true);
+    return reply({configuration,runs:await Promise.all(runs.data.map(visibleRun)),unresolved_count:pending.count||0,unresolved_runs:unresolved.data,unresolved_limit:20,providers:connectionsMetadata,...models,readiness:{live_enabled:liveEnabled,credential_configured:models.credential_configured,activation,status:!activation.enabled?activation.status:models.model_status==='discovery_failed'?'model_discovery_failed':!models.credential_configured?'provider_unconfigured':liveEnabled?'activation_authorized':'model_not_configured'}});
    }
    if(b.operation==='save'){
     const config=validateConfig(b.configuration);await availableModel(config);
@@ -120,12 +124,26 @@ export function createHandler({supabase,catalog=[],liveEnabled=false,resolveCred
    if(!connectedWorkflow&&Object.keys(b).some(key=>!['operation','organization_id','configuration_id','request_key','input'].includes(key)))throw new DraftError('invalid_context');
    const input=validateInput(suppliedInput,config);
    const hashInput=trustedSources?{context:input.context,sources:trustedSources}:input;
-   if(!liveEnabled)throw new DraftError('live_inference_disabled',409);
-   const credential=await availableModel(config);
    const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({configuration_id:record.id,input:hashInput})));
    const requestHash=Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');
-   const run=await runDraft({config:record.configuration,input,catalog,liveEnabled,credentialConfigured:!!credential,requestKey:b.request_key,requestHash,trustedSources,
-    store:{reserve:({requestKey,requestHash,reserve})=>rpc('ai_draft_reserve',{...common,p_config:record.id,p_request_key:requestKey,p_request_hash:requestHash,p_reserve:reserve}),...(connectedWorkflow?{authorizeDispatch:({runId,requestKey,requestHash})=>rpc('customer_workflow_draft_dispatch',{...common,p_workflow:b.customer_workflow_id,p_expected_revision:b.expected_revision,p_config:record.id,p_request_key:requestKey,p_run:runId,p_request_hash:requestHash})}:{}),finish:(id,result)=>rpc('ai_draft_finish',{...common,p_run:id,p_result:result})},
+   // Recover the exact prior request before credential discovery or activation checks.
+   // OFF/expiry never destroys history and never grants a second provider dispatch.
+   const prior=await supabase.from('ai_draft_runs').select('*').eq('organization_id',b.organization_id).eq('request_key',b.request_key).maybeSingle();
+   if(prior.error)throw new DraftError('storage_unavailable',503);
+   if(prior.data){
+    if(prior.data.configuration_id!==record.id||prior.data.request_hash!==requestHash||prior.data.requested_by!==auth.user.id)throw new DraftError('configuration_or_run_conflict',409);
+    return reply({run:await visibleRun(prior.data)});
+   }
+   const boundCredential=await connectionFor(config.provider);
+   const activation=await readActivation(supabase,{organizationId:b.organization_id,actorId:auth.user.id,configurationId:record.id,credential:boundCredential});
+   if(!activation.enabled||!activation.account_binding_verified)throw new DraftError(activation.enabled?'activation_account_mismatch':activation.status,409);
+   const credential=await availableModel(config);
+   const binding={p_account:credential.accountReference,p_fingerprint:credential.credentialFingerprint};
+   const run=await runDraft({config:record.configuration,input,catalog,liveEnabled:activation.enabled,credentialConfigured:!!credential,requestKey:b.request_key,requestHash,trustedSources,
+    store:{reserve:({requestKey,requestHash,reserve})=>rpc('ai_inference_reserve',{...common,p_config:record.id,p_request_key:requestKey,p_request_hash:requestHash,p_reserve:reserve,...binding}),authorizeDispatch:async({runId,requestKey,requestHash})=>{
+     if(connectedWorkflow&&await rpc('customer_workflow_draft_dispatch',{...common,p_workflow:b.customer_workflow_id,p_expected_revision:b.expected_revision,p_config:record.id,p_request_key:requestKey,p_run:runId,p_request_hash:requestHash})!==true)return false;
+     return rpc('ai_inference_dispatch',{...common,p_config:record.id,p_request_key:requestKey,p_run:runId,p_request_hash:requestHash,...binding});
+    },finish:(id,result)=>rpc('ai_draft_finish',{...common,p_run:id,p_result:result})},
     invoke:invoke?((body,options)=>invoke(body,{provider:config.provider,model:config.model,...options})):((body,options)=>providerResponse(config.provider,config.model,body,{apiKey:credential.apiKey,fetchImpl,...options}))});
    return reply({run:await visibleRun(run)});
   }catch(e){return reply({error:e instanceof DraftError?e.code:'service_unavailable'},e instanceof DraftError?e.status:503)}

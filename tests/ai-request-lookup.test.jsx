@@ -1,3 +1,4 @@
+import {aiReadinessFixture} from './activation-fixture'
 import React from 'react';
 import {it,expect,vi,afterEach} from 'vitest';
 import {render,screen,fireEvent,waitFor,cleanup,within,act} from '@testing-library/react';
@@ -5,7 +6,7 @@ import AIDraftSetup from '../src/AIDraftSetup';
 afterEach(cleanup);
 const id='20000000-0000-4000-8000-000000000001',key='30000000-0000-4000-8000-000000000001';
 const config={schema_version:1,provider:'openai',model:'fixture',task:'customer_reply',instructions:'Use only supplied facts.',source:'manual_context',max_input_bytes:6000,max_output_tokens:1000,max_daily_runs:10,daily_budget_microusd:1000000,human_review:true};
-const loaded={configuration:{id:'config',version:1,configuration:config},runs:[],unresolved_count:0,unresolved_runs:[],unresolved_limit:20,catalog:[{provider:'openai',model:'fixture'}],readiness:{live_enabled:true,credential_configured:true,status:'configured'}};
+const loaded={configuration:{id:'config',version:1,configuration:config},runs:[],unresolved_count:0,unresolved_runs:[],unresolved_limit:20,catalog:[{provider:'openai',model:'fixture',available:true,structured_outputs:true}],readiness:aiReadinessFixture('org','config')};
 const old={id,request_key:key,status:'unknown',reserved_microusd:1000,created_at:'2026-01-01T12:00:00Z',failure_code:'provider_timeout_unknown'};
 const blocked={...loaded,unresolved_count:1,unresolved_runs:[old]};
 const make=fn=>({functions:{invoke:vi.fn(async(_,{body})=>({data:await fn(body)}))}});
