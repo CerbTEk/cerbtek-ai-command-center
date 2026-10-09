@@ -40,3 +40,13 @@ test('customer setup bookmarks enter the app with the selected company preserved
   assert.equal(legacyAppTarget({search:'',hash:'#Customer%20Setup'}), '/app/kairo#Customer%20Setup')
   assert.equal(legacyAppTarget({search:'?kairoCompany=company-a',hash:'#Customer%20Setup'}), '/app/kairo?kairoCompany=company-a#Customer%20Setup')
 })
+
+test('CerbTEK homepage stays public while all legacy callback entries remain intact', () => {
+  for (const pathname of ['/', '/index.html', '/products/kairo', '/products/kairo/', '/products/kairo/index.html']) {
+    for (const hash of ['', '#platforms', '#approach', '#company', '#contact']) {
+      assert.equal(legacyAppTarget({pathname, search:'?utm_source=company', hash}), null)
+    }
+    assert.equal(legacyAppTarget({pathname, search:'?code=TEST_ONLY&state=sample', hash:'#access_token=TEST_ONLY'}), '/app/kairo?code=TEST_ONLY&state=sample#access_token=TEST_ONLY')
+  }
+  assert.equal(legacyAppTarget({pathname:'/preview/', search:'', hash:'#platforms'}, '/preview/'), null)
+})
