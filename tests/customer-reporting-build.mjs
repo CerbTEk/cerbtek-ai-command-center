@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict'
+import { readFile, readdir } from 'node:fs/promises'
+const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
+const report = await read('src/CustomerOperationsReport.jsx'), model = await read('src/customer-reporting-model.js'), evidence = await read('src/CustomerRequestEvidence.jsx'), css = await read('src/customer-reporting.css'), monitor = await read('src/WorkflowMonitor.jsx')
+assert.match(report, /invoke\('customer-workflow', \{ body: \{ operation: 'load'/)
+assert.doesNotMatch(report + model + evidence, /\.from\(|invoke\('(?:ai-draft|microsoft-action|organization-members)|\.rpc\(|\.insert\(|\.update\(|localStorage|sessionStorage|dangerouslySetInnerHTML/)
+assert.match(monitor, /lazy\(\(\) => import\('\.\/CustomerOperationsReport'\)\)/)
+assert.match(model, /actualCost: null/)
+assert.doesNotMatch(model, /price_per|per_token|cost_per|\/\s*1e6|\/\s*1000000/)
+assert.match(css, /@media\(max-width:520px\)/)
+assert.match(css, /:focus-visible/)
+assert.match(css, /min-height:44px/)
+assert.match(css, /overflow-wrap:anywhere/)
+const luminance = hex => { const c = hex.match(/[0-9a-f]{2}/g).map(x => parseInt(x, 16) / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4); return c[0] * .2126 + c[1] * .7152 + c[2] * .0722 }
+for (const [fg, bg] of [['c1bcb3', '141310'], ['fff2dc', '111111'], ['e8bc7c', '111111'], ['ffe0a8', '2b2112'], ['ffd08a', '141310'], ['ded5c7', '1d1912']]) assert.ok((Math.max(luminance(fg), luminance(bg)) + .05) / (Math.min(luminance(fg), luminance(bg)) + .05) >= 4.5, `Text contrast ${fg}/${bg}`)
+const assets = await readdir(new URL('../dist/assets/', import.meta.url)), chunk = assets.find(name => /^CustomerOperationsReport-.*\.js$/.test(name))
+assert.ok(chunk, 'Operations report is a lazy application chunk')
+assert.match(await read(`dist/assets/${chunk}`), /Customer request operations/)
+for (const name of assets.filter(name => /^(marketing|investors)-.*\.js$/.test(name))) assert.doesNotMatch(await read(`dist/assets/${name}`), /Customer request operations|customer-workflow|ai_draft_runs/)
+console.log('Reporting read-only boundary, lazy bundle, public-bundle isolation, responsive/focus targets and text contrast passed. DOM checks are separate; browser pixels remain unrun.')

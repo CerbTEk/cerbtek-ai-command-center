@@ -30,10 +30,13 @@
     "check:knowledge": "npm run test:knowledge:backend && npm run test:knowledge:ui && npm run build && npm run test:knowledge:build",
     "test:backend": "node --test --test-concurrency=1 backend/tests/*.test.mjs",
     "test:ui": "vitest run --config vitest.all.config.js",
-    "check:all": "npm run test:backend && npm run test:ui && npm run test:funding-db && npm run test:marketing && npm run build && npm run test:funding-build && npm run test:marketing-build && npm run test:knowledge:build && npm run test:setup:build",
+    "check:all": "npm run test:backend && npm run test:ui && npm run test:funding-db && npm run test:marketing && npm run build && npm run test:funding-build && npm run test:marketing-build && npm run test:knowledge:build && npm run test:setup:build && npm run test:reporting:build",
     "test:setup:ui": "vitest run --config vitest.all.config.js tests/customer-setup.test.jsx tests/customer-setup-app.test.jsx",
     "test:setup:build": "node tests/customer-setup-build.mjs",
-    "check:setup": "npm run test:setup:ui && npm run build && npm run test:setup:build"
+    "check:setup": "npm run test:setup:ui && npm run build && npm run test:setup:build",
+    "test:reporting:ui": "vitest run --config vitest.all.config.js tests/customer-reporting.test.jsx",
+    "test:reporting:build": "node tests/customer-reporting-build.mjs",
+    "check:reporting": "npm run test:reporting:ui && npm run build && npm run test:reporting:build"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.58.0",

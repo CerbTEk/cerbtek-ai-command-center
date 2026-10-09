@@ -145,3 +145,7 @@ Local checks: `mkdir -p backend/evidence` before the existing aggregate backend 
 Customer Setup guides the deployed manual customer-reply use case from its intended outcome through saved prerequisites, existing configuration screens, read-only validation and explicit activation requirements. It resumes from existing company records and never checks off a connection, calls a provider, enables inference, changes access, or sends email. Open it from Overview or the sidebar. The `#Customer%20Setup` route works at the marketing root and app entrypoint.
 
 Run `npm run check:setup` for focused DOM/app tests, production build, and read-only/lazy-bundle/responsive/contrast checks. See `docs/customer-setup-release.md` for data contracts, scope and acceptance limits.
+
+## Customer operational reporting
+
+AI Ops now offers a read-only Customer requests view using the existing scoped customer-workflow load contract. It reports saved request milestones, current explicitly linked AI model/token facts, independent approval and Microsoft acceptance. Customer Follow-up includes the same per-request evidence. Missing usage is not zero, reservations are not measured spend, and acceptance is separate from delivery and business resolution. The latest 100 visible requests and current bound AI attempts form a disclosed sample, not a complete company audit log. No permissions or backend contracts are expanded. See `docs/customer-reporting-release.md` and run `npm run check:reporting`.
