@@ -4,7 +4,7 @@ export const SECTIONS=['Overview','Team Access','Onboarding','AI Readiness','AI 
 export function sectionFromHash(hash) {
   let value
   try { value=decodeURIComponent(hash.replace(/^#/,'')) } catch { return 'Overview' }
-  return SECTIONS.includes(value)?value:'Overview'
+  return value==='Team & Roles'?'Team Access':SECTIONS.includes(value)?value:'Overview'
 }
 
 export function useSectionNavigation(canNavigate = () => true) {

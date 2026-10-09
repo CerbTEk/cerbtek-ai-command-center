@@ -136,12 +136,12 @@ const PRODUCT_HELP_ARTICLES = [
     related:['readiness','business-case']
   },
   {
-    id:'team-access', title:'Review access and invite a teammate', section:'Team Access',
-    keywords:['team','invite','invitation','member','role','access','admin','owner','consultant','teammate'],
+    id:'team-access', title:'Set employee roles and invite a teammate', section:'Team Access',
+    keywords:['team','employee','invite','invitation','member','role','access','admin','owner','consultant','teammate'],
     summary:'Use the correct company and role when managing team access.',
-    prerequisites:['An authorized role for managing team access.'],
-    steps:['Confirm the selected company before changing access.','Review existing members and roles.','Create an invitation for the intended teammate and use the provided invitation link.','Share the link only with its intended recipient.'],
-    note:'A role determines available actions. Contact an authorized administrator if your access is insufficient.',
+    prerequisites:['A company Owner or Admin role for managing employee access.'],
+    steps:['Open Team & Roles and confirm the selected company.','Find an employee and review the descriptions of each available role. Employee is the display name for the existing Member role.','Choose a role, review the unsaved change, and select Save role. Wait for the saved confirmation.','Owners manage elevated roles; Admins can only switch Employee and Viewer access. Your own role is protected.','To add someone new, create an invitation for their email address and share the secure link only with that person. Kairo does not email the link.','If a change cannot be confirmed, refresh the team and check the saved role before retrying.'],
+    note:'Company roles do not grant CerbTEK staff or Funding access. Workflow approval policies still apply. Role changes are recorded in Audit.',
     related:['email-approval','governance']
   },
   {

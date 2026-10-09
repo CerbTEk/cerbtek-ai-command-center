@@ -17,7 +17,10 @@
     "test:ai:backend": "node --test backend/tests/ai-*.test.mjs",
     "test:ai:ui": "vitest run --config vitest.ai.config.js",
     "test:ai": "npm run test:ai:backend && npm run test:ai:ui",
-    "check:ai": "npm run test:ai && npm run build"
+    "check:ai": "npm run test:ai && npm run build",
+    "test:team:ui": "vitest run --config vitest.team.config.js",
+    "test:team:backend": "node --test backend/tests/team-*.test.mjs",
+    "check:team": "npm run test:team:ui && npm run test:team:backend && npm run build"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.58.0",

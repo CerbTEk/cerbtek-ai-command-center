@@ -1,3 +1,4 @@
+import TeamRoles from './TeamRoles'
 import AIDraftSetup from './AIDraftSetup'
 import WorkflowMonitor from './WorkflowMonitor'
 import IntegrationProviderPlanner from './IntegrationProviderPlanner'
@@ -245,7 +246,7 @@ export function App() {
       </div>
       <nav>{nav.map(([label, Icon]) =>
         <button key={label} className={active === label ? 'active' : ''} onClick={() => setActive(label)}>
-          <Icon size={17}/>{label === 'CerbTek Staff' ? 'CerbTEK LLC Staff' : label}
+          <Icon size={17}/>{label === 'CerbTek Staff' ? 'CerbTEK LLC Staff' : label === 'Team Access' ? 'Team & Roles' : label}
         </button>
       )}</nav>
       <button className="signout" onClick={() => supabase.auth.signOut()}><LogOut size={16}/>Sign out</button>
@@ -253,7 +254,7 @@ export function App() {
 
     <main>
       <header>
-        <div><p className="eyebrow">KAIRO COMMAND CENTER</p><h1 ref={sectionHeadingRef} tabIndex={-1}>{active === 'CerbTek Staff' ? 'CerbTEK LLC Staff' : active}</h1></div>
+        <div><p className="eyebrow">KAIRO COMMAND CENTER</p><h1 ref={sectionHeadingRef} tabIndex={-1}>{active === 'CerbTek Staff' ? 'CerbTEK LLC Staff' : active === 'Team Access' ? 'Team & Roles' : active}</h1></div>
         <div className="header-actions">
           {staff && <div className="staff-pill">{staff.role.replaceAll('_',' ')}</div>}
           <div className="tenant-pill"><Building2 size={15}/>{org.name}</div>
@@ -263,7 +264,7 @@ export function App() {
         {dataLoading&&loadedOrgId===org.id&&loadedUserId===session.user.id&&!dataError&&<p role="status">Refreshing workspace…</p>}
         {dataError?<Panel title="Workspace information unavailable"><p role="alert">{dataError}</p><button className="primary" onClick={()=>loadOrg(org.id)}>Refresh workspace</button></Panel>:loadedOrgId!==org.id||loadedUserId!==session.user.id?<p role="status">Loading workspace…</p>:<>
         {active === 'Overview' && <Overview data={data} onGo={setActive}/>}
-        {active === 'Team Access' && <TeamAccess org={org} session={session} members={data.members} invitations={data.invitations} reload={() => loadOrg(org.id)}/>}
+        {active === 'Team Access' && <TeamRoles key={session.user.id+':'+org.id} org={org} session={session} members={data.members} invitations={data.invitations} client={supabase} refreshing={dataLoading} reload={() => loadOrg(org.id)}/>}
         {active === 'Onboarding' && <Onboarding org={org} session={session} current={data.onboarding} reload={() => loadOrg(org.id)} onGo={setActive}/>}
         {active === 'AI Readiness' && <Readiness org={org} session={session} data={data} reload={() => loadOrg(org.id)} onGo={setActive}/>}
         {active === 'Systems' && <Systems org={org} session={session} rows={data.systems} reload={() => loadOrg(org.id)}/>}
@@ -415,96 +416,6 @@ const readinessQuestions = [
   ['integration','int_monitoring','Integration failures can be monitored, alerted, and remediated.'],
 ]
 const readinessLabels = {technology:'Technology',workflow:'Workflow',data:'Data',governance:'Governance',workforce:'Workforce',integration:'Integration'}
-function TeamAccess({org,session,members,invitations,reload}) {
-  const [email,setEmail]=useState('')
-  const [role,setRole]=useState('member')
-  const [inviteLink,setInviteLink]=useState('')
-  const [message,setMessage]=useState('')
-
-  async function createInvite(e){
-    e.preventDefault()
-    setMessage('Creating secure invitation…')
-    const {data,error}=await supabase.functions.invoke('organization-invite',{body:{
-      op:'create',organization_id:org.id,email,role
-    }})
-    if(error) setMessage(error.message)
-    else if(data?.error) setMessage(data.error)
-    else{
-      setInviteLink(data.invite_url||'')
-      setMessage('Invitation created')
-      setEmail('')
-      reload()
-    }
-  }
-
-  async function updateRole(userId,newRole){
-    const {error}=await supabase.from('organization_members').update({role:newRole}).eq('organization_id',org.id).eq('user_id',userId)
-    setMessage(error?error.message:'Member role updated')
-    if(!error) reload()
-  }
-
-  async function revokeMember(userId){
-    const member=members.find(m=>m.user_id===userId)
-    if(member?.role==='owner'){setMessage('The organization owner cannot be removed here.');return}
-    const {error}=await supabase.from('organization_members').delete().eq('organization_id',org.id).eq('user_id',userId)
-    setMessage(error?error.message:'Member access removed')
-    if(!error) reload()
-  }
-
-  async function revokeInvite(id){
-    const {error}=await supabase.from('organization_invitations').update({status:'Revoked'}).eq('id',id)
-    setMessage(error?error.message:'Invitation revoked')
-    if(!error) reload()
-  }
-
-  async function copyInvite(){
-    if(!inviteLink)return
-    try{await navigator.clipboard.writeText(inviteLink);setMessage('Invite link copied')}catch{setMessage('Copy the invitation link shown below')}
-  }
-
-  return <>
-    <div className="metrics">
-      <Metric label="Team members" value={members.length}/>
-      <Metric label="Pending invites" value={invitations.filter(i=>i.status==='Pending').length}/>
-      <Metric label="Admins" value={members.filter(m=>m.role==='owner'||m.role==='admin').length}/>
-      <Metric label="Tenant isolation" value="RLS"/>
-    </div>
-
-    <Panel title="Invite team member">
-      <p>Create a seven-day tenant invitation. The recipient must sign in using the invited email address before access is granted.</p>
-      <form className="team-invite-form" onSubmit={createInvite}>
-        <label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label>
-        <label>Role<select value={role} onChange={e=>setRole(e.target.value)}><option value="admin">Admin</option><option value="consultant">Consultant</option><option value="member">Member</option><option value="viewer">Viewer</option></select></label>
-        <button className="primary">Create secure invite</button>
-      </form>
-      {inviteLink&&<div className="invite-link-box"><input value={inviteLink} readOnly/><button className="secondary" onClick={copyInvite}>Copy link</button></div>}
-      {message&&<div className="message">{message}</div>}
-    </Panel>
-
-    <Panel title="Organization members">
-      <div className="member-list">{members.length?members.map(m=>
-        <div className="member-row" key={m.user_id}>
-          <div><b>{m.email}</b><span>Joined {new Date(m.created_at).toLocaleDateString()}</span></div>
-          <select value={m.role} disabled={m.role==='owner'} onChange={e=>updateRole(m.user_id,e.target.value)}>
-            {m.role==='owner'&&<option value="owner">Owner</option>}
-            <option value="admin">Admin</option><option value="consultant">Consultant</option><option value="member">Member</option><option value="viewer">Viewer</option>
-          </select>
-          <button className="secondary" disabled={m.role==='owner'} onClick={()=>revokeMember(m.user_id)}>Remove</button>
-        </div>
-      ):<div className="empty">No team members yet.</div>}</div>
-    </Panel>
-
-    <Panel title="Invitations">
-      <div className="member-list">{invitations.length?invitations.map(i=>
-        <div className="member-row" key={i.id}>
-          <div><b>{i.email}</b><span>{i.role} • {i.status} • expires {new Date(i.expires_at).toLocaleString()}</span></div>
-          <span className="status-text">{i.status}</span>
-          {i.status==='Pending'?<button className="secondary" onClick={()=>revokeInvite(i.id)}>Revoke</button>:<span></span>}
-        </div>
-      ):<div className="empty">No invitations yet.</div>}</div>
-    </Panel>
-  </>
-}
 
 
 function Onboarding({org,session,current,reload,onGo}) {

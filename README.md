@@ -63,3 +63,19 @@ Server setup contract, after the required account and data-use approvals:
 Provider setup references: [OpenAI](https://developers.openai.com/api/docs/quickstart), [Anthropic](https://platform.claude.com/docs/en/get-api-key), [Google Gemini](https://ai.google.dev/gemini-api/docs/api-key).
 
 `npm run check:ai` covers provider adapters with synthetic responses, model selection, organization isolation, SQL versioning, quotas, request inspection and the production build. It does not make paid API calls or prove that a production credential works. Existing installations use the narrowly scoped `backend/deployment/ai-provider-model-selection.sql` patch after review; it preserves the existing save function’s other checks and grants.
+
+## Team & Roles
+
+The company workspace now includes a searchable employee roster with explicit role saves, descriptions, and guarded removal/invitation controls. Mutation controls stay disabled until an authenticated readiness check confirms the installed security contract, company and actor role. Existing `#Team%20Access` links continue to work; `#Team%20%26%20Roles` is also accepted. The displayed Employee role is the existing `member` database role, not a new access tier.
+
+- Owner: manage other employees, including other owners and administrators. Self-changes are blocked and the company must retain an owner.
+- Admin: manage Employee and Viewer memberships and invitations only.
+- Consultant: retains existing business setup and eligible approval permissions, without employee-access administration.
+- Employee (`member`): existing company contribution access.
+- Viewer: existing company read access.
+
+Company roles never grant CerbTEK staff or Funding access. Workflow approval policies remain authoritative. Team changes use fresh database authorization, a company transaction lock, expected-role conflict checks, and same-transaction audit records. Invitations cannot overwrite an existing membership; acceptance requires the invited verified email and an inviter who still has sufficient authority. Role demotion/removal invalidates affected outstanding invitations.
+
+The source-only candidate SQL is `backend/candidate/sql/team-roles-contract.sql`. Installing it changes security grants and requires explicit deployment approval. It closes direct membership/invitation writes, including legacy service-role writes. Deploy it together with `backend/candidate/edge/organization-invite/`, then release the UI. An older frontend or invitation function will fail closed during the coordinated cutover. Existing memberships are not rewritten by installation. Previously issued invitations from consultants or staff without a current company Owner/Admin membership require an authorized owner/admin to reissue them.
+
+Run `npm run check:team` for synthetic UI and database/Edge tests and the production build. No test changes real employee access, sends email, or invokes paid inference. PGlite exercises the SQL and role checks; it does not establish multi-session production lock timing. Browser pixel verification and authenticated production acceptance are separate from these synthetic tests.
