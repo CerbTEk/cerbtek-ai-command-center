@@ -42,7 +42,7 @@ begin
  if p_expected_version is distinct from v then raise exception 'Configuration changed; reload';end if;
  if jsonb_typeof(p_config) is distinct from 'object' or not p_config ?& array['schema_version','provider','model','task','instructions','source','max_input_bytes','max_output_tokens','max_daily_runs','daily_budget_microusd','human_review']
  or p_config-array['schema_version','provider','model','task','instructions','source','max_input_bytes','max_output_tokens','max_daily_runs','daily_budget_microusd','human_review']<>'{}'::jsonb
- or p_config->>'schema_version' is distinct from '1' or p_config->>'provider' is distinct from 'openai' or p_config->>'source' is distinct from 'manual_context' or p_config->'human_review' is distinct from 'true'::jsonb
+ or p_config->>'schema_version' is distinct from '1' or coalesce(p_config->>'provider','') not in ('openai','anthropic','gemini') or p_config->>'source' is distinct from 'manual_context' or p_config->'human_review' is distinct from 'true'::jsonb
  or coalesce(p_config->>'model','') !~ '^[-a-zA-Z0-9._:]{1,100}$'
  or jsonb_typeof(p_config->'task') is distinct from 'string' or jsonb_typeof(p_config->'instructions') is distinct from 'string'
  or jsonb_typeof(p_config->'max_input_bytes') is distinct from 'number' or jsonb_typeof(p_config->'max_output_tokens') is distinct from 'number' or jsonb_typeof(p_config->'max_daily_runs') is distinct from 'number' or jsonb_typeof(p_config->'daily_budget_microusd') is distinct from 'number'

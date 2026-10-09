@@ -13,3 +13,35 @@ test('SQL human review lifecycle has no action execution and no cross-org access
 test('anonymous and authenticated callers cannot read private drafts or invoke service RPCs',async()=>{const d=await db();try{await d.exec('reset role;set role authenticated');await assert.rejects(()=>d.query('select * from public.ai_draft_runs'),/permission denied/);await assert.rejects(()=>save(d),/permission denied/);await d.exec('reset role;set role anon');await assert.rejects(()=>save(d),/permission denied/)}finally{await d.close()}});
 
 test('SQL blocks a second request after unknown outcome; inherited grants cannot mutate configuration',async()=>{const d=await db();try{const c=await save(d);const r=(await reserve(d,c.id)).run;await assert.rejects(()=>reserve(d,c.id,2),/Unresolved/);await rpc(d,'ai_draft_finish',[org,actor,r.id,{status:'unknown',failure_code:'provider_timeout_unknown',draft:null,usage:null}]);await assert.rejects(()=>reserve(d,c.id,2),/Unresolved/);await assert.rejects(()=>d.query('update public.ai_draft_configurations set version=99'),/permission denied/);await d.exec('reset role');await assert.rejects(()=>d.query('update public.ai_draft_configurations set version=99'),/immutable/)}finally{await d.close()}});
+
+test('SQL persists only the three approved provider enums and never accepts provider credentials/endpoints',async()=>{
+ const d=await db();try{
+  let version=0;
+  for(const provider of ['openai','anthropic','gemini']){
+   const result=await save(d,version,{...config,provider});version++;assert.equal(result.configuration.provider,provider);assert.equal(result.version,version);
+  }
+  for(const provider of ['google','custom','OPENAI','',null,{},1])await assert.rejects(()=>save(d,version,{...config,provider}),/Invalid configuration/);
+  for(const field of ['api_key','base_url','endpoint'])await assert.rejects(()=>save(d,version,{...config,[field]:'synthetic'}),/Invalid configuration/);
+  assert.equal((await d.query('select count(*)::integer as count from ai_draft_configurations')).rows[0].count,3);
+ }finally{await d.close()}
+});
+
+test('deployment provider patch changes only the save predicate, preserves grants and all other functions, and is idempotent',async()=>{
+ const d=await db();try{
+  await d.exec('reset role');
+  const signature='public.ai_draft_save(uuid,uuid,integer,jsonb)';
+  const modern="coalesce(p_config->>'provider','') not in ('openai','anthropic','gemini')",legacy="p_config->>'provider' is distinct from 'openai'";
+  const definition=(await d.query('select pg_get_functiondef($1::regprocedure) as definition',[signature])).rows[0].definition;
+  // Start from the legacy production predicate while retaining this database's ACLs.
+  await d.exec(definition.replace(modern,legacy));
+  const snapshot=async()=> (await d.query("select p.oid,p.proname,p.proacl::text as acl,p.proowner,p.prosecdef,p.proconfig,pg_get_functiondef(p.oid) as definition from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'ai_draft_%' order by p.proname")).rows;
+  const before=await snapshot();
+  const patch=await fs.readFile(new URL('../deployment/ai-provider-model-selection.sql',import.meta.url),'utf8');
+  await d.exec(patch);const after=await snapshot();
+  assert.equal(after.length,before.length);
+  for(let i=0;i<before.length;i++)assert.deepEqual(after[i],before[i].proname==='ai_draft_save'?{...before[i],definition:before[i].definition.replace(legacy,modern)}:before[i]);
+  await d.exec(patch);assert.deepEqual(await snapshot(),after);
+  await d.exec('set role authenticated');await assert.rejects(()=>save(d),/permission denied/);
+  await d.exec('reset role;set role service_role');assert.equal((await save(d,0,{...config,provider:'anthropic'})).configuration.provider,'anthropic');
+ }finally{await d.close()}
+});
