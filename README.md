@@ -108,7 +108,7 @@ Run `npm run check:customer` for synthetic UI, Node and PGlite checks plus the p
 
 ## Company Knowledge
 
-Company Knowledge stores short text/Markdown source material in immutable versions with SHA-256 content/chunk hashes, a review deadline and explicit publication. It is a separate reference library: this release does not automatically feed these documents into AI drafts. The existing draft source remains manually saved reply guidance until a versioned multi-source citation adapter is implemented.
+Company Knowledge stores short text/Markdown source material in immutable versions with SHA-256 content/chunk hashes, a review deadline and explicit publication. It is a reference library with no automatic ingestion or synchronization. Customer Follow-up can explicitly select up to five current company-wide excerpts using the separately installed Knowledge Draft adapter described below; saving, publishing, and standalone search do not call an AI provider.
 
 Company owners and admins manage sources and history. New drafts default to “Company admins only.” Publishing requires an explicit review of the exact version and audience; “All company members” allows current consultants, employees and viewers to read that published version. Private publication remains limited to owners/admins. Saving a replacement unpublishes the previous version pending a new review. Archived, draft, superseded and overdue sources are excluded from retrieval. Archiving preserves source history and removes it from search.
 
@@ -117,3 +117,25 @@ The first slice supports up to 200 documents per company, 100 versions per docum
 Install the separately reviewed `backend/candidate/sql/company-knowledge-contract.sql`, deploy `backend/candidate/edge/company-knowledge/` with verified user JWT forwarding and no service-role credential, then deploy the UI. All new tables enable RLS and deny direct application-role reads/writes; a narrow authenticated RPC rechecks current company membership, audience, freshness, revision and replay key. Existing memberships, staff access, provider credentials and AI configuration are untouched. Run `npm run check:knowledge` for local SQL/Edge/DOM and isolated bundle checks. Live authenticated access, hosted simultaneous sessions and browser pixels remain separate acceptance work.
 
 `npm run check:all` runs the complete local backend and UI regression suites, funding RLS checks, marketing routing checks, production build, public-bundle checks and Company Knowledge bundle validation. It requires no provider credentials and performs no live sends or hosted database writes.
+
+
+## Explicit Company Knowledge draft sources (source-only candidate)
+
+The Knowledge Draft adapter connects published Company Knowledge to Customer Follow-up without automatic retrieval. A company owner, admin or consultant searches current **company-wide** excerpts, opens each exact preview, and explicitly selects zero to five. Private admin-only documents are excluded from this customer-workflow path. Manually pasted text and manually uploaded text files are labeled accurately; no Drive, SharePoint, inbox, URL or document synchronization is installed.
+
+Preparing a new AI request seals an immutable source snapshot containing the exact document, version and chunk IDs, SHA-256 hashes, text, audience, source kind/name and review deadline. The browser sends only exact ID/hash references. Resume uses its already-pinned snapshot. The saved AI input budget includes the source metadata and is checked before a new request key is pinned. Whitespace-only chunks are omitted without changing stored text or hashes.
+
+Current company membership, current published version, company-wide audience, review deadline, assignment, configuration and exact source hashes are checked before preparation, reservation and again immediately before provider dispatch. The database transaction does not stay open across the external provider HTTP request. Provider calls remain separately disabled in the deployment; this adapter does not configure credentials, models or inference permissions.
+
+OpenAI, Anthropic and Gemini receive selected document text only in untrusted user-data blocks. Model output can cite only `manual-1` and the exact selected source IDs, with no duplicates or invented IDs. Citation provenance is validated; semantic truth and whether each statement is actually supported still require the human draft review. Draft acceptance, separate email approval and the existing one-time send remain separate steps.
+
+If a source is archived, superseded, made private or becomes overdue, the workflow marks it stale and hides the source-derived draft and email body. AI Setup run/lookup/review/load results and linked action review responses are also projected through current source checks. Stale proposals cannot be accepted, queued, approved or dispatched; they can be rejected or cancelled. A stale knowledge request requires cancellation and a new intake in this bounded first slice. Existing manual-only requests keep their original input/hash contract.
+
+This candidate is not installed or published. After explicit approval, the coordinated release order is:
+1. Review and install `backend/candidate/sql/knowledge-draft-contract.sql` after the already deployed Company Knowledge, Customer Workflow and AI Draft contracts. It adds private immutable snapshots, a run marker and narrow service-only RPCs, with no browser table grants. See the release packet for the exact privilege delta.
+2. Deploy `ai-draft`, `customer-workflow` and `microsoft-action` together with JWT verification and the existing disabled inference gate preserved. Company Knowledge itself needs no new endpoint deployment.
+3. Deploy the frontend and verify authenticated manager/member/viewer journeys, stale source redaction and controlled provider acceptance separately before pilot readiness.
+
+Do not roll back to older Edge handlers while knowledge-bound runs exist: older run/review handlers do not apply the new source visibility projection. Keep the new guards and paused inference, and use a scoped forward fix or explicitly reviewed data-preserving rollback. Immutable source/run/action history must not be deleted to simplify rollback.
+
+Local checks: `mkdir -p backend/evidence` before the existing aggregate backend scripts, then the relevant Node/PGlite tests, `npm run test:ui`, funding RLS/marketing routing, production build and three public/bundle checks. No check in this candidate calls a real AI provider or sends email. Pixel/mobile-browser QA, live authenticated acceptance and hosted simultaneous-session timing are separate, unrun stages.

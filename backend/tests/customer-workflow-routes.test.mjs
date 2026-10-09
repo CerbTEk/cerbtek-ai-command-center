@@ -56,3 +56,21 @@ test('size and revision bounds stop before any mutation',async()=>{
  for(const expected_revision of [0,-1,1.5,'1',null])assert.equal((await invoke(s,{operation:'cancel',workflow_id:workflow,expected_revision})).status,400);
  assert.equal(s.calls.length,0);
 });
+
+const knowledgeRef={document_id:'30000000-0000-4000-8000-000000000001',version_id:'30000000-0000-4000-8000-000000000002',chunk_id:'30000000-0000-4000-8000-000000000003',content_sha256:'a'.repeat(64),version_sha256:'b'.repeat(64)};
+test('knowledge selection prepares exact references without browser content or authority',async()=>{
+ const s=fixture();s.result={id:workflow,organization_id:org,revision:2,knowledge_sources:[],knowledge_stale:false};
+ assert.equal((await invoke(s,{operation:'prepare_draft',workflow_id:workflow,expected_revision:1,configuration_id:config,request_key:key,knowledge_sources:[knowledgeRef]})).status,200);
+ assert.deepEqual(s.calls[0],{name:'customer_workflow_prepare_sources',args:{p_org:org,p_actor:actor,p_workflow:workflow,p_expected_revision:1,p_config:config,p_request_key:key,p_sources:[knowledgeRef]}});
+ for(const knowledge_sources of [null,[{...knowledgeRef,content_text:'substitute'}],[knowledgeRef,knowledgeRef],Array(6).fill(knowledgeRef),[{...knowledgeRef,chunk_id:'wrong'}]])assert.equal((await invoke(s,{operation:'prepare_draft',workflow_id:workflow,expected_revision:1,configuration_id:config,request_key:key,knowledge_sources})).status,400);
+ assert.equal(s.calls.length,1);
+});
+test('knowledge search and preview preserve verified manager actor and exact reference',async()=>{
+ const s=fixture();s.result={organization_id:org,actor:{id:actor,role:'admin'},results:[]};
+ assert.equal((await invoke(s,{operation:'knowledge_search',query:'  published policy  '})).status,200);assert.deepEqual(s.calls[0].args,{p_org:org,p_actor:actor,p_query:'published policy'});
+ s.result={organization_id:org,actor:{id:actor,role:'admin'},source:{...knowledgeRef}};
+ assert.equal((await invoke(s,{operation:'knowledge_source',...knowledgeRef})).status,200);assert.deepEqual(s.calls[1].args.p_reference,knowledgeRef);
+ for(const role of ['member','viewer']){s.result.actor.role=role;assert.equal((await invoke(s,{operation:'knowledge_source',...knowledgeRef})).status,503)}
+ s.result.actor.role='owner';s.result.organization_id=other;assert.equal((await invoke(s,{operation:'knowledge_source',...knowledgeRef})).status,503);
+ for(const query of ['', 'a', 'x'.repeat(201),{},null])assert.equal((await invoke(s,{operation:'knowledge_search',query})).status,400);
+});

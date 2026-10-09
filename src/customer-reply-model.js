@@ -6,11 +6,30 @@ export const WORKFLOW_STATES = ['intake', 'drafting', 'draft_ready', 'draft_acce
 const nonempty = value => typeof value === 'string' && Boolean(value.trim())
 export const validEmail = value => typeof value === 'string' && value.length <= 320 && /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(value)
 export const validContext = value => nonempty(value?.id) && Number.isInteger(value.version) && value.version > 0 && nonempty(value.context?.company_name) && nonempty(value.context?.reply_guidance)
-export const validDraft = value => value && typeof value === 'object' && Object.keys(value).sort().join(',') === 'body,source_ids,title,warnings' && nonempty(value.title) && value.title.length <= 200 && !/[\r\n]/.test(value.title) && nonempty(value.body) && value.body.length <= 30000 && Array.isArray(value.source_ids) && value.source_ids.length <= 1 && value.source_ids.every(item => item === 'manual-1') && Array.isArray(value.warnings) && value.warnings.length <= 10 && value.warnings.every(item => typeof item === 'string' && item.length <= 1000)
+export const KNOWLEDGE_DRAFT_CONTRACT = 1
+export const KNOWLEDGE_SELECTION_LIMIT = 5
+const knowledgeId = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+const sha256 = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value)
+const textLength = value => Array.from(value).length
+export function validKnowledgeSource(value, { current = true } = {}) {
+  return Boolean(value && knowledgeId(value.document_id) && knowledgeId(value.version_id) && knowledgeId(value.chunk_id) && value.source_id === `knowledge:${value.document_id}:${value.version_id}:${value.chunk_id}` && nonempty(value.title) && textLength(value.title) <= 160 && nonempty(value.content_text) && textLength(value.content_text) <= 1000 && sha256(value.content_sha256) && sha256(value.version_sha256) && Number.isInteger(value.version) && value.version > 0 && value.audience === 'organization' && ['manual', 'text_upload'].includes(value.source_kind) && nonempty(value.source_name) && textLength(value.source_name) <= 160 && typeof value.review_due_at === 'string' && Number.isFinite(Date.parse(value.review_due_at)) && (!current || Date.parse(value.review_due_at) > Date.now()))
+}
+export const knowledgeSourceRef = source => Object.fromEntries(['document_id', 'version_id', 'chunk_id', 'content_sha256', 'version_sha256'].map(key => [key, source[key]]))
+export const knowledgeRefMatches = (a, b) => Boolean(a && b && ['document_id', 'version_id', 'chunk_id', 'content_sha256', 'version_sha256'].every(key => a[key] === b[key]))
+export const validKnowledgeSources = sources => Array.isArray(sources) && sources.length <= KNOWLEDGE_SELECTION_LIMIT && sources.every(source => validKnowledgeSource(source)) && new Set(sources.map(source => source.source_id)).size === sources.length
+export function verifyKnowledgeResponse(value, organizationId, actorId) {
+  if (value?.ok !== true || value.contract_version !== CUSTOMER_WORKFLOW_CONTRACT || value.organization_id !== organizationId || value.actor?.id !== actorId || !REVIEW_ROLES.includes(value.actor.role)) throw new Error('workspace_unverified')
+  return value
+}
+export function validDraft(value, sources = []) {
+  if (!validKnowledgeSources(sources)) return false
+  const allowed = new Set(['manual-1', ...sources.map(source => source.source_id)])
+  return Boolean(value && typeof value === 'object' && Object.keys(value).sort().join(',') === 'body,source_ids,title,warnings' && nonempty(value.title) && value.title.length <= 200 && !/[\r\n]/.test(value.title) && nonempty(value.body) && value.body.length <= 30000 && Array.isArray(value.source_ids) && value.source_ids.length <= allowed.size && new Set(value.source_ids).size === value.source_ids.length && value.source_ids.every(item => allowed.has(item)) && Array.isArray(value.warnings) && value.warnings.length <= 10 && value.warnings.every(item => typeof item === 'string' && item.length <= 1000))
+}
 export const validWorkflow = (value, organizationId) => nonempty(value?.id) && value.organization_id === organizationId && Number.isInteger(value.revision) && value.revision > 0 && WORKFLOW_STATES.includes(value.status) && nonempty(value.requested_by) && validEmail(value.customer_email) && nonempty(value.subject) && nonempty(value.message)
 
 export function draftPath(workflow, pendingKey) {
-  if (!workflow || workflow.status === 'cancelled' || workflow.action_request_id) return null
+  if (!workflow || workflow.status === 'cancelled' || workflow.action_request_id || workflow.knowledge_stale) return null
   const run = workflow.ai_run
   if (workflow.status === 'drafting' && !run && !workflow.context_stale && !workflow.configuration_stale && nonempty(workflow.ai_request_key) && nonempty(workflow.configuration_id) && (!pendingKey || pendingKey === workflow.ai_request_key)) return 'resume'
   if (pendingKey || ['reserved', 'unknown'].includes(run?.status) || ['drafting', 'ai_unknown'].includes(workflow.status)) return null
@@ -35,7 +54,11 @@ export function verifyWorkspace(data, organizationId, userId) {
   if (data?.ok !== true || data.contract_version !== CUSTOMER_WORKFLOW_CONTRACT || data.organization_id !== organizationId || data.actor?.id !== userId || !['owner', 'admin', 'consultant', 'member', 'viewer'].includes(data.actor.role) || !Array.isArray(data.workflows) || !data.workflows.every(item => validWorkflow(item, organizationId))) throw new Error('workspace_unverified')
   if (new Set(data.workflows.map(item => item.id)).size !== data.workflows.length || data.context != null && (!validContext(data.context) || data.context.organization_id !== organizationId)) throw new Error('workspace_unverified')
   if (data.configuration && data.configuration.organization_id !== organizationId) throw new Error('workspace_unverified')
+  if (data.knowledge_contract_version != null && data.knowledge_contract_version !== KNOWLEDGE_DRAFT_CONTRACT) throw new Error('workspace_unverified')
   for (const item of data.workflows) {
+    if (data.knowledge_contract_version === KNOWLEDGE_DRAFT_CONTRACT) {
+      if (typeof item.knowledge_stale !== 'boolean' || !validKnowledgeSources(item.knowledge_sources) || item.knowledge_stale && (item.knowledge_sources.length || item.ai_run?.draft != null || item.action_request?.payload != null)) throw new Error('workspace_unverified')
+    } else if (item.knowledge_sources?.length || item.knowledge_stale) throw new Error('workspace_unverified')
     if (item.ai_run && (item.ai_run.organization_id !== organizationId || item.ai_run.request_key !== item.ai_request_key || item.ai_run.configuration_id !== item.configuration_id || item.ai_run.requested_by !== item.draft_requested_by)) throw new Error('workspace_unverified')
     if (item.context_version && (item.context_version.organization_id !== organizationId || item.context_version.id !== item.context_version_id)) throw new Error('workspace_unverified')
     if (item.action_request && (item.action_request.organization_id !== organizationId || item.action_request.id !== item.action_request_id || item.action_request.customer_workflow_id !== item.id)) throw new Error('workspace_unverified')
@@ -45,11 +68,11 @@ export function verifyWorkspace(data, organizationId, userId) {
 
 export function emailMatchesDraft(workflow) {
   const request = workflow?.action_request, draft = workflow?.ai_run?.draft
-  return Boolean(sourceMatchesWorkflow(workflow) && request && request.id === workflow.action_request_id && request.customer_workflow_id === workflow.id && request.organization_id === workflow.organization_id && request.provider === 'microsoft' && request.action_type === 'send_email' && nonempty(request.requested_by) && nonempty(request.connection_id) && validDraft(draft) && request.payload?.to === workflow.customer_email && request.payload?.subject === draft.title && request.payload?.message === draft.body && Object.keys(request.payload).sort().join(',') === 'message,subject,to')
+  return Boolean(sourceMatchesWorkflow(workflow) && request && request.id === workflow.action_request_id && request.customer_workflow_id === workflow.id && request.organization_id === workflow.organization_id && request.provider === 'microsoft' && request.action_type === 'send_email' && nonempty(request.requested_by) && nonempty(request.connection_id) && validDraft(draft, workflow.knowledge_sources || []) && request.payload?.to === workflow.customer_email && request.payload?.subject === draft.title && request.payload?.message === draft.body && Object.keys(request.payload).sort().join(',') === 'message,subject,to')
 }
 
 export function sourceMatchesWorkflow(workflow) {
-  return Boolean(validContext(workflow?.context_version) && workflow.context_version.id === workflow.context_version_id && workflow.context_version.organization_id === workflow.organization_id && workflow.configuration?.id === workflow.configuration_id && workflow.configuration?.organization_id === workflow.organization_id && workflow.configuration?.configuration?.task === 'customer_reply' && workflow.ai_run?.organization_id === workflow.organization_id && workflow.ai_run?.request_key === workflow.ai_request_key && workflow.ai_run?.configuration_id === workflow.configuration_id && workflow.ai_run?.requested_by === workflow.draft_requested_by)
+  return Boolean(!workflow?.knowledge_stale && validKnowledgeSources(workflow?.knowledge_sources || []) && validDraft(workflow?.ai_run?.draft, workflow?.knowledge_sources || []) && validContext(workflow?.context_version) && workflow.context_version.id === workflow.context_version_id && workflow.context_version.organization_id === workflow.organization_id && workflow.configuration?.id === workflow.configuration_id && workflow.configuration?.organization_id === workflow.organization_id && workflow.configuration?.configuration?.task === 'customer_reply' && workflow.ai_run?.organization_id === workflow.organization_id && workflow.ai_run?.request_key === workflow.ai_request_key && workflow.ai_run?.configuration_id === workflow.configuration_id && workflow.ai_run?.requested_by === workflow.draft_requested_by)
 }
 
 export function workflowState(workflow) {
@@ -90,6 +113,8 @@ export const formatTime = value => value && !Number.isNaN(Date.parse(value)) ? n
 export const employeeName = (id, people = []) => people.find(person => person.user_id === id)?.email || people.find(person => person.user_id === id)?.name || (id ? `Account ${id}` : 'Unassigned')
 
 const errorMessages = {
+  knowledge_source_unavailable: 'A selected Company Knowledge excerpt is no longer current or accessible. Refresh, then review the available sources before continuing.',
+  knowledge_selection_invalid: 'Choose up to five current company-wide excerpts and review each source before generating.',
   workspace_unverified: 'The customer workspace could not be verified for this company and account. Actions are unavailable. Refresh to check again.',
   live_inference_disabled: 'Live AI generation is disabled. Saving context or selecting a model does not enable it.',
   organization_access_denied: 'Your company access could not be verified. Ask a company owner to check your role.',

@@ -217,3 +217,14 @@ test('linked customer replies retain allowed current company reviewer path',asyn
  const s=fixture();s.tables.action_requests[0].customer_workflow_id='customer-workflow';
  const out=await execute(s);assert.equal(out.response.status,200);assert.equal(out.body.outcome,'provider_accepted');assert.equal(s.graph.length,1);
 });
+
+test('rejecting a stale knowledge-linked email returns only the redacted projection',async()=>{
+ const s=fixture();const action=s.tables.action_requests[0];action.status='Pending';action.customer_workflow_id='customer-workflow';action.title='Source-derived title';action.summary='Source-derived summary';
+ s.overrides.customer_workflow_visible_action=()=>({data:{...clone(action),status:'Rejected',payload:null,title:'Customer reply unavailable',summary:'Knowledge source unavailable',knowledge_stale:true},error:null});
+ const out=await invoke(actionHandler,s,{op:'reject',request_id:'request'});assert.equal(out.response.status,200);assert.equal(out.body.request.status,'Rejected');assert.equal(out.body.request.payload,null);assert(!JSON.stringify(out.body).includes('Source-derived'));assert.equal(s.graph.length,0);
+});
+for(const problem of ['missing','wrong-company','unredacted'])test(`knowledge action review projection fails closed: ${problem}`,async()=>{
+ const s=fixture();const action=s.tables.action_requests[0];action.status='Pending';action.customer_workflow_id='customer-workflow';
+ s.overrides.customer_workflow_visible_action=()=>({data:problem==='missing'?null:{...clone(action),organization_id:problem==='wrong-company'?'other':'org',status:'Rejected',knowledge_stale:true},error:null});
+ const out=await invoke(actionHandler,s,{op:'reject',request_id:'request'});assert.equal(out.response.status,503);assert(!JSON.stringify(out.body).includes(mail.message));assert.equal(action.status,'Rejected');assert.equal(s.graph.length,0);
+});

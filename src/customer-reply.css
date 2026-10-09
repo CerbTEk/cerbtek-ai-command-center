@@ -72,3 +72,14 @@
 @media(max-width:1250px){.customer-reply-workspace .cr-checklist{grid-template-columns:repeat(3,minmax(0,1fr))}.customer-reply-workspace .cr-workspace-grid{grid-template-columns:minmax(210px,.8fr) minmax(0,1.5fr)}}
 @media(max-width:900px){.customer-reply-workspace .cr-workspace-grid{grid-template-columns:1fr}.customer-reply-workspace .cr-overview{grid-template-columns:repeat(3,minmax(0,1fr))}.customer-reply-workspace .cr-checklist{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.customer-reply-workspace .cr-checklist{grid-template-columns:1fr}.customer-reply-workspace .cr-overview{grid-template-columns:repeat(2,minmax(0,1fr))}.customer-reply-workspace .cr-queue,.customer-reply-workspace .cr-detail-panel{padding:14px}.customer-reply-workspace .cr-email-preview{padding:12px}.customer-reply-workspace .cr-actions{align-items:stretch;flex-direction:column}.customer-reply-workspace .cr-actions button{width:100%}.customer-reply-workspace h1{font-size:25px}}
+.customer-reply-workspace .cr-knowledge-picker{border:1px solid #554731;border-radius:10px;padding:16px;margin-top:14px}
+.customer-reply-workspace .cr-knowledge-results{list-style:none;padding:0;display:grid;gap:12px}
+.customer-reply-workspace .cr-knowledge-results>li{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:12px;border:1px solid #443a2a;border-radius:8px}
+.customer-reply-workspace .cr-knowledge-results>li>div{flex:1;min-width:130px}
+.customer-reply-workspace .cr-knowledge-source{margin:14px 0;padding:12px;background:#17150f;border:1px solid #51432d;border-radius:9px}
+.customer-reply-workspace .cr-knowledge-source details{margin-top:12px;padding-top:10px}
+.customer-reply-workspace .cr-source-identity{font-size:12px;margin-bottom:0}
+.customer-reply-workspace .cr-source-identity>div{padding:6px 0}
+.customer-reply-workspace .cr-source-identity dt{color:#cfb889}
+.customer-reply-workspace .cr-source-identity dd{margin:3px 0 0;overflow-wrap:anywhere}
+@media(max-width:480px){.customer-reply-workspace .cr-knowledge-picker{padding:12px}.customer-reply-workspace .cr-knowledge-results button{width:100%}}

@@ -1,4 +1,4 @@
-import {DraftError,providers,validateProvider,validateConfig,validateInput,providerSpec,runDraft,providerResponse,discoverModels} from './core.mjs';
+import {DraftError,providers,validateProvider,validateConfig,validateInput,validateTrustedInput,providerSpec,runDraft,providerResponse,discoverModels} from './core.mjs';
 const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 export function createHandler({supabase,catalog=[],liveEnabled=false,resolveCredential=async()=>null,allowedOrigins=[],invoke,discover=discoverModels,fetchImpl=fetch}){
  return async request=>{
@@ -19,6 +19,20 @@ export function createHandler({supabase,catalog=[],liveEnabled=false,resolveCred
    if(membershipError||!membership||!['owner','admin','consultant'].includes(membership.role))throw new DraftError('organization_access_denied',403);
    const rpc=async(name,args)=>{const r=await supabase.rpc(name,args);if(r.error)throw new DraftError('configuration_or_run_conflict',409);return r.data};
    const common={p_org:b.organization_id,p_actor:auth.user.id};
+   const visibleRun=async run=>{
+    if(run?.knowledge_bound!==true)return run;
+    if(!uuid(run.id)||run.organization_id!==b.organization_id)throw new DraftError('customer_workflow_conflict',409);
+    // AI Setup can also read linked drafts. Always use the current visibility
+    // projection, never raw stored source-derived text after access/freshness changes.
+    const visible=await rpc('customer_workflow_visible_run',{...common,p_run:run.id});
+    if(!visible||Array.isArray(visible)||visible.id!==run.id||visible.organization_id!==b.organization_id||visible.knowledge_bound!==true||typeof visible.knowledge_stale!=='boolean'||!Array.isArray(visible.knowledge_sources))throw new DraftError('customer_workflow_conflict',409);
+    if(visible.knowledge_stale){
+     if(visible.draft!==null||visible.knowledge_sources.length!==0)throw new DraftError('customer_workflow_conflict',409);
+    }else{
+     try{validateTrustedInput({context:'x',sources:visible.knowledge_sources},{max_input_bytes:12000})}catch{throw new DraftError('customer_workflow_conflict',409)}
+    }
+    return visible;
+   };
    // A deployment-wide key must never masquerade as this organization's connection.
    // The trusted resolver must return an explicit matching organization + provider binding.
    const connections=new Map();
@@ -61,7 +75,7 @@ export function createHandler({supabase,catalog=[],liveEnabled=false,resolveCred
     if(error)throw new DraftError('storage_unavailable',503);
     // A missing ID and an ID belonging to another organization are indistinguishable.
     // This branch never calls a mutation RPC or a provider.
-    return reply({run:run||null});
+    return reply({run:await visibleRun(run||null)});
    }
    if(b.operation==='load'){
     const [configs,runs,pending,unresolved]=await Promise.all([supabase.from('ai_draft_configurations').select('*').eq('organization_id',b.organization_id).order('version',{ascending:false}).limit(1),supabase.from('ai_draft_runs').select('*').eq('organization_id',b.organization_id).order('created_at',{ascending:false}).limit(20),supabase.from('ai_draft_runs').select('id',{count:'exact',head:true}).eq('organization_id',b.organization_id).in('status',['reserved','unknown']),supabase.from('ai_draft_runs').select('id,request_key,status,created_at').eq('organization_id',b.organization_id).in('status',['reserved','unknown']).order('created_at',{ascending:true}).limit(20)]);
@@ -73,7 +87,7 @@ export function createHandler({supabase,catalog=[],liveEnabled=false,resolveCred
      try{const configured=!!(await connectionFor(p.id));return {...p,credential_configured:configured,connection_status:configured?'configured':'not_connected'}}
      catch{return {...p,credential_configured:false,connection_status:'unavailable'}}
     }));
-    return reply({configuration,runs:runs.data,unresolved_count:pending.count||0,unresolved_runs:unresolved.data,unresolved_limit:20,providers:connectionsMetadata,...models,readiness:{live_enabled:liveEnabled,credential_configured:models.credential_configured,status:models.model_status==='discovery_failed'?'model_discovery_failed':!models.credential_configured?'provider_unconfigured':!liveEnabled?'live_inference_disabled':models.catalog.length?'configured':'model_not_configured'}});
+    return reply({configuration,runs:await Promise.all(runs.data.map(visibleRun)),unresolved_count:pending.count||0,unresolved_runs:unresolved.data,unresolved_limit:20,providers:connectionsMetadata,...models,readiness:{live_enabled:liveEnabled,credential_configured:models.credential_configured,status:models.model_status==='discovery_failed'?'model_discovery_failed':!models.credential_configured?'provider_unconfigured':!liveEnabled?'live_inference_disabled':models.catalog.length?'configured':'model_not_configured'}});
    }
    if(b.operation==='save'){
     const config=validateConfig(b.configuration);await availableModel(config);
@@ -81,34 +95,39 @@ export function createHandler({supabase,catalog=[],liveEnabled=false,resolveCred
    }
    if(b.operation==='review'){
     if(!uuid(b.run_id)||!['accepted','rejected'].includes(b.decision))throw new DraftError('invalid_review');
-    return reply({run:await rpc('ai_draft_review',{...common,p_run:b.run_id,p_decision:b.decision})});
+    return reply({run:await visibleRun(await rpc('ai_draft_review',{...common,p_run:b.run_id,p_decision:b.decision}))});
    }
    if(b.operation!=='run'||!uuid(b.configuration_id)||!uuid(b.request_key))throw new DraftError('invalid_operation');
    const {data:record,error}=await supabase.from('ai_draft_configurations').select('*').eq('organization_id',b.organization_id).eq('id',b.configuration_id).single();
    if(error||!record)throw new DraftError('configuration_not_found',404);
    const config=validateConfig(record.configuration);
-   let suppliedInput=b.input;
+   let suppliedInput=b.input;let trustedSources;let connectedWorkflow=false;
    if(b.customer_workflow_id!==undefined||b.expected_revision!==undefined){
     // A connected inquiry never accepts pasted replacement context or client
     // lineage. SQL derives the exact saved request/context after fresh authority
-    // checks; its reserve trigger rechecks the binding before paid dispatch.
+    // checks; a separate dispatch RPC rechecks the binding after reservation.
     const allowed=['operation','organization_id','configuration_id','request_key','customer_workflow_id','expected_revision'];
     if(Object.keys(b).some(key=>!allowed.includes(key))||!uuid(b.customer_workflow_id)||!Number.isSafeInteger(b.expected_revision)||b.expected_revision<1||config.task!=='customer_reply')throw new DraftError('invalid_customer_workflow');
     const {data,error}=await supabase.rpc('customer_workflow_draft_input',{
      ...common,p_workflow:b.customer_workflow_id,p_expected_revision:b.expected_revision,p_config:record.id,p_request_key:b.request_key,
     });
-    if(error||!data||typeof data.context!=='string'||Object.keys(data).some(key=>key!=='context'))throw new DraftError('customer_workflow_conflict',409);
-    suppliedInput=data;
+    if(error||!data||Array.isArray(data)||typeof data.context!=='string'||Object.keys(data).some(key=>!['context','sources'].includes(key)))throw new DraftError('customer_workflow_conflict',409);
+    try{
+     const trusted=Object.hasOwn(data,'sources')?validateTrustedInput(data,config,{requireCurrent:false}):validateInput(data,config);
+     suppliedInput={context:trusted.context};trustedSources=trusted.sources;connectedWorkflow=true;
+    }catch{throw new DraftError('customer_workflow_conflict',409)}
    }
+   if(!connectedWorkflow&&Object.keys(b).some(key=>!['operation','organization_id','configuration_id','request_key','input'].includes(key)))throw new DraftError('invalid_context');
    const input=validateInput(suppliedInput,config);
+   const hashInput=trustedSources?{context:input.context,sources:trustedSources}:input;
    if(!liveEnabled)throw new DraftError('live_inference_disabled',409);
    const credential=await availableModel(config);
-   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({configuration_id:record.id,input})));
+   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({configuration_id:record.id,input:hashInput})));
    const requestHash=Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');
-   const run=await runDraft({config:record.configuration,input,catalog,liveEnabled,credentialConfigured:!!credential,requestKey:b.request_key,requestHash,
-    store:{reserve:({requestKey,requestHash,reserve})=>rpc('ai_draft_reserve',{...common,p_config:record.id,p_request_key:requestKey,p_request_hash:requestHash,p_reserve:reserve}),finish:(id,result)=>rpc('ai_draft_finish',{...common,p_run:id,p_result:result})},
-    invoke:invoke?((body)=>invoke(body,{provider:config.provider,model:config.model})):((body)=>providerResponse(config.provider,config.model,body,{apiKey:credential.apiKey,fetchImpl}))});
-   return reply({run});
+   const run=await runDraft({config:record.configuration,input,catalog,liveEnabled,credentialConfigured:!!credential,requestKey:b.request_key,requestHash,trustedSources,
+    store:{reserve:({requestKey,requestHash,reserve})=>rpc('ai_draft_reserve',{...common,p_config:record.id,p_request_key:requestKey,p_request_hash:requestHash,p_reserve:reserve}),...(connectedWorkflow?{authorizeDispatch:({runId,requestKey,requestHash})=>rpc('customer_workflow_draft_dispatch',{...common,p_workflow:b.customer_workflow_id,p_expected_revision:b.expected_revision,p_config:record.id,p_request_key:requestKey,p_run:runId,p_request_hash:requestHash})}:{}),finish:(id,result)=>rpc('ai_draft_finish',{...common,p_run:id,p_result:result})},
+    invoke:invoke?((body,options)=>invoke(body,{provider:config.provider,model:config.model,...options})):((body,options)=>providerResponse(config.provider,config.model,body,{apiKey:credential.apiKey,fetchImpl,...options}))});
+   return reply({run:await visibleRun(run)});
   }catch(e){return reply({error:e instanceof DraftError?e.code:'service_unavailable'},e instanceof DraftError?e.status:503)}
  };
 }

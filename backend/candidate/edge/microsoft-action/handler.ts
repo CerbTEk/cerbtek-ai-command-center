@@ -55,7 +55,13 @@ export function createHandler({ supabase, supabaseUrl, fetchImpl = fetch, now = 
         const { data, error: reviewError } = await supabase.from("action_requests").update(updates).eq("id", proposal.id).eq("status", "Pending").select("*").single();
         if (reviewError || !data || data.status !== updates.status) throw new BoundaryError("Proposal changed or review could not be saved", 409);
         await bestEffort(() => supabase.from("audit_events").insert({ organization_id: proposal.organization_id, actor_user_id: userId, event_type: op === "approve" ? "action_approved" : "action_rejected", entity_type: "action_request", entity_id: proposal.id, summary: `Microsoft email action ${op === "approve" ? "approved" : "rejected"}`, metadata: { action_type: "send_email" } }));
-        return respond({ ok: true, request: data });
+        let visible = data;
+        if (data.customer_workflow_id) {
+          const { data: projection, error: projectionError } = await supabase.rpc("customer_workflow_visible_action", { p_org: data.organization_id, p_actor: userId, p_action: data.id });
+          if (projectionError || projection?.id !== data.id || projection?.organization_id !== data.organization_id || projection?.customer_workflow_id !== data.customer_workflow_id || projection?.status !== data.status || typeof projection?.knowledge_stale !== "boolean" || projection.knowledge_stale && projection.payload !== null) throw new BoundaryError("Review saved; customer source visibility could not be verified. Refresh saved results", 503);
+          visible = projection;
+        }
+        return respond({ ok: true, request: visible });
       }
       // Only this serialized RPC authorizes execution. Never infer a claim from a read.
       const { data: claim, error: claimError } = await supabase.rpc("claim_microsoft_action", { request_id: proposal.id, actor_id: userId });

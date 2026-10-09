@@ -25,4 +25,19 @@ describe('safety guidance in the actual help panel',()=>{
     expect(content).toContain('acceptance does not confirm delivery')
     expect(content).toContain('different authorized person')
   })
+  it('explains explicit bounded knowledge selection, pinned resumes and stale-source stops',()=>{
+    const content=guide('customer inquiry review','Move a customer inquiry through review')
+    expect(content).toContain('zero to five current company-wide excerpts')
+    expect(content).toContain('private sources are excluded')
+    expect(content).toContain('There is no automatic retrieval or sync')
+    expect(content).toContain('never replaces them')
+    expect(content).toContain('Cancel that request and create a new one')
+  })
+  it('keeps library actions separate from provider submission and states installation requirements',()=>{
+    const content=guide('company knowledge publish','Publish reviewed company reference material')
+    expect(content).toContain('After the Customer Follow-up backend update is installed')
+    expect(content).toContain('does not send sources to an AI provider')
+    expect(content).not.toContain('not yet connected to AI draft generation')
+  })
+
 })

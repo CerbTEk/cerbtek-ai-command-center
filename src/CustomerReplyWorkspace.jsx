@@ -1,8 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useExecutionAttempts, useSafeOperation, acceptedEmail, reviewEmailMessage } from './use-safe-operation'
 import { CUSTOMER_WORKFLOW_CONTRACT, REVIEW_ROLES, verifyWorkspace, validWorkflow, validContext, validDraft, validEmail, emailMatchesDraft, workflowState, workflowStep, filterWorkflows, employeeName, formatTime, customerReplyError, draftPath, canCancelWorkflow, independentReviewer, microsoftBindingMatches, sourceMatchesWorkflow, eligibleReviewers } from './customer-reply-model'
+import CustomerKnowledgeSources from './CustomerKnowledgeSources'
+import { KNOWLEDGE_DRAFT_CONTRACT, KNOWLEDGE_SELECTION_LIMIT, validKnowledgeSource, validKnowledgeSources, knowledgeSourceRef, knowledgeRefMatches, verifyKnowledgeResponse } from './customer-reply-model'
 import './customer-reply.css'
 
+const emptyKnowledge = () => ({ query: '', results: [], selected: [], preview: null, pending: null, searched: false })
 const emptyIntake = { customer_name: '', customer_email: '', subject: '', message: '' }
 const stepLabels = ['Request', 'Company context', 'AI draft', 'Exact email review', 'Result']
 const rolesCanWork = ['owner', 'admin', 'consultant', 'member']
@@ -27,8 +30,9 @@ function Readiness({ data, onGo, onEditContext, disabled }) {
 }
 
 function ExactEmail({ workflow, account }) {
+  if (workflow.knowledge_stale) return <p role="alert">The exact saved email is hidden while a Company Knowledge source is unavailable.</p>
   const draft = workflow.ai_run?.draft, action = workflow.action_request
-  const payload = action?.payload || (validDraft(draft) ? { to: workflow.customer_email, subject: draft.title, message: draft.body } : null)
+  const payload = action?.payload || (validDraft(draft, workflow.knowledge_sources || []) ? { to: workflow.customer_email, subject: draft.title, message: draft.body } : null)
   if (!payload) return <p role="alert">The exact saved email is unavailable. Refresh before continuing.</p>
   const binding = action?.approved_connection_binding
   return <section className="cr-email-preview" aria-label="Exact email preview">
@@ -40,19 +44,19 @@ function ExactEmail({ workflow, account }) {
   </section>
 }
 
-function RequestDetail({ workflow, data, actorId, disabled, draftAttempt, emailAttempt, onCommand, onBack, onGo }) {
+function RequestDetail({ workflow, data, actorId, disabled, draftAttempt, emailAttempt, onCommand, onBack, onGo, knowledge, onKnowledgeQuery, onKnowledgeAction }) {
   const [checked, setChecked] = useState(false), [assignee, setAssignee] = useState(workflow.assigned_to || '')
   const state = workflowState(workflow), action = workflow.action_request, run = workflow.ai_run, source = workflow.context_version
   const manager = REVIEW_ROLES.includes(data.actor.role), employee = rolesCanWork.includes(data.actor.role)
   const ownsWork = employee && (manager || workflow.assigned_to === actorId)
-  const draftReady = validDraft(run?.draft), exact = emailMatchesDraft(workflow), accountMatches = microsoftBindingMatches(workflow, data.readiness)
+  const draftReady = validDraft(run?.draft, workflow.knowledge_sources || []), exact = emailMatchesDraft(workflow), accountMatches = microsoftBindingMatches(workflow, data.readiness)
   const generationPath = draftPath(workflow, draftAttempt)
   const reviewers = eligibleReviewers(workflow, data.people, action ? null : actorId)
-  const canGenerate = manager && ownsWork && generationPath && (generationPath !== 'resume' || workflow.draft_requested_by === actorId) && validContext(data.context) && data.readiness?.configuration_ready === true && data.readiness?.live_inference_enabled === true && Boolean(data.configuration?.id)
-  const canReviewDraft = manager && ownsWork && workflow.status === 'draft_ready' && run?.status === 'awaiting_review' && sourceMatchesWorkflow(workflow) && draftReady && !workflow.context_stale && !workflow.configuration_stale
-  const canQueue = ownsWork && workflow.status === 'draft_accepted' && run?.status === 'accepted' && sourceMatchesWorkflow(workflow) && draftReady && !workflow.action_request_id && !workflow.context_stale && !workflow.configuration_stale && data.readiness?.microsoft_ready === true && reviewers.length > 0
-  const canApprove = manager && workflow.status === 'awaiting_approval' && action?.status === 'Pending' && exact && independentReviewer(workflow, actorId) && accountMatches && !workflow.context_stale && !workflow.configuration_stale
-  const canExecute = manager && workflow.status === 'awaiting_approval' && action?.status === 'Approved' && exact && independentReviewer(workflow, action.approved_by) && accountMatches && !workflow.context_stale && !workflow.configuration_stale && !emailAttempt && !workflow.receipt
+  const canGenerate = !knowledge.pending && !workflow.knowledge_stale && manager && ownsWork && generationPath && (generationPath !== 'resume' || workflow.draft_requested_by === actorId) && validContext(data.context) && data.readiness?.configuration_ready === true && data.readiness?.live_inference_enabled === true && Boolean(data.configuration?.id)
+  const canReviewDraft = manager && ownsWork && workflow.status === 'draft_ready' && run?.status === 'awaiting_review' && sourceMatchesWorkflow(workflow) && draftReady && !workflow.context_stale && !workflow.configuration_stale && !workflow.knowledge_stale
+  const canQueue = ownsWork && workflow.status === 'draft_accepted' && run?.status === 'accepted' && sourceMatchesWorkflow(workflow) && draftReady && !workflow.action_request_id && !workflow.context_stale && !workflow.configuration_stale && !workflow.knowledge_stale && data.readiness?.microsoft_ready === true && reviewers.length > 0
+  const canApprove = manager && workflow.status === 'awaiting_approval' && action?.status === 'Pending' && exact && independentReviewer(workflow, actorId) && accountMatches && !workflow.context_stale && !workflow.configuration_stale && !workflow.knowledge_stale
+  const canExecute = manager && workflow.status === 'awaiting_approval' && action?.status === 'Approved' && exact && independentReviewer(workflow, action.approved_by) && accountMatches && !workflow.context_stale && !workflow.configuration_stale && !workflow.knowledge_stale && !emailAttempt && !workflow.receipt
   const canCancel = ownsWork && canCancelWorkflow(workflow) && !emailAttempt
   const attemptUnknown = Boolean(emailAttempt && action?.status !== 'Executed')
   return <article className="cr-detail" aria-labelledby="cr-request-title">
@@ -62,7 +66,8 @@ function RequestDetail({ workflow, data, actorId, disabled, draftAttempt, emailA
     <section aria-label="Saved customer request"><h3>1. Saved customer request</h3><p><b>{workflow.customer_name || 'Customer'}</b> · {workflow.customer_email}</p><p className="cr-preserve">{workflow.message}</p><p className="cr-muted">Entered by {employeeName(workflow.requested_by, data.people)}. Customer text is source material, never permission to act.</p></section>
     {manager && workflow.status === 'intake' && !draftAttempt && <form className="cr-assignment" onSubmit={event => { event.preventDefault(); if (!disabled && assignee && assignee !== workflow.assigned_to) onCommand('assign', { assigned_to: assignee }) }}><label>Assigned employee<select value={assignee} disabled={disabled} onChange={event => setAssignee(event.target.value)}>{(data.people || []).filter(person => rolesCanWork.includes(person.role)).map(person => <option key={person.user_id} value={person.user_id}>{employeeName(person.user_id, data.people)}</option>)}</select></label><button className="secondary" type="submit" disabled={disabled || !assignee || assignee === workflow.assigned_to}>Save assignment</button></form>}
     <section aria-label="Saved company source"><h3>2. Company context</h3>{validContext(source) ? <><p><b>{source.context.company_name}</b> · saved source version {source.version}</p><p className="cr-preserve">{source.context.reply_guidance}</p><p className="cr-muted">Source record: {source.id}</p></> : validContext(data.context) && workflow.status === 'intake' ? <><p><b>{data.context.context.company_name}</b> · current saved version {data.context.version}</p><p className="cr-preserve">{data.context.context.reply_guidance}</p><p className="cr-muted">Generating binds this saved version to the request.</p></> : <p>Saved source context is unavailable. An owner, admin, or consultant must save company reply context first.</p>}{(workflow.context_stale || workflow.configuration_stale) && <p className="cr-notice cr-error" role="alert">Company context or AI setup changed after this draft. This draft cannot be queued or sent. Review the latest setup and saved request before continuing.</p>}{workflow.context_stale && validContext(data.context) && <details><summary>Latest context for a new draft · version {data.context.version}</summary><p className="cr-preserve">{data.context.context.reply_guidance}</p></details>}</section>
-    <section aria-label="AI draft"><h3>3. AI draft</h3>{run ? <><p className="cr-muted">AI request {run.id} · {run.status}{workflow.configuration?.configuration?.model ? ` · ${workflow.configuration.configuration.provider} / ${workflow.configuration.configuration.model}` : ''}</p>{draftReady ? <><h4>{run.draft.title}</h4><p className="cr-preserve">{run.draft.body}</p><p>Sources: {run.draft.source_ids.length ? run.draft.source_ids.join(', ') : 'No source cited. Verify every factual claim.'}</p>{run.draft.warnings.length > 0 && <div className="cr-notice"><h4>Check these warnings</h4><ul>{run.draft.warnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul></div>}</> : <p>No complete, validated draft is available.</p>}{run.failure_code && <p className="cr-muted">Recorded error: {run.failure_code}</p>}</> : <p>Generate from the saved customer request and company context. There is no automatic inbox or document retrieval.</p>}
+    <CustomerKnowledgeSources workflow={workflow} state={knowledge} enabled={data.knowledge_contract_version === KNOWLEDGE_DRAFT_CONTRACT && manager && generationPath === 'prepare' && !workflow.knowledge_stale} disabled={disabled} onQuery={onKnowledgeQuery} onAction={onKnowledgeAction}/>
+    <section aria-label="AI draft"><h3>3. AI draft</h3>{run ? <><p className="cr-muted">AI request {run.id} · {run.status}{workflow.configuration?.configuration?.model ? ` · ${workflow.configuration.configuration.provider} / ${workflow.configuration.configuration.model}` : ''}</p>{draftReady ? <><h4>{run.draft.title}</h4><p className="cr-preserve">{run.draft.body}</p><div aria-label="Draft citations"><p>Sources: {run.draft.source_ids.length ? 'Verify each cited source below.' : 'No source cited. Verify every factual claim.'}</p>{run.draft.source_ids.length > 0 && <ul>{run.draft.source_ids.map(id => <li key={id}>{id === 'manual-1' ? 'Saved customer request and company reply context · manual-1' : `${workflow.knowledge_sources.find(source => source.source_id === id).title} · ${id}`}</li>)}</ul>}</div>{run.draft.warnings.length > 0 && <div className="cr-notice"><h4>Check these warnings</h4><ul>{run.draft.warnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul></div>}</> : <p>No complete, validated draft is available.</p>}{run.failure_code && <p className="cr-muted">Recorded error: {run.failure_code}</p>}</> : <p>Generate from the saved customer request and company context. There is no automatic inbox or document retrieval.</p>}
       {(generationPath || workflow.status === 'intake') && <><p className="cr-muted">Generation sends these saved facts to {data.configuration?.configuration?.provider || 'the configured provider'}. Use only business data approved for that provider. Credentials and sensitive customer information do not belong here.</p><button className="primary" type="button" disabled={disabled || !canGenerate} onClick={() => { if (canGenerate) onCommand('generate') }}>{generationPath === 'resume' ? 'Resume saved AI request' : workflow.ai_run ? 'Generate a new draft' : 'Generate AI draft'}</button>{generationPath === 'resume' && <p className="cr-muted">Uses the existing pinned request key and source. It never creates a replacement for an unresolved request.</p>}{!manager && <p>An owner, admin, or consultant must generate and review the AI draft.</p>}{!data.readiness?.live_inference_enabled && <p>Live AI generation is disabled. The request can stay saved while setup is completed.</p>}</>}
       {(draftAttempt && !run || ['drafting', 'ai_unknown'].includes(workflow.status)) && <p className="cr-notice cr-error" role="alert">The AI outcome is pending or unknown. Check recorded results. Do not generate a replacement.</p>}
       {canReviewDraft && <><label className="cr-checkbox"><input type="checkbox" checked={checked} disabled={disabled} onChange={event => setChecked(event.target.checked)}/>I checked the draft, source context, and warnings.</label><div className="cr-actions"><button className="primary" type="button" disabled={disabled || !checked} onClick={() => { if (checked) onCommand('accept_draft') }}>Accept draft for use</button><button className="secondary" type="button" disabled={disabled} onClick={() => onCommand('reject_draft')}>Reject AI draft</button></div><p className="cr-muted">This records a draft review. It does not approve or send an email.</p></>}
@@ -83,6 +88,10 @@ function BoundWorkspace({ org, session, client, members = [], onGo, onDirtyChang
   const [selected, setSelected] = useState(null), [panel, setPanel] = useState('list'), [filter, setFilter] = useState('open'), [intake, setIntake] = useState(emptyIntake)
   const [editingContext, setEditingContext] = useState(false), [contextForm, setContextForm] = useState({ company_name: org.name || '', reply_guidance: '' })
   const [checkedData, setCheckedData] = useState(false)
+  const [knowledge, setKnowledge] = useState(emptyKnowledge)
+  const knowledgeState = useRef(knowledge), knowledgeEpoch = useRef(0), knowledgeLock = useRef(null), detailIdentity = useRef(null)
+  knowledgeState.current = knowledge
+  detailIdentity.current = `${panel}:${selected}`
   const mounted = useRef(true), readEpoch = useRef(0), intakeKey = useRef(null), currentData = useRef(null), detailPanel = useRef(null)
   currentData.current = data
   const { busy, run } = useSafeOperation(scope)
@@ -128,12 +137,55 @@ function BoundWorkspace({ org, session, client, members = [], onGo, onDirtyChang
     } finally { if (mounted.current && epoch === readEpoch.current) setLoading(false) }
   }
   useEffect(() => { mounted.current = true; load(); return () => { mounted.current = false; readEpoch.current++ } }, [org.id, actorId, client])
+  function updateKnowledge(next) { knowledgeState.current = next; setKnowledge(next) }
+  function clearKnowledge() { knowledgeEpoch.current++; knowledgeLock.current = null; updateKnowledge(emptyKnowledge()) }
   const mayLeave = () => !busy && (!dirty || window.confirm('Discard unsaved text in customer reply?'))
-  function navigate(nextPanel, id = null) { if (!mayLeave()) return; setPanel(nextPanel); setSelected(id); setIntake(emptyIntake); setCheckedData(false); setEditingContext(false); setFeedback(null) }
-  function go(section) { if (!mayLeave()) return; if (onGo) onGo(section); else window.location.hash = encodeURIComponent(section) }
-  const refresh = () => { if (busy || !mayLeave()) return; setEditingContext(false); setIntake(emptyIntake); setCheckedData(false); setFeedback(null); run(async () => { await load() }) }
+  function navigate(nextPanel, id = null) { if (!mayLeave()) return; clearKnowledge(); setPanel(nextPanel); setSelected(id); setIntake(emptyIntake); setCheckedData(false); setEditingContext(false); setFeedback(null) }
+  function go(section) { if (!mayLeave()) return; clearKnowledge(); if (onGo) onGo(section); else window.location.hash = encodeURIComponent(section) }
+  const refresh = () => { if (busy || !mayLeave()) return; clearKnowledge(); setEditingContext(false); setIntake(emptyIntake); setCheckedData(false); setFeedback(null); run(async () => { await load() }) }
   function verifyMutation(value, id) { if (!validWorkflow(value?.workflow, org.id) || id && value.workflow.id !== id) throw new Error('workspace_unverified'); return value.workflow }
   const failure = error => { setNeedsRefresh(true); setFeedback({ error: true, text: customerReplyError(error) }) }
+
+  function knowledgeQuery(query) {
+    if (blocked || knowledgeLock.current) return
+    updateKnowledge({ ...knowledgeState.current, query })
+  }
+  async function knowledgeAction(operation, source) {
+    const currentWorkspace = currentData.current, workflow = currentWorkspace?.workflows.find(item => item.id === selected)
+    const enabled = currentWorkspace?.knowledge_contract_version === KNOWLEDGE_DRAFT_CONTRACT && REVIEW_ROLES.includes(currentWorkspace?.actor.role) && workflow && draftPath(workflow, draftAttempts.get(workflow.id)) === 'prepare' && !workflow.knowledge_stale
+    if (blocked || !enabled) return
+    if (operation === 'clear') { clearKnowledge(); return }
+    if (knowledgeLock.current) return
+    const state = knowledgeState.current
+    if (operation === 'remove') { updateKnowledge({ ...state, selected: state.selected.filter(item => item.source_id !== source?.source_id) }); return }
+    if (!['search', 'preview', 'select'].includes(operation)) return
+    const query = state.query.trim()
+    if (operation === 'search' && (query.length < 2 || query.length > 200)) return
+    if (operation === 'preview' && !state.results.some(item => knowledgeRefMatches(item, source))) return
+    if (operation === 'select' && (!knowledgeRefMatches(state.preview, source) || state.selected.length >= KNOWLEDGE_SELECTION_LIMIT || state.selected.some(item => item.source_id === source?.source_id))) return
+    const token = {}, epoch = knowledgeEpoch.current, identity = `detail:${workflow.id}`
+    knowledgeLock.current = token
+    updateKnowledge({ ...state, pending: operation, ...(operation === 'search' ? { results: [], preview: null, searched: false } : {}) })
+    const current = () => mounted.current && epoch === knowledgeEpoch.current && knowledgeLock.current === token && detailIdentity.current === identity
+    try {
+      const payload = operation === 'search' ? { operation: 'knowledge_search', query } : { operation: 'knowledge_source', ...knowledgeSourceRef(source) }
+      const response = await workflowCall(payload)
+      if (!current()) return
+      verifyKnowledgeResponse(response, org.id, actorId)
+      if (!REVIEW_ROLES.includes(currentData.current?.actor.role)) throw new Error('workspace_unverified')
+      if (operation === 'search') {
+        if (!Array.isArray(response.results) || response.results.length > 10 || !response.results.every(item => validKnowledgeSource(item)) || new Set(response.results.map(item => item.source_id)).size !== response.results.length) throw new Error('workspace_unverified')
+        updateKnowledge({ ...knowledgeState.current, results: response.results, searched: true })
+      } else {
+        if (!validKnowledgeSource(response.source) || !knowledgeRefMatches(response.source, source)) throw new Error('workspace_unverified')
+        updateKnowledge({ ...knowledgeState.current, preview: response.source, ...(operation === 'select' ? { selected: [...knowledgeState.current.selected, response.source] } : {}) })
+      }
+    } catch (error) {
+      if (current()) { clearKnowledge(); failure(error) }
+    } finally {
+      if (current()) { knowledgeLock.current = null; updateKnowledge({ ...knowledgeState.current, pending: null }) }
+    }
+  }
 
   function saveContext(event) {
     event.preventDefault()
@@ -161,14 +213,17 @@ function BoundWorkspace({ org, session, client, members = [], onGo, onDirtyChang
   function command(operation, extra = {}) {
     const workflow = currentData.current?.workflows.find(item => item.id === selected)
     if (blocked || !workflow) return
+    if (operation === 'cancel') clearKnowledge()
+    else if (knowledgeLock.current) return
+    if (workflow.knowledge_stale && ['generate', 'accept_draft', 'queue', 'approve', 'execute'].includes(operation)) return
     const manager = REVIEW_ROLES.includes(data.actor.role), ownsWork = rolesCanWork.includes(data.actor.role) && (manager || workflow.assigned_to === actorId)
     const action = workflow.action_request, exact = emailMatchesDraft(workflow), accountMatches = microsoftBindingMatches(workflow, data.readiness)
     // Every handler rechecks authority and state; disabled controls are not locks.
     if (['assign', 'generate', 'accept_draft', 'reject_draft', 'queue', 'cancel'].includes(operation) && !ownsWork) return
     if (operation === 'assign' && (!manager || workflow.status !== 'intake' || !data.people?.some(person => person.user_id === extra.assigned_to && rolesCanWork.includes(person.role)))) return
     if (operation === 'generate' && (!manager || !draftPath(workflow, draftAttempts.get(workflow.id)) || draftPath(workflow, draftAttempts.get(workflow.id)) === 'resume' && workflow.draft_requested_by !== actorId || !validContext(data.context) || !data.configuration?.id || data.readiness?.configuration_ready !== true || data.readiness?.live_inference_enabled !== true)) return
-    if (['accept_draft', 'reject_draft'].includes(operation) && (!manager || workflow.status !== 'draft_ready' || workflow.ai_run?.status !== 'awaiting_review' || !sourceMatchesWorkflow(workflow) || !validDraft(workflow.ai_run.draft) || workflow.context_stale || workflow.configuration_stale)) return
-    if (operation === 'queue' && (workflow.status !== 'draft_accepted' || workflow.ai_run?.status !== 'accepted' || !sourceMatchesWorkflow(workflow) || !validDraft(workflow.ai_run.draft) || workflow.action_request_id || workflow.context_stale || workflow.configuration_stale || data.readiness?.microsoft_ready !== true || !eligibleReviewers(workflow, data.people, actorId).length)) return
+    if (['accept_draft', 'reject_draft'].includes(operation) && (!manager || workflow.status !== 'draft_ready' || workflow.ai_run?.status !== 'awaiting_review' || !sourceMatchesWorkflow(workflow) || !validDraft(workflow.ai_run.draft, workflow.knowledge_sources || []) || workflow.context_stale || workflow.configuration_stale)) return
+    if (operation === 'queue' && (workflow.status !== 'draft_accepted' || workflow.ai_run?.status !== 'accepted' || !sourceMatchesWorkflow(workflow) || !validDraft(workflow.ai_run.draft, workflow.knowledge_sources || []) || workflow.action_request_id || workflow.context_stale || workflow.configuration_stale || data.readiness?.microsoft_ready !== true || !eligibleReviewers(workflow, data.people, actorId).length)) return
     if (operation === 'cancel' && (!canCancelWorkflow(workflow) || emailAttempts.get(workflow.action_request_id))) return
     if (['approve', 'reject', 'execute'].includes(operation) && (!manager || !action)) return
     if (operation === 'approve' && (workflow.status !== 'awaiting_approval' || action.status !== 'Pending' || !exact || !independentReviewer(workflow, actorId) || workflow.context_stale || workflow.configuration_stale || !accountMatches)) return
@@ -180,10 +235,14 @@ function BoundWorkspace({ org, session, client, members = [], onGo, onDirtyChang
         const resume = draftPath(workflow, draftAttempts.get(workflow.id)) === 'resume'
         const requestKey = resume ? workflow.ai_request_key : crypto.randomUUID()
         const configurationId = resume ? workflow.configuration_id : data.configuration.id
+        const selectedSources = resume ? [] : knowledgeState.current.selected
+        if (!validKnowledgeSources(selectedSources) || selectedSources.length && data.knowledge_contract_version !== KNOWLEDGE_DRAFT_CONTRACT) throw new Error('knowledge_selection_invalid')
         draftAttempts.mark(workflow.id, requestKey)
-        const prepared = resume ? { workflow } : await workflowCall({ operation: 'prepare_draft', workflow_id: workflow.id, expected_revision: workflow.revision, configuration_id: configurationId, request_key: requestKey })
+        const prepared = resume ? { workflow } : await workflowCall({ operation: 'prepare_draft', workflow_id: workflow.id, expected_revision: workflow.revision, configuration_id: configurationId, request_key: requestKey, ...(data.knowledge_contract_version === KNOWLEDGE_DRAFT_CONTRACT ? { knowledge_sources: selectedSources.map(knowledgeSourceRef) } : {}) })
         if (!current()) return
         const saved = verifyMutation(prepared, workflow.id)
+        if (!resume && data.knowledge_contract_version === KNOWLEDGE_DRAFT_CONTRACT && (saved.knowledge_stale !== false || !validKnowledgeSources(saved.knowledge_sources) || saved.knowledge_sources.length !== selectedSources.length || !saved.knowledge_sources.every((source, index) => knowledgeRefMatches(source, selectedSources[index])))) throw new Error('workspace_unverified')
+        clearKnowledge()
         if (saved.ai_request_key !== requestKey || saved.status !== 'drafting' || !resume && saved.revision <= workflow.revision) throw new Error('workspace_unverified')
         const result = await invoke('ai-draft', { operation: 'run', organization_id: org.id, customer_workflow_id: workflow.id, expected_revision: saved.revision, configuration_id: configurationId, request_key: requestKey })
         if (!current()) return
@@ -215,7 +274,7 @@ function BoundWorkspace({ org, session, client, members = [], onGo, onDirtyChang
         if (saved.revision <= workflow.revision || operation === 'queue' && (!saved.action_request_id || saved.status !== 'awaiting_approval' || saved.action_request?.status !== 'Pending' || !emailMatchesDraft(saved)) || operation === 'cancel' && saved.status !== 'cancelled' || operation === 'assign' && saved.assigned_to !== extra.assigned_to) throw new Error('workspace_unverified')
         setFeedback({ text: operation === 'queue' ? 'Exact email queued for a different authorized reviewer. It has not been sent.' : operation === 'cancel' ? 'Request cancelled and retained in saved history.' : 'Assignment saved.' })
       }
-      if (current()) await load()
+      if (current()) { clearKnowledge(); await load() }
     }, error => {
       if (operation === 'execute') { setNeedsRefresh(true); setFeedback({ error: true, text: reviewEmailMessage() }) }
       else failure(error)
@@ -232,7 +291,7 @@ function BoundWorkspace({ org, session, client, members = [], onGo, onDirtyChang
   const visibleData = data ? { ...data, people: visiblePeople } : null
   return <section className="customer-reply-workspace" aria-label="Customer reply workspace">
     <div className="cr-heading"><div><p className="eyebrow">EMPLOYEE WORKSPACE</p><h1>Customer reply</h1><p>Move a customer request from saved context to a reviewed Microsoft email.</p></div><button type="button" className="secondary" disabled={busy || loading} onClick={refresh}>Refresh saved results</button></div>
-    <Readiness data={data} onGo={go} disabled={blocked} onEditContext={() => { if (!mayLeave()) return; setContextForm(data?.context?.context || { company_name: org.name || '', reply_guidance: '' }); setEditingContext(true) }}/>
+    <Readiness data={data} onGo={go} disabled={blocked} onEditContext={() => { if (!mayLeave()) return; clearKnowledge(); setContextForm(data?.context?.context || { company_name: org.name || '', reply_guidance: '' }); setEditingContext(true) }}/>
     {loading && <p role="status" className="cr-notice">Checking saved requests and setup…</p>}
     {feedback && <p className={`cr-notice ${feedback.error ? 'cr-error' : ''}`} role={feedback.error ? 'alert' : 'status'}>{feedback.text}</p>}
     {needsRefresh && <p className="cr-muted">Refresh saved results to recheck access and recorded state before taking another action.</p>}
@@ -241,7 +300,7 @@ function BoundWorkspace({ org, session, client, members = [], onGo, onDirtyChang
     <div className="cr-overview" aria-label="Request counts">{[['pending', 'Pending work'], ['review', 'Awaiting review'], ['approved', 'Approved · not sent'], ['accepted', 'Microsoft accepted'], ['exception', 'Needs attention']].map(([key, label]) => <div key={key}><strong>{data ? workflows.filter(item => workflowState(item).key === key).length : '—'}</strong><span>{label}</span></div>)}</div>
     <p className="cr-muted">Counts cover the latest {data?.limit || 100} requests visible to your company role. Microsoft acceptance is separate from delivery and customer resolution.</p>
     <div className="cr-workspace-grid"><aside className="panel cr-queue" aria-label="Daily requests"><div className="cr-section-heading"><h2>Daily requests</h2><button className="primary" type="button" disabled={blocked || !rolesCanWork.includes(data?.actor.role) || Boolean(intakeAttempts.get('pending'))} onClick={() => navigate('intake')}>New request</button></div><label>View requests<select value={filter} disabled={busy} onChange={event => setFilter(event.target.value)}><option value="open">Open requests</option><option value="mine">Assigned to me</option><option value="review">Awaiting review</option><option value="approved">Approved · not sent</option><option value="accepted">Microsoft accepted</option><option value="exception">Needs attention</option><option value="all">All saved requests</option></select></label><nav aria-label="Saved customer requests">{items.map(item => <button type="button" key={item.id} className={`cr-request-row ${selected === item.id && panel === 'detail' ? 'cr-selected' : ''}`} aria-pressed={selected === item.id && panel === 'detail'} disabled={busy || loading} onClick={() => navigate('detail', item.id)}><strong>{item.subject}</strong><span>{workflowState(item).label}</span><small>{employeeName(item.assigned_to, visiblePeople)}</small><small>{formatTime(item.created_at)}</small></button>)}</nav>{data && !items.length && <p className="cr-muted">No saved requests in this view.</p>}{!data && !loading && <p className="cr-muted">Requests are unavailable until the workspace is verified.</p>}</aside>
-      <div className="panel cr-detail-panel" ref={detailPanel} aria-busy={busy || loading}>{panel === 'intake' ? <form onSubmit={createIntake} aria-label="New customer request"><h2 tabIndex={-1}>Save a customer request</h2><p>Capture a request received by your team. Saving it does not call an AI provider or send an email.</p><fieldset disabled={blocked || Boolean(intakeAttempts.get('pending'))}><legend>Customer intake</legend><label>Customer name<input required maxLength={200} value={intake.customer_name} onChange={event => setIntake(value => ({ ...value, customer_name: event.target.value }))}/></label><label>Customer email<input type="email" required maxLength={320} value={intake.customer_email} onChange={event => setIntake(value => ({ ...value, customer_email: event.target.value }))}/></label><label>Request subject<input required maxLength={200} value={intake.subject} onChange={event => setIntake(value => ({ ...value, subject: event.target.value }))}/></label><label>Customer request and confirmed facts<textarea required maxLength={6000} value={intake.message} onChange={event => setIntake(value => ({ ...value, message: event.target.value }))}/></label><label className="cr-checkbox"><input type="checkbox" checked={checkedData} onChange={event => setCheckedData(event.target.checked)}/>This is business information approved for this company workspace.</label><div className="cr-actions"><button className="primary" type="submit" disabled={!checkedData}>Save request</button></div></fieldset><button className="secondary" type="button" disabled={busy} onClick={() => navigate('list')}>Cancel new request</button></form> : panel === 'detail' && workflow ? <RequestDetail key={`${workflow.id}:${workflow.revision}:${workflow.ai_run?.status}:${workflow.action_request?.status}`} workflow={workflow} data={visibleData} actorId={actorId} disabled={blocked} draftAttempt={draftAttempts.get(workflow.id)} emailAttempt={emailAttempts.get(workflow.action_request_id)} onCommand={command} onBack={() => navigate('list')} onGo={go}/> : <div className="cr-empty"><h2>Your next customer reply</h2><p>Select a saved request to see its owner, sources, review, and result, or start with a new request.</p><ol><li>Save the customer request</li><li>Use versioned company reply context</li><li>Generate and review the AI draft when enabled</li><li>Get independent approval of the exact email</li><li>Send once and check the recorded result</li></ol>{data?.actor.role === 'viewer' && <p>Your Viewer role can read available requests. An authorized employee handles changes.</p>}</div>}</div>
+      <div className="panel cr-detail-panel" ref={detailPanel} aria-busy={busy || loading}>{panel === 'intake' ? <form onSubmit={createIntake} aria-label="New customer request"><h2 tabIndex={-1}>Save a customer request</h2><p>Capture a request received by your team. Saving it does not call an AI provider or send an email.</p><fieldset disabled={blocked || Boolean(intakeAttempts.get('pending'))}><legend>Customer intake</legend><label>Customer name<input required maxLength={200} value={intake.customer_name} onChange={event => setIntake(value => ({ ...value, customer_name: event.target.value }))}/></label><label>Customer email<input type="email" required maxLength={320} value={intake.customer_email} onChange={event => setIntake(value => ({ ...value, customer_email: event.target.value }))}/></label><label>Request subject<input required maxLength={200} value={intake.subject} onChange={event => setIntake(value => ({ ...value, subject: event.target.value }))}/></label><label>Customer request and confirmed facts<textarea required maxLength={6000} value={intake.message} onChange={event => setIntake(value => ({ ...value, message: event.target.value }))}/></label><label className="cr-checkbox"><input type="checkbox" checked={checkedData} onChange={event => setCheckedData(event.target.checked)}/>This is business information approved for this company workspace.</label><div className="cr-actions"><button className="primary" type="submit" disabled={!checkedData}>Save request</button></div></fieldset><button className="secondary" type="button" disabled={busy} onClick={() => navigate('list')}>Cancel new request</button></form> : panel === 'detail' && workflow ? <RequestDetail key={`${workflow.id}:${workflow.revision}:${workflow.ai_run?.status}:${workflow.action_request?.status}`} workflow={workflow} data={visibleData} actorId={actorId} disabled={blocked} draftAttempt={draftAttempts.get(workflow.id)} emailAttempt={emailAttempts.get(workflow.action_request_id)} onCommand={command} onBack={() => navigate('list')} onGo={go} knowledge={knowledge} onKnowledgeQuery={knowledgeQuery} onKnowledgeAction={knowledgeAction}/> : <div className="cr-empty"><h2>Your next customer reply</h2><p>Select a saved request to see its owner, sources, review, and result, or start with a new request.</p><ol><li>Save the customer request</li><li>Use versioned company reply context</li><li>Generate and review the AI draft when enabled</li><li>Get independent approval of the exact email</li><li>Send once and check the recorded result</li></ol>{data?.actor.role === 'viewer' && <p>Your Viewer role can read available requests. An authorized employee handles changes.</p>}</div>}</div>
     </div>
   </section>
 }

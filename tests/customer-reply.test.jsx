@@ -2,7 +2,7 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import CustomerReplyWorkspace from '../src/CustomerReplyWorkspace'
-import { canCancelWorkflow, draftPath, emailMatchesDraft, eligibleReviewers, filterWorkflows, independentReviewer, microsoftBindingMatches, validDraft, verifyWorkspace, workflowState } from '../src/customer-reply-model'
+import { canCancelWorkflow, draftPath, emailMatchesDraft, eligibleReviewers, filterWorkflows, independentReviewer, microsoftBindingMatches, validDraft, validKnowledgeSource, knowledgeSourceRef, sourceMatchesWorkflow, verifyWorkspace, workflowState } from '../src/customer-reply-model'
 
 let serial = 0
 const deferred = () => { let resolve, reject; const promise = new Promise((res, rej) => { resolve = res; reject = rej }); return { promise, resolve, reject } }
@@ -99,7 +99,7 @@ describe('intake, context, and role-aware daily work', () => {
   })
   it('employee can save intake but cannot generate or review AI even when enabled', async () => {
     const f = fixture({ role: 'member', live: true }); f.workflow.assigned_to = f.actorId; await select(f)
-    const generate = screen.getByRole('button', { name: 'Generate AI draft' }); expect(generate.disabled).toBe(true); act(() => directClick(generate)); expect(operations(f)).toHaveLength(0)
+    const generate = screen.getByRole('button', { name: 'Generate AI draft' }); expect(generate.disabled).toBe(true); act(() => { directClick(generate) }); expect(operations(f)).toHaveLength(0)
     expect(screen.queryByRole('button', { name: 'Edit reply context' })).toBeNull()
   })
   it('uses cached roster names only for verified people and never takes cached roles as authority', async () => {
@@ -109,7 +109,7 @@ describe('intake, context, and role-aware daily work', () => {
     expect(document.activeElement).toBe(screen.getByRole('heading', { name: f.workflow.subject }))
   })
   it('disabled paid inference is visible and never bypassed by a direct handler', async () => {
-    const f = fixture(); await select(f); const generate = screen.getByRole('button', { name: 'Generate AI draft' }); act(() => directClick(generate)); expect(generate.disabled).toBe(true); expect(operations(f)).toHaveLength(0); expect(screen.getByText(/Live AI generation is disabled/)).toBeTruthy()
+    const f = fixture(); await select(f); const generate = screen.getByRole('button', { name: 'Generate AI draft' }); act(() => { directClick(generate) }); expect(generate.disabled).toBe(true); expect(operations(f)).toHaveLength(0); expect(screen.getByText(/Live AI generation is disabled/)).toBeTruthy()
   })
   it('viewer sees saved records without mutation controls', async () => {
     const f = fixture({ role: 'viewer' }); await select(f); expect(screen.getByRole('button', { name: 'New request' }).disabled).toBe(true); expect(screen.queryByRole('button', { name: 'Cancel request' })).toBeNull(); expect(screen.queryByRole('button', { name: 'Save assignment' })).toBeNull()
@@ -154,7 +154,7 @@ describe('pinned AI requests and exact reviewed email', () => {
     if (kind === 'requester') f.workflow.action_request.requested_by = f.actorId
     if (kind === 'author') { f.workflow.draft_requested_by = f.actorId; f.workflow.ai_run.requested_by = f.actorId }
     if (kind === 'assignee') f.workflow.assigned_to = f.actorId
-    await select(f); const approve = screen.getByRole('button', { name: 'Approve exact email' }); expect(approve.disabled).toBe(true); act(() => directClick(approve)); expect(operations(f)).toHaveLength(0)
+    await select(f); const approve = screen.getByRole('button', { name: 'Approve exact email' }); expect(approve.disabled).toBe(true); act(() => { directClick(approve) }); expect(operations(f)).toHaveLength(0)
   })
   it('approval only records approval; sending requires a new review and click', async () => {
     const f = fixture({ status: 'draft_accepted', actionStatus: 'Pending' }); await select(f)
@@ -197,7 +197,7 @@ describe('pinned AI requests and exact reviewed email', () => {
     if (kind === 'configuration') f.workflow.configuration_stale = true
     if (kind === 'account') f.data.readiness.microsoft_account = 'reconnected-account'
     if (kind === 'receipt') f.workflow.receipt = { phase: 'Dispatching' }
-    await select(f); const send = screen.getByRole('button', { name: 'Send approved email' }); expect(send.disabled).toBe(true); act(() => directClick(send)); expect(operations(f)).toHaveLength(0)
+    await select(f); const send = screen.getByRole('button', { name: 'Send approved email' }); expect(send.disabled).toBe(true); act(() => { directClick(send) }); expect(operations(f)).toHaveLength(0)
   })
   it('persists a no-resend lock after a lost response and remount', async () => {
     const f = fixture({ status: 'draft_accepted', actionStatus: 'Approved' }); const view = await mount(f); click(new RegExp(f.workflow.subject))
@@ -212,11 +212,11 @@ describe('pinned AI requests and exact reviewed email', () => {
   })
   it('missing saved source cannot be reviewed or queued even with a valid AI draft', async () => {
     const f = fixture({ status: 'draft_accepted' }); f.workflow.context_version = null; await select(f)
-    fireEvent.click(screen.getByLabelText('I checked this recipient, subject, and message.')); const queue = screen.getByRole('button', { name: 'Queue exact email for approval' }); expect(queue.disabled).toBe(true); act(() => directClick(queue)); expect(operations(f)).toHaveLength(0)
+    fireEvent.click(screen.getByLabelText('I checked this recipient, subject, and message.')); const queue = screen.getByRole('button', { name: 'Queue exact email for approval' }); expect(queue.disabled).toBe(true); act(() => { directClick(queue) }); expect(operations(f)).toHaveLength(0)
   })
   it('explains a missing uninvolved reviewer even when generic company readiness is true', async () => {
     const f = fixture({ status: 'draft_accepted' }); f.data.people = [{ user_id: f.requester, role: 'owner' }, { user_id: f.actorId, role: 'admin' }]; await select(f)
-    fireEvent.click(screen.getByLabelText('I checked this recipient, subject, and message.')); const queue = screen.getByRole('button', { name: 'Queue exact email for approval' }); expect(queue.disabled).toBe(true); act(() => directClick(queue))
+    fireEvent.click(screen.getByLabelText('I checked this recipient, subject, and message.')); const queue = screen.getByRole('button', { name: 'Queue exact email for approval' }); expect(queue.disabled).toBe(true); act(() => { directClick(queue) })
     expect(screen.getByText(/This reply needs another authorized owner, admin, or consultant/)).toBeTruthy(); expect(operations(f)).toHaveLength(0)
     expect(eligibleReviewers(f.workflow, f.data.people, f.actorId)).toEqual([])
   })
@@ -225,7 +225,7 @@ describe('pinned AI requests and exact reviewed email', () => {
     await select(f); expect(screen.getByText('Latest context for a new draft · version 2')).toBeTruthy(); expect(screen.getByText('New approved opening hours: 9 am to 5 pm.')).toBeTruthy(); expect(screen.getByRole('button', { name: 'Generate a new draft' }).disabled).toBe(false)
   })
   it('only the original draft author can resume a pinned no-run request', async () => {
-    const f = fixture({ status: 'drafting', live: true }); f.workflow.ai_run = null; await select(f); const resume = screen.getByRole('button', { name: 'Resume saved AI request' }); expect(resume.disabled).toBe(true); act(() => directClick(resume)); expect(operations(f)).toHaveLength(0)
+    const f = fixture({ status: 'drafting', live: true }); f.workflow.ai_run = null; await select(f); const resume = screen.getByRole('button', { name: 'Resume saved AI request' }); expect(resume.disabled).toBe(true); act(() => { directClick(resume) }); expect(operations(f)).toHaveLength(0)
   })
   it('reports Microsoft acceptance separately from delivery and does not offer another send', async () => {
     const f = fixture({ status: 'draft_accepted', actionStatus: 'Approved' }); await select(f)
@@ -271,5 +271,236 @@ describe('projection and workflow helpers', () => {
     if (kind === 'too-many-warnings') draft.warnings = Array(11).fill('Warning')
     if (kind === 'long-warning') draft.warnings = ['x'.repeat(1001)]
     expect(validDraft(draft)).toBe(false)
+  })
+})
+
+function knowledgeSource(index = 1, overrides = {}) {
+  const document_id = `10000000-0000-4000-8000-${String(index).padStart(12, '0')}`, version_id = `20000000-0000-4000-8000-${String(index).padStart(12, '0')}`, chunk_id = `30000000-0000-4000-8000-${String(index).padStart(12, '0')}`
+  return { document_id, version_id, chunk_id, source_id: `knowledge:${document_id}:${version_id}:${chunk_id}`, title: `Service policy ${index}`, content_text: `Confirmed business policy excerpt ${index}.`, content_sha256: String(index).repeat(64), version_sha256: 'a'.repeat(64), version: 1, review_due_at: '2099-01-01T00:00:00Z', audience: 'organization', source_kind: index % 2 ? 'manual' : 'text_upload', source_name: index % 2 ? 'Pasted text' : 'support.md', ...overrides }
+}
+function knowledgeFixture(options = {}) {
+  const f = fixture({ live: true, ...options })
+  f.data.knowledge_contract_version = 1
+  f.workflow.knowledge_sources = []
+  f.workflow.knowledge_stale = false
+  f.sources = [knowledgeSource()]
+  f.knowledgeEnvelope = value => f.envelope({ actor: clone(f.data.actor), ...value })
+  f.client.functions.invoke.mockImplementation(async (name, { body }) => {
+    if (body.operation === 'load') return { data: clone(f.data) }
+    if (body.operation === 'knowledge_search') return f.knowledgeEnvelope({ results: clone(f.sources) })
+    if (body.operation === 'knowledge_source') return f.knowledgeEnvelope({ source: clone(f.sources.find(source => source.chunk_id === body.chunk_id)) })
+    if (body.operation === 'prepare_draft') {
+      Object.assign(f.workflow, { status: 'drafting', revision: f.workflow.revision + 1, ai_run: null, ai_request_key: body.request_key, draft_requested_by: f.actorId, configuration_id: f.configuration.id, configuration: f.configuration, context_version_id: f.context.id, context_version: f.context, knowledge_sources: body.knowledge_sources.map(ref => clone(f.sources.find(source => source.chunk_id === ref.chunk_id))) })
+      return f.envelope({ workflow: clone(f.workflow) })
+    }
+    if (name === 'ai-draft' && body.operation === 'run') {
+      f.workflow.status = 'draft_ready'
+      f.workflow.ai_run = { id: 'ai-knowledge', organization_id: f.props.org.id, configuration_id: f.configuration.id, request_key: body.request_key, requested_by: f.actorId, status: 'awaiting_review', draft: { title: 'Policy reply', body: 'A reply grounded in the approved service policy.', source_ids: ['manual-1', ...f.workflow.knowledge_sources.map(source => source.source_id)], warnings: [] } }
+      return { data: { run: clone(f.workflow.ai_run) } }
+    }
+    throw new Error('Unexpected synthetic knowledge request')
+  })
+  return f
+}
+async function searchKnowledge() {
+  fireEvent.change(screen.getByLabelText('Search current company-wide knowledge'), { target: { value: 'service policy' } })
+  click('Search excerpts')
+  await screen.findByRole('list', { name: 'Knowledge search results' })
+}
+async function chooseKnowledge(f, index = 0) {
+  click(`Review excerpt from ${f.sources[index].title}`)
+  await screen.findByRole('region', { name: 'Knowledge excerpt preview' })
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Select this excerpt' }).disabled).toBe(false))
+  click('Select this excerpt')
+  await screen.findByRole('button', { name: `Remove excerpt from ${f.sources[index].title}` })
+}
+
+describe('explicit Company Knowledge selection and pinned citations', () => {
+  it('never searches or selects automatically and sends only selected immutable refs when generating', async () => {
+    const f = knowledgeFixture(); await select(f)
+    expect(operations(f)).toHaveLength(0)
+    expect(screen.getByText(/no automatic document sync or background search/)).toBeTruthy()
+    await searchKnowledge()
+    expect(screen.getByText('Selected for new draft: 0 of 5')).toBeTruthy()
+    await chooseKnowledge(f)
+    const preview = within(screen.getByRole('region', { name: 'Knowledge excerpt preview' }))
+    expect(preview.getByText(f.sources[0].content_text)).toBeTruthy()
+    expect(preview.getByText(f.sources[0].source_id)).toBeTruthy()
+    expect(preview.getByText(f.sources[0].content_sha256)).toBeTruthy()
+    expect(preview.getByText(f.sources[0].version_sha256)).toBeTruthy()
+    expect(operations(f).map(([, { body }]) => body.operation)).toEqual(['knowledge_search', 'knowledge_source', 'knowledge_source'])
+    click('Generate AI draft')
+    await screen.findByText('AI draft saved for review. No email has been queued or sent.')
+    const prepare = operations(f).find(([, { body }]) => body.operation === 'prepare_draft')[1].body
+    expect(prepare.knowledge_sources).toEqual([knowledgeSourceRef(f.sources[0])])
+    expect(prepare).not.toHaveProperty('input')
+    const run = operations(f).find(([name]) => name === 'ai-draft')[1].body
+    expect(run).not.toHaveProperty('knowledge_sources')
+    expect(run).not.toHaveProperty('input')
+    expect(screen.getByLabelText('Pinned Company Knowledge sources').textContent).toContain(f.sources[0].source_id)
+    expect(screen.getByLabelText('Draft citations').textContent).toContain(`Service policy 1 · ${f.sources[0].source_id}`)
+    expect(screen.getByRole('button', { name: 'Accept draft for use' }).disabled).toBe(true)
+  })
+  it('supports zero sources and keeps a removed excerpt out of prepare', async () => {
+    const f = knowledgeFixture(); await select(f); await searchKnowledge(); await chooseKnowledge(f)
+    click(`Remove excerpt from ${f.sources[0].title}`)
+    expect(screen.getByText('Selected for new draft: 0 of 5')).toBeTruthy()
+    click('Generate AI draft'); await screen.findByText('AI draft saved for review. No email has been queued or sent.')
+    expect(operations(f).find(([, { body }]) => body.operation === 'prepare_draft')[1].body.knowledge_sources).toEqual([])
+  })
+  it('guards duplicate search and selection clicks before React paints', async () => {
+    const f = knowledgeFixture(); await select(f)
+    fireEvent.change(screen.getByLabelText('Search current company-wide knowledge'), { target: { value: 'service' } })
+    const form = screen.getByRole('form', { name: 'Search Company Knowledge' })
+    act(() => { fireEvent.submit(form); fireEvent.submit(form) })
+    await screen.findByRole('list', { name: 'Knowledge search results' })
+    click(`Review excerpt from ${f.sources[0].title}`)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Select this excerpt' }).disabled).toBe(false))
+    const selectButton = screen.getByRole('button', { name: 'Select this excerpt' })
+    act(() => { directClick(selectButton); directClick(selectButton) })
+    await screen.findByText('Selected for new draft: 1 of 5')
+    expect(operations(f).map(([, { body }]) => body.operation)).toEqual(['knowledge_search', 'knowledge_source', 'knowledge_source'])
+  })
+  it('limits selection to five excerpts, including direct handler calls', async () => {
+    const f = knowledgeFixture(); f.sources = Array.from({ length: 6 }, (_, index) => knowledgeSource(index + 1))
+    await select(f); await searchKnowledge()
+    for (let index = 0; index < 5; index++) await chooseKnowledge(f, index)
+    click(`Review excerpt from ${f.sources[5].title}`)
+    await waitFor(() => expect(within(screen.getByRole('region', { name: 'Knowledge excerpt preview' })).getByText(f.sources[5].content_text)).toBeTruthy())
+    const button = screen.getByRole('button', { name: 'Select this excerpt' }), count = operations(f).length
+    expect(button.disabled).toBe(true); act(() => { directClick(button) })
+    expect(operations(f)).toHaveLength(count); expect(screen.getByText('Selected for new draft: 5 of 5')).toBeTruthy()
+  })
+  it.each(['member', 'viewer'])('does not expose source search to %s roles', async role => {
+    const f = knowledgeFixture({ role }); await select(f)
+    expect(screen.queryByRole('form', { name: 'Search Company Knowledge' })).toBeNull(); expect(operations(f)).toHaveLength(0)
+  })
+  it.each(['company', 'actor', 'role', 'private', 'expired', 'hash', 'source-id', 'too-many', 'duplicate'])('rejects unverified %s search responses before showing source text', async kind => {
+    const f = knowledgeFixture(); await select(f)
+    const response = f.knowledgeEnvelope({ results: [knowledgeSource()] })
+    if (kind === 'company') response.data.organization_id = 'wrong-company'
+    if (kind === 'actor') response.data.actor.id = 'wrong-account'
+    if (kind === 'role') response.data.actor.role = 'member'
+    if (kind === 'private') response.data.results[0].audience = 'private'
+    if (kind === 'expired') response.data.results[0].review_due_at = '2000-01-01T00:00:00Z'
+    if (kind === 'hash') response.data.results[0].content_sha256 = 'forged'
+    if (kind === 'source-id') response.data.results[0].source_id = 'knowledge:forged:version:chunk'
+    if (kind === 'too-many') response.data.results = Array.from({ length: 11 }, (_, index) => knowledgeSource(index + 1))
+    if (kind === 'duplicate') response.data.results.push(clone(response.data.results[0]))
+    f.client.functions.invoke.mockResolvedValueOnce(response)
+    fireEvent.change(screen.getByLabelText('Search current company-wide knowledge'), { target: { value: 'service' } }); click('Search excerpts')
+    await screen.findByText(/customer workspace could not be verified/)
+    expect(screen.queryByText('Service policy 1')).toBeNull(); expect(screen.queryByText(f.sources[0].content_text)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Generate AI draft' }).disabled).toBe(true)
+  })
+  it.each(['role', 'version', 'hash'])('rechecks %s on explicit selection and clears the earlier preview after failure', async kind => {
+    const f = knowledgeFixture(); await select(f); await searchKnowledge()
+    click(`Review excerpt from ${f.sources[0].title}`)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Select this excerpt' }).disabled).toBe(false))
+    const response = f.knowledgeEnvelope({ source: clone(f.sources[0]) })
+    if (kind === 'role') response.data.actor.role = 'viewer'
+    if (kind === 'version') { response.data.source.version_id = knowledgeSource(2).version_id; response.data.source.source_id = `knowledge:${response.data.source.document_id}:${response.data.source.version_id}:${response.data.source.chunk_id}` }
+    if (kind === 'hash') response.data.source.version_sha256 = 'b'.repeat(64)
+    f.client.functions.invoke.mockResolvedValueOnce(response); click('Select this excerpt')
+    await screen.findByText(/customer workspace could not be verified/)
+    expect(screen.queryByText(f.sources[0].content_text)).toBeNull(); expect(screen.getByText('Selected for new draft: 0 of 5')).toBeTruthy()
+  })
+  it.each(['navigation', 'clear', 'company', 'account'])('ignores a late source selection after %s changes', async kind => {
+    const f = knowledgeFixture(), view = await mount(f); click(new RegExp(f.workflow.subject)); await searchKnowledge()
+    click(`Review excerpt from ${f.sources[0].title}`)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Select this excerpt' }).disabled).toBe(false))
+    const delayed = deferred(); f.client.functions.invoke.mockReturnValueOnce(delayed.promise); click('Select this excerpt')
+    if (kind === 'navigation') { click('Back to requests'); click(new RegExp(f.workflow.subject)) }
+    if (kind === 'clear') click('Clear source selection')
+    if (['company', 'account'].includes(kind)) {
+      const next = knowledgeFixture()
+      if (kind === 'account') { next.props.org = f.props.org; next.data.organization_id = f.props.org.id; next.workflow.organization_id = f.props.org.id; next.context.organization_id = f.props.org.id; next.configuration.organization_id = f.props.org.id }
+      view.rerender(<CustomerReplyWorkspace {...next.props}/>); await waitFor(() => expect(screen.queryByText('Checking saved requests and setup…')).toBeNull()); click(new RegExp(next.workflow.subject))
+    }
+    await act(async () => delayed.resolve(f.knowledgeEnvelope({ source: clone(f.sources[0]) })))
+    expect(screen.queryByText(f.sources[0].content_text)).toBeNull(); expect(screen.getByText('Selected for new draft: 0 of 5')).toBeTruthy()
+    expect(screen.getByLabelText('Search current company-wide knowledge').value).toBe('')
+  })
+  it('clears transient selected sources on refresh and return navigation', async () => {
+    const f = knowledgeFixture(); await select(f); await searchKnowledge(); await chooseKnowledge(f)
+    click('Back to requests'); click(new RegExp(f.workflow.subject)); expect(screen.getByText('Selected for new draft: 0 of 5')).toBeTruthy()
+    await searchKnowledge(); await chooseKnowledge(f); click('Refresh saved results')
+    await waitFor(() => expect(screen.queryByText('Checking saved requests and setup…')).toBeNull())
+    expect(screen.getByText('Selected for new draft: 0 of 5')).toBeTruthy(); expect(screen.queryByText(f.sources[0].content_text)).toBeNull()
+  })
+  it('cancels a request during a pending source read and ignores its late result', async () => {
+    const f = knowledgeFixture(); await select(f)
+    const delayed = deferred(); f.client.functions.invoke.mockReturnValueOnce(delayed.promise)
+    fireEvent.change(screen.getByLabelText('Search current company-wide knowledge'), { target: { value: 'service' } }); click('Search excerpts')
+    f.client.functions.invoke.mockImplementation(async (_name, { body }) => {
+      if (body.operation === 'load') return { data: clone(f.data) }
+      if (body.operation === 'cancel') { f.workflow.status = 'cancelled'; f.workflow.revision++; return f.envelope({ workflow: clone(f.workflow) }) }
+      throw new Error('Unexpected synthetic request')
+    })
+    click('Cancel request'); await screen.findByText('Request cancelled and retained in saved history.')
+    await act(async () => delayed.resolve(f.knowledgeEnvelope({ results: clone(f.sources) })))
+    expect(screen.queryByRole('form', { name: 'Search Company Knowledge' })).toBeNull()
+    expect(screen.queryByText(f.sources[0].content_text)).toBeNull()
+    expect(operations(f).map(([, { body }]) => body.operation)).toEqual(['knowledge_search', 'cancel'])
+  })
+  it('blocks generation while a source check is unresolved', async () => {
+    const f = knowledgeFixture(); await select(f)
+    const delayed = deferred(); f.client.functions.invoke.mockReturnValueOnce(delayed.promise)
+    fireEvent.change(screen.getByLabelText('Search current company-wide knowledge'), { target: { value: 'service' } }); click('Search excerpts')
+    const generate = screen.getByRole('button', { name: 'Generate AI draft' }); expect(generate.disabled).toBe(true); act(() => { directClick(generate) })
+    expect(operations(f)).toHaveLength(1)
+    await act(async () => delayed.resolve(f.knowledgeEnvelope({ results: clone(f.sources) })))
+  })
+  it('does not call inference when prepare returns a substituted source snapshot', async () => {
+    const f = knowledgeFixture(); await select(f); await searchKnowledge(); await chooseKnowledge(f)
+    f.client.functions.invoke.mockResolvedValueOnce(f.envelope({ workflow: { ...clone(f.workflow), status: 'drafting', revision: 2, knowledge_sources: [knowledgeSource(2)] } }))
+    click('Generate AI draft'); await screen.findByText(/customer workspace could not be verified/)
+    expect(operations(f).some(([name]) => name === 'ai-draft')).toBe(false)
+  })
+  it('resumes only the existing pinned source versions and never sends replacements or searches', async () => {
+    const f = knowledgeFixture({ status: 'drafting' }); f.workflow.ai_run = null; f.workflow.draft_requested_by = f.actorId; f.workflow.knowledge_sources = [clone(f.sources[0])]
+    await select(f)
+    expect(screen.queryByRole('form', { name: 'Search Company Knowledge' })).toBeNull()
+    expect(screen.getByLabelText('Pinned Company Knowledge sources').textContent).toContain(f.sources[0].source_id)
+    click('Resume saved AI request'); await screen.findByText('AI draft saved for review. No email has been queued or sent.')
+    expect(operations(f)).toHaveLength(1)
+    expect(operations(f)[0][1].body).toEqual({ operation: 'run', organization_id: f.props.org.id, customer_workflow_id: f.workflow.id, expected_revision: 1, configuration_id: f.configuration.id, request_key: 'draft-key' })
+  })
+  it.each(['draft_ready', 'draft_accepted', 'Pending', 'Approved', 'drafting'])('hides stale knowledge and blocks %s advancement', async status => {
+    const f = knowledgeFixture(['Pending', 'Approved'].includes(status) ? { status: 'draft_accepted', actionStatus: status } : { status })
+    f.workflow.knowledge_stale = true
+    if (f.workflow.ai_run) f.workflow.ai_run.draft = null
+    if (f.workflow.action_request) f.workflow.action_request.payload = null
+    await select(f)
+    expect(screen.getByText(/A saved Company Knowledge source changed/)).toBeTruthy()
+    expect(screen.queryByText('Thank you for your question. Your scheduled date is 14 October.')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Accept draft for use' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Generate|Resume/ })).toBeNull()
+    for (const name of ['Queue exact email for approval', 'Approve exact email', 'Send approved email']) {
+      const button = screen.queryByRole('button', { name }); if (button) { expect(button.disabled).toBe(true); act(() => { directClick(button) }) }
+    }
+    expect(operations(f)).toHaveLength(0)
+  })
+  it('rejects stale server responses that fail to redact model or email content', async () => {
+    const f = knowledgeFixture({ status: 'draft_accepted', actionStatus: 'Approved' }); f.workflow.knowledge_stale = true
+    await mount(f); expect(screen.getByText(/customer workspace could not be verified/)).toBeTruthy()
+    expect(screen.queryByText(f.workflow.ai_run.draft.body)).toBeNull()
+  })
+  it('allows only exact citations from the verified pinned source list and manual-only defaults remain strict', () => {
+    const f = knowledgeFixture({ status: 'draft_accepted', actionStatus: 'Pending' }), source = f.sources[0]
+    f.workflow.knowledge_sources = [source]; f.workflow.ai_run.draft.source_ids = ['manual-1', source.source_id]
+    expect(validDraft(f.workflow.ai_run.draft)).toBe(false)
+    expect(validDraft(f.workflow.ai_run.draft, [source])).toBe(true)
+    expect(sourceMatchesWorkflow(f.workflow)).toBe(true); expect(emailMatchesDraft(f.workflow)).toBe(true)
+    f.workflow.ai_run.draft.source_ids = [`knowledge:${source.document_id}:${knowledgeSource(2).version_id}:${source.chunk_id}`]
+    expect(validDraft(f.workflow.ai_run.draft, [source])).toBe(false)
+    expect(sourceMatchesWorkflow(f.workflow)).toBe(false); expect(emailMatchesDraft(f.workflow)).toBe(false)
+    expect(validKnowledgeSource({ ...source, audience: 'private' })).toBe(false)
+  })
+  it('never approves an exact email with citations to a different immutable version', async () => {
+    const f = knowledgeFixture({ status: 'draft_accepted', actionStatus: 'Pending' }); f.workflow.knowledge_sources = [f.sources[0]]; f.workflow.ai_run.draft.source_ids = [`knowledge:${f.sources[0].document_id}:${knowledgeSource(2).version_id}:${f.sources[0].chunk_id}`]
+    await select(f); const approve = screen.getByRole('button', { name: 'Approve exact email' })
+    expect(approve.disabled).toBe(true); act(() => { directClick(approve) }); expect(operations(f)).toHaveLength(0)
+    expect(screen.getByText('No complete, validated draft is available.')).toBeTruthy()
   })
 })
