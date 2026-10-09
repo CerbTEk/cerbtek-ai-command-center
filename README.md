@@ -139,3 +139,9 @@ This candidate is not installed or published. After explicit approval, the coord
 Do not roll back to older Edge handlers while knowledge-bound runs exist: older run/review handlers do not apply the new source visibility projection. Keep the new guards and paused inference, and use a scoped forward fix or explicitly reviewed data-preserving rollback. Immutable source/run/action history must not be deleted to simplify rollback.
 
 Local checks: `mkdir -p backend/evidence` before the existing aggregate backend scripts, then the relevant Node/PGlite tests, `npm run test:ui`, funding RLS/marketing routing, production build and three public/bundle checks. No check in this candidate calls a real AI provider or sends email. Pixel/mobile-browser QA, live authenticated acceptance and hosted simultaneous-session timing are separate, unrun stages.
+
+## Guided customer setup
+
+Customer Setup guides the deployed manual customer-reply use case from its intended outcome through saved prerequisites, existing configuration screens, read-only validation and explicit activation requirements. It resumes from existing company records and never checks off a connection, calls a provider, enables inference, changes access, or sends email. Open it from Overview or the sidebar. The `#Customer%20Setup` route works at the marketing root and app entrypoint.
+
+Run `npm run check:setup` for focused DOM/app tests, production build, and read-only/lazy-bundle/responsive/contrast checks. See `docs/customer-setup-release.md` for data contracts, scope and acceptance limits.

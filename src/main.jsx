@@ -18,11 +18,13 @@ import { canManageFunding } from './funding-model'
 import { useSafeOperation, useExecutionAttempts, needsReconciliation, acceptedEmail, reviewEmailMessage } from './use-safe-operation'
 
 const APP_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/`
+const CustomerSetupJourney = lazy(() => import('./CustomerSetupJourney'))
 const CustomerReplyWorkspace = lazy(() => import('./CustomerReplyWorkspace'))
 const CompanyKnowledge = lazy(() => import('./CompanyKnowledge'))
 
 const baseNav = [
   ['Overview', Gauge],
+  ['Customer Setup', Building2],
   ['Customer Follow-up', Users],
   ['Company Knowledge', FileText],
   ['Team Access', Users],
@@ -290,6 +292,7 @@ export function App() {
         {dataLoading&&loadedOrgId===org.id&&loadedUserId===session.user.id&&!dataError&&<p role="status">Refreshing workspace…</p>}
         {dataError?<Panel title="Workspace information unavailable"><p role="alert">{dataError}</p><button className="primary" onClick={()=>loadOrg(org.id)}>Refresh workspace</button></Panel>:loadedOrgId!==org.id||loadedUserId!==session.user.id?<p role="status">Loading workspace…</p>:<>
         {active === 'Overview' && <Overview data={data} onGo={setActive}/>}
+        {active === 'Customer Setup' && <Suspense fallback={<p role="status">Opening customer setup…</p>}><CustomerSetupJourney key={session.user.id+':'+org.id} org={org} session={session} client={supabase} planning={data} onGo={setActive}/></Suspense>}
         {active === 'Customer Follow-up' && <Suspense fallback={<p role="status">Opening customer follow-up…</p>}><CustomerReplyWorkspace key={session.user.id+':'+org.id} org={org} session={session} client={supabase} members={data.members} onGo={setActive} onDirtyChange={setCustomerDirty} onBusyChange={setCustomerBusy}/></Suspense>}
         {active === 'Company Knowledge' && <Suspense fallback={<p role="status">Opening company knowledge…</p>}><CompanyKnowledge key={session.user.id+':'+org.id} org={org} session={session} client={supabase} onDirtyChange={setKnowledgeDirty} onBusyChange={setKnowledgeBusy}/></Suspense>}
         {active === 'Team Access' && <TeamRoles key={session.user.id+':'+org.id} org={org} session={session} members={data.members} invitations={data.invitations} client={supabase} refreshing={dataLoading} reload={() => loadOrg(org.id)}/>}
@@ -384,6 +387,10 @@ function CreateOrganization({session,onCreated}) {
 function Overview({data,onGo}) {
   const avg = data.opps.length ? Math.round(data.opps.reduce((a,b)=>a+(b.opportunity_score||0),0)/data.opps.length) : 0
   return <>
+    <Panel title="Set up your first customer reply">
+      <p>See what is already saved, which connections and reviewer roles are needed, and what still blocks live activation. Resume from your company's current records.</p>
+      <button className="primary" onClick={()=>onGo('Customer Setup')}>Open guided customer setup</button>
+    </Panel>
     <NextStepCard data={data} onGo={onGo}/>
     <Panel title="Your daily customer work">
       <p>Capture an inquiry, use saved company reply guidance, and review the exact email before requesting approval. Track the recorded result in one workspace.</p>

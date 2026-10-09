@@ -6,12 +6,22 @@ import { HELP_QUESTIONS } from './kairo-help-questions'
 
 // Curated product guidance, reviewed against application revision e9e1c66.
 // This is local documentation, not generated advice or an execution policy.
-export const HELP_VERSION = '2026-10-09.knowledge-drafts1'
+export const HELP_VERSION = '2026-10-09.customer-setup1'
 export const HELP_REVIEWED_AT = '2026-10-03'
 export const HELP_CATEGORIES = Object.freeze(['Getting started','Integrations and cloud providers','Workflows and approvals','Microsoft 365','Access and governance','Everyday AI reference','AI implementation reference','Telephony reference'])
-export const HELP_SECTIONS = Object.freeze(['Overview','Customer Follow-up','Company Knowledge','Team Access','Onboarding','AI Readiness','AI Setup','Systems','Workflows','Opportunities','Integrations','Agents','AI Ops','Governance','Blueprints','Audit'])
+export const HELP_SECTIONS = Object.freeze(['Overview','Customer Setup','Customer Follow-up','Company Knowledge','Team Access','Onboarding','AI Readiness','AI Setup','Systems','Workflows','Opportunities','Integrations','Agents','AI Ops','Governance','Blueprints','Audit'])
 
 const PRODUCT_HELP_ARTICLES = [
+  {
+    id:'customer-setup', title:'Set up your first reviewed customer reply', section:'Customer Setup',
+    keywords:['setup','journey','onboarding','resume','connection','activation','blocked','readiness'],
+    summary:'A read-only guide from a customer-reply outcome to saved setup and activation requirements.',
+    prerequisites:['Sign in and select the correct company. Company membership is checked by the existing services.'],
+    steps:['Open Customer Setup from the sidebar or overview. Its progress comes from saved company records.','Review company reply guidance, the saved customer-reply configuration, the verified Microsoft sending connection, and independent reviewer roles. Each step links to its existing screen.','Optionally review current company-wide Company Knowledge sources. Each excerpt must still be selected explicitly in Customer Follow-up.','Return and recheck saved setup. Cancel safely or retry a failed read; this does not retry a draft or email.','Review the remaining activation requirements with an authorized administrator before separately approved live-provider and email acceptance tests.'],
+    troubleshooting:['An unavailable or mismatched response confirms no readiness. Recheck or ask a company owner to review access.','A saved AI configuration does not verify its credential, current model availability, approved pricing, or the deployed inference gate.','The check does not call AI model discovery or a provider, change connections or roles, generate drafts, or send email.'],
+    note:'This guide supports the deployed manual customer-reply workflow. Phone intake, billing, automatic inbox retrieval, and planned Google or AWS connectors are outside this journey. There is no activation switch.',
+    related:['customer-follow-up','company-knowledge','team-access','microsoft-setup']
+  },
   {
     id:'company-knowledge', title:'Publish reviewed company reference material', section:'Company Knowledge',
     keywords:['knowledge','source','document','reference','publish','audience','review','freshness','search'],

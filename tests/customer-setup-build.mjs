@@ -1,0 +1,27 @@
+import assert from 'node:assert/strict'
+import { readFile, readdir } from 'node:fs/promises'
+const source = await readFile(new URL('../src/CustomerSetupJourney.jsx', import.meta.url), 'utf8')
+const css = await readFile(new URL('../src/customer-setup.css', import.meta.url), 'utf8')
+const app = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8')
+assert.match(source, /invoke\('customer-workflow'/)
+assert.match(source, /operation: 'load'/)
+assert.match(source, /knowledgeRequest\(client, org.id, session.user.id, 'access'/)
+assert.match(source, /knowledgeRequest\(client, org.id, session.user.id, 'list'/)
+assert.doesNotMatch(source, /invoke\('(?:ai-draft|microsoft-action|organization-invite|organization-members)'/)
+assert.doesNotMatch(source, /localStorage|sessionStorage|dangerouslySetInnerHTML|type="checkbox"/)
+assert.match(app, /const CustomerSetupJourney = lazy\(\(\) => import\('\.\/CustomerSetupJourney'\)\)/)
+assert.match(css, /@media\(max-width:600px\)/)
+assert.match(css, /min-height:44px/)
+assert.match(css, /overflow-wrap:anywhere/)
+assert.match(css, /:focus-visible/)
+assert.match(css, /\.customer-setup \.setup-blocked\{[^}]*background:#2d2110;color:#ffe2ad/)
+const luminance = hex => { const channels = hex.match(/[0-9a-f]{2}/g).map(x => parseInt(x, 16) / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4); return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722 }
+const contrast = (a, b) => { const x = luminance(a), y = luminance(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05) }
+for (const [foreground, background] of [['ffd34e', '141414'], ['a6a6a3', '141414'], ['ffe2ad', '2d2110'], ['bcf5dd', '19362c'], ['ffdc99', '3a2a12']]) assert.ok(contrast(foreground, background) >= 4.5, `${foreground}/${background} text contrast`)
+const assets = await readdir(new URL('../dist/assets/', import.meta.url))
+const chunk = assets.find(name => /^CustomerSetupJourney-.*\.js$/.test(name))
+assert.ok(chunk, 'Guide remains a lazy app chunk')
+const emitted = await readFile(new URL(`../dist/assets/${chunk}`, import.meta.url), 'utf8')
+assert.match(emitted, /Live activation is not confirmed/)
+assert.match(emitted, /Cancel check/)
+console.log('Customer setup read-only operations, lazy bundle, responsive/focus rules and dark-theme text contrast passed. DOM coverage is separate; no pixel/browser QA was run.')

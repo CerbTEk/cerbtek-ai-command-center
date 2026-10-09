@@ -36,3 +36,7 @@ test('nested Webflow mounts remain relative to their own root', () => {
   assert.equal(legacyAppTarget({search:'?invite=x',hash:'#Funding'},'/preview/'),'/preview/app/?invite=x#Funding')
   assert.equal(legacyAppTarget({search:'',hash:'#Overview'},'/preview'),'/preview/app/#Overview')
 })
+test('customer setup bookmarks enter the app with the selected company preserved', () => {
+  assert.equal(legacyAppTarget({search:'',hash:'#Customer%20Setup'}), '/app/#Customer%20Setup')
+  assert.equal(legacyAppTarget({search:'?kairoCompany=company-a',hash:'#Customer%20Setup'}), '/app/?kairoCompany=company-a#Customer%20Setup')
+})
