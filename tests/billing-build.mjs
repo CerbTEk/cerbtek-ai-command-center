@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict'
+import { readFile, readdir } from 'node:fs/promises'
+const source = await readFile(new URL('../src/BillingStatus.jsx', import.meta.url), 'utf8')
+const model = await readFile(new URL('../src/billing-status-model.js', import.meta.url), 'utf8')
+const app = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8')
+const css = await readFile(new URL('../src/billing-status.css', import.meta.url), 'utf8')
+assert.match(source, /invoke\('billing-status', \{ body: \{ organization_id: org.id \} \}\)/)
+assert.doesNotMatch(source + model, /\.from\(|\.rpc\(|\.insert\(|\.update\(|\.delete\(|localStorage|sessionStorage|dangerouslySetInnerHTML|fetch\(/)
+assert.doesNotMatch(source, /<input|<select|<textarea|<form|type="submit"/)
+assert.match(app, /const BillingStatus = lazy\(\(\) => import\('\.\/BillingStatus'\)\)/)
+assert.match(model, /data\.authorized !== true/)
+assert.match(model, /data\.commercial_actions_enabled !== false/)
+assert.match(model, /data\.customer_charge !== null/)
+assert.match(css, /@media\(max-width:520px\)/)
+assert.match(css, /min-height:44px/)
+assert.match(css, /overflow-wrap:anywhere/)
+assert.match(css, /overflow-x:auto/)
+assert.match(css, /:focus-visible/)
+const luminance = hex => { const c = hex.match(/[0-9a-f]{2}/g).map(x => parseInt(x, 16) / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4); return c[0] * .2126 + c[1] * .7152 + c[2] * .0722 }
+for (const [foreground, background] of [['f7f7f5', '151515'], ['c1bcb3', '151515'], ['a8a8a4', '151515'], ['ffe0a8', '2b2112'], ['a8a8a4', '2b2112'], ['fff2dc', '151515']]) {
+  const a = luminance(foreground), b = luminance(background)
+  assert.ok((Math.max(a, b) + .05) / (Math.min(a, b) + .05) >= 4.5, `${foreground}/${background} text contrast`)
+}
+const files = await readdir(new URL('../dist/assets/', import.meta.url))
+const chunk = files.find(name => /^BillingStatus-.*\.js$/.test(name))
+assert.ok(chunk, 'Billing stays a lazy app chunk')
+const emitted = await readFile(new URL(`../dist/assets/${chunk}`, import.meta.url), 'utf8')
+assert.match(emitted, /Billing remains inactive/)
+assert.match(emitted, /Billing status unavailable/)
+assert.match(emitted, /Lifetime recorded observations only/)
+assert.match(emitted, /Multiple recorded bindings/)
+console.log('Billing read-only UI operations, lazy bundle, responsive/focus rules and dark-theme text contrast passed. DOM coverage is separate; browser/pixel QA was not run.')

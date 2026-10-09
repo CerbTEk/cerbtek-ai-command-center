@@ -15,12 +15,14 @@ import KairoHelp from './KairoHelp'
 import './styles.css'
 import { FundingWorkspace } from './FundingWorkspace'
 import { canManageFunding } from './funding-model'
+import { canViewBillingStatus } from './billing-status-model'
 import { useSafeOperation, useExecutionAttempts, needsReconciliation, acceptedEmail, reviewEmailMessage } from './use-safe-operation'
 
 const APP_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/`
 const CustomerSetupJourney = lazy(() => import('./CustomerSetupJourney'))
 const CustomerReplyWorkspace = lazy(() => import('./CustomerReplyWorkspace'))
 const CompanyKnowledge = lazy(() => import('./CompanyKnowledge'))
+const BillingStatus = lazy(() => import('./BillingStatus'))
 
 const baseNav = [
   ['Overview', Gauge],
@@ -38,6 +40,7 @@ const baseNav = [
   ['Agents', Bot],
   ['AI Ops', Activity],
   ['Governance', ShieldCheck],
+  ['Billing', FileText],
   ['Blueprints', FileText],
   ['Audit', Activity],
 ]
@@ -261,7 +264,9 @@ export function App() {
   if (orgsError) return <div className="auth-shell"><div className="auth-card"><h1>Could not load your companies</h1><p role="alert">{orgsError}</p><button className="primary" onClick={()=>loadOrgs()}>Try again</button></div></div>
   if (!orgs.length) return <>{fundingAllowed && <div className="funding-shell-nav"><button className="secondary" onClick={() => setActive('Funding')}>Internal funding workspace</button></div>}<CreateOrganization session={session} onCreated={loadOrgs} /></>
 
-  const nav = staff ? [...baseNav, ['CerbTek Staff', Users], ...(fundingAllowed ? [['Funding', Building2]] : [])] : baseNav
+  const billingAllowed = loadedOrgId === org?.id && loadedUserId === session.user.id && !dataError && canViewBillingStatus(data.members.find(member => member.user_id === session.user.id)?.role)
+  const companyNav = baseNav.filter(([label]) => label !== 'Billing' || billingAllowed)
+  const nav = staff ? [...companyNav, ['CerbTek Staff', Users], ...(fundingAllowed ? [['Funding', Building2]] : [])] : companyNav
 
   return <div className="app">
     <aside className="sidebar">
@@ -295,6 +300,7 @@ export function App() {
         {active === 'Customer Setup' && <Suspense fallback={<p role="status">Opening customer setup…</p>}><CustomerSetupJourney key={session.user.id+':'+org.id} org={org} session={session} client={supabase} planning={data} onGo={setActive}/></Suspense>}
         {active === 'Customer Follow-up' && <Suspense fallback={<p role="status">Opening customer follow-up…</p>}><CustomerReplyWorkspace key={session.user.id+':'+org.id} org={org} session={session} client={supabase} members={data.members} onGo={setActive} onDirtyChange={setCustomerDirty} onBusyChange={setCustomerBusy}/></Suspense>}
         {active === 'Company Knowledge' && <Suspense fallback={<p role="status">Opening company knowledge…</p>}><CompanyKnowledge key={session.user.id+':'+org.id} org={org} session={session} client={supabase} onDirtyChange={setKnowledgeDirty} onBusyChange={setKnowledgeBusy}/></Suspense>}
+        {active === 'Billing' && <Suspense fallback={<p role="status">Opening billing status…</p>}><BillingStatus key={session.user.id+':'+org.id} org={org} session={session} client={supabase} members={data.members}/></Suspense>}
         {active === 'Team Access' && <TeamRoles key={session.user.id+':'+org.id} org={org} session={session} members={data.members} invitations={data.invitations} client={supabase} refreshing={dataLoading} reload={() => loadOrg(org.id)}/>}
         {active === 'Onboarding' && <Onboarding org={org} session={session} current={data.onboarding} reload={() => loadOrg(org.id)} onGo={setActive}/>}
         {active === 'AI Readiness' && <Readiness org={org} session={session} data={data} reload={() => loadOrg(org.id)} onGo={setActive}/>}

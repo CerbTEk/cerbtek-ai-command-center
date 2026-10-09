@@ -159,3 +159,9 @@ AI Ops now offers a read-only Customer requests view using the existing scoped c
 The activation controls candidate replaces separate hardcoded inference flags with one private, append-only organization approval contract. Installation creates no enabled records. Exact configuration, provider/model, server account/credential binding, expiry, approved spend and run limits are checked before reservation and before a one-use provider dispatch. Browser setup cannot create spending authority. UI readiness fails closed and remains separate from live acceptance.
 
 See `docs/ai-activation-release.md` for the exact new access-control approval scope, installation order, recovery limits, and safe release/rollback guidance. New SQL must be installed last, after the existing knowledge-draft contract. This source candidate is not installed or published. Local activation tests are included in `npm run check:all` and use no real providers.
+
+## Inactive billing integration
+
+Billing adds a read-only Owner/Admin status view backed by an authenticated company-scoped SQL/Edge contract. It preserves unknown usage, reports collected lifetime observations separately from charges, and never shows an unverified account as connected. The integrated backend composes signed webhook receipts, official Stripe reads, durable fenced reconciliation, source-verified usage and commercial-policy previews. Its host entrypoint defaults off and accepts only the separately verified isolated Kairo sandbox; live charging and existing paid AI/phone activation remain off.
+
+See `docs/billing-release.md` for the exact inactive-stage SQL/Edge security approval, subsequent restricted runtime/credential setup, test evidence boundaries and data-preserving rollback. No products, prices, customer mappings, commercial terms, credentials or webhook endpoint are provisioned by the source. Run `npm run check:billing` or the complete `npm run check:all`.

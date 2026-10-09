@@ -1,0 +1,23 @@
+{
+  "proposal_only": true,
+  "data_pipeline_enabled": false,
+  "commercial_actions_enabled": false,
+  "verified_at_utc": "2026-10-09T21:05:00Z",
+  "account_id": "acct_1UOjWDK7Ysc7KMp1",
+  "account_name": "Kairo sandbox",
+  "account_kind": "platform",
+  "livemode": false,
+  "country": "US",
+  "currency": "usd",
+  "provider_account_metadata_read_verified": true,
+  "application_credential_verified": false,
+  "webhook_delivery_verified": false,
+  "products_found": 0,
+  "active_prices_found": 0,
+  "binding_id": null,
+  "api_version": null,
+  "supported_explicit_api_versions": ["2026-08-26.dahlia", "2026-09-30.endive"],
+  "policies": [],
+  "customer_bindings": [],
+  "note": "Nonsecret review proposal. No configuration is seeded or activated. Main Kairo account acct_1UOjVrKBTeWGfa1w is deliberately excluded."
+}

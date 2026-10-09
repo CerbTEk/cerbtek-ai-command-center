@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 
 export const SECTIONS=['Overview','Customer Setup','Customer Follow-up','Company Knowledge','Team Access','Onboarding','AI Readiness','AI Setup','Systems','Workflows','Opportunities','Integrations','Agents','AI Ops','Governance','Blueprints','Audit','CerbTek Staff','Funding']
+// Preserve the legacy homepage bookmark list; Billing is an app-only section.
+const APP_SECTIONS = [...SECTIONS, 'Billing']
 export function sectionFromHash(hash) {
   let value
   try { value=decodeURIComponent(hash.replace(/^#/,'')) } catch { return 'Overview' }
-  return value==='Team & Roles'?'Team Access':SECTIONS.includes(value)?value:'Overview'
+  return value==='Team & Roles'?'Team Access':APP_SECTIONS.includes(value)?value:'Overview'
 }
 
 export function useSectionNavigation(canNavigate = () => true) {
@@ -110,7 +112,7 @@ export function useSectionNavigation(canNavigate = () => true) {
     return ()=>window.cancelAnimationFrame(frame)
   },[active])
   function navigate(section,{replace=false}={}) {
-    if(!SECTIONS.includes(section)||restoring.current!==null) return
+    if(!APP_SECTIONS.includes(section)||restoring.current!==null) return
     if(section!==currentSection.current&&!guard.current(section,currentSection.current)) return
     currentSection.current=section
     setActive(section)
