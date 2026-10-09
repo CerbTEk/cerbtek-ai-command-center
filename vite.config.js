@@ -22,6 +22,7 @@ export default defineConfig({
             marketing: fileURLToPath(new URL('./index.html', import.meta.url)),
             product: fileURLToPath(new URL('./products/kairo/index.html', import.meta.url)),
             app: fileURLToPath(new URL('./app/index.html', import.meta.url)),
+            kairo: fileURLToPath(new URL('./app/kairo/index.html', import.meta.url)),
             investors: fileURLToPath(new URL('./investors/index.html', import.meta.url))
           }
         }

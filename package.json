@@ -11,7 +11,7 @@
     "test:funding-db": "node tests/funding-rls.mjs",
     "test:funding-build": "node tests/funding-build.mjs",
     "check:funding": "npm run test:funding && npm run test:funding-db && npm run build && npm run test:funding-build",
-    "test:marketing": "node --test tests/marketing-routing.test.mjs",
+    "test:marketing": "node --test tests/marketing-routing.test.mjs tests/app-routing.test.mjs",
     "test:marketing-build": "node tests/marketing-build.mjs",
     "check:marketing": "npm run test:marketing && npm run build && npm run test:marketing-build",
     "test:ai:backend": "node --test backend/tests/ai-*.test.mjs",

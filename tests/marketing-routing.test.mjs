@@ -9,7 +9,7 @@ test('all existing product sections retain their exact query and fragment', asyn
   assert.deepEqual(LEGACY_SECTIONS, JSON.parse(sectionList.replaceAll("'", '"')))
   for (const section of LEGACY_SECTIONS) {
     const hash = '#'+encodeURIComponent(section)
-    assert.equal(legacyAppTarget({search:'?campaign=existing',hash}), '/app/?campaign=existing'+hash)
+    assert.equal(legacyAppTarget({search:'?campaign=existing',hash}), '/app/kairo?campaign=existing'+hash)
   }
 })
 test('marketing pages, section anchors and UTM URLs remain public', () => {
@@ -19,7 +19,7 @@ test('marketing pages, section anchors and UTM URLs remain public', () => {
 })
 test('invitations and full workflow links preserve all bytes', () => {
   for (const search of ['?invite=sample%2Bvalue&other=a%20b', '?kairoCompany=company&kairoWorkflow=workflow&kairoRun=run&kairoDays=90','?kairoDays=30']) {
-    assert.equal(legacyAppTarget({search,hash:'#AI%20Ops'}), '/app/'+search+'#AI%20Ops')
+    assert.equal(legacyAppTarget({search,hash:'#AI%20Ops'}), '/app/kairo'+search+'#AI%20Ops')
   }
 })
 test('existing confirmation, PKCE and callback error URLs are forwarded intact', () => {
@@ -30,13 +30,13 @@ test('existing confirmation, PKCE and callback error URLs are forwarded intact',
     {search:'?error=access_denied&error_description=Sample%20error',hash:''},
     {search:'?token_hash=TEST_ONLY&type=signup',hash:''}
   ]
-  for(const location of samples) assert.equal(legacyAppTarget(location), '/app/'+location.search+location.hash)
+  for(const location of samples) assert.equal(legacyAppTarget(location), '/app/kairo'+location.search+location.hash)
 })
 test('nested Webflow mounts remain relative to their own root', () => {
-  assert.equal(legacyAppTarget({search:'?invite=x',hash:'#Funding'},'/preview/'),'/preview/app/?invite=x#Funding')
-  assert.equal(legacyAppTarget({search:'',hash:'#Overview'},'/preview'),'/preview/app/#Overview')
+  assert.equal(legacyAppTarget({search:'?invite=x',hash:'#Funding'},'/preview/'),'/preview/app/kairo?invite=x#Funding')
+  assert.equal(legacyAppTarget({search:'',hash:'#Overview'},'/preview'),'/preview/app/kairo#Overview')
 })
 test('customer setup bookmarks enter the app with the selected company preserved', () => {
-  assert.equal(legacyAppTarget({search:'',hash:'#Customer%20Setup'}), '/app/#Customer%20Setup')
-  assert.equal(legacyAppTarget({search:'?kairoCompany=company-a',hash:'#Customer%20Setup'}), '/app/?kairoCompany=company-a#Customer%20Setup')
+  assert.equal(legacyAppTarget({search:'',hash:'#Customer%20Setup'}), '/app/kairo#Customer%20Setup')
+  assert.equal(legacyAppTarget({search:'?kairoCompany=company-a',hash:'#Customer%20Setup'}), '/app/kairo?kairoCompany=company-a#Customer%20Setup')
 })
