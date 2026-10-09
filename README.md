@@ -41,7 +41,9 @@ Run `npm run check:funding` for UI/model tests, isolated database policy tests, 
 
 ## Public marketing and client access
 
-The root page is the public, backend-free Kairo marketing website. `/app/` is the client command-center entry and `/investors/` remains the public investor overview. Legacy root section hashes, invitations, workflow links and existing auth return parameters are forwarded intact to `/app/` using history replacement. Campaign parameters and marketing anchors remain on the public page.
+`/products/kairo` is the dedicated public, backend-free **Kairo by CerbTEK** product page. The root page remains a compatible marketing alias and declares the product page as its canonical URL. The canonical public hostname follows the current Webflow environment URL: `https://www.cerbtek.com/products/kairo`. Both `cerbtek.com` and `www.cerbtek.com` are attached to the same existing Cloud app. `/app/` is the working client command-center entry and `/investors/` remains the public investor overview.
+
+The requested customer hostname `kairo.cerbtek.com` is pending Webflow/DNS configuration. Do not send sign-in traffic there until DNS, TLS, host routing, and authorized authentication return URLs are verified. No Host-header routing or auth allowlist expansion is implemented in this release. Production client links remain mount-relative `/app/`; existing callback origins and tokens are not forwarded across domains. The root and product HTML intentionally share identical public content; keep them synchronized. Legacy root section hashes, invitations, workflow links and existing auth return parameters are forwarded intact to `/app/` using history replacement. Campaign parameters and marketing anchors remain on the public page.
 
 The walkthrough CTA opens an email to the established CerbTEK contact. There is no contact-form receiver, lead database, checkout or fabricated submission confirmation. Prices and implementation availability must be confirmed directly.
 

@@ -11,7 +11,7 @@ export function InvestorPage() {
   return <div className="investor-page">
     <a className="skip-link" href="#investment-overview">Skip to content</a>
     <header className="investor-nav">
-      <a href={APP_BASE} className="brand investor-brand" aria-label="Kairo home"><img className="brand-mark" src={`${APP_BASE}kairo-mark.svg`} alt="" width="42" height="42"/><div><strong>Kairo</strong><span>By CerbTEK LLC</span></div></a>
+      <a href={`${APP_BASE}products/kairo`} className="brand investor-brand" aria-label="Kairo by CerbTEK product home"><img className="brand-mark" src={`${APP_BASE}kairo-mark.svg`} alt="" width="42" height="42"/><div><strong>Kairo</strong><span>by CerbTEK</span></div></a>
       <nav aria-label="Investor page"><a href="#approach">Our approach</a><a href="#stage">Stage & evidence</a><a href={`${APP_BASE}app/`}>Client sign-in <ArrowUpRight size={14}/></a></nav>
     </header>
     <main id="investment-overview">

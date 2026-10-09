@@ -4,7 +4,16 @@ import { JSDOM } from 'jsdom'
 const base=process.env.EXPECTED_BASE || '/'
 const out=new URL('../dist/',import.meta.url)
 const root=await readFile(new URL('index.html',out),'utf8')
-const doc=new JSDOM(root).window.document
+const product=await readFile(new URL('products/kairo/index.html',out),'utf8')
+const doc=new JSDOM(product).window.document
+assert.equal(product,root,'Root remains a compatible alias of the dedicated product entry')
+assert.equal(doc.querySelector('link[rel="canonical"]').href,'https://www.cerbtek.com/products/kairo')
+assert.equal(doc.querySelector('meta[property="og:url"]').content,'https://www.cerbtek.com/products/kairo')
+assert.equal(doc.querySelector('meta[property="og:image"]').content,'https://www.cerbtek.com/kairo-banner.png')
+assert.ok(doc.title.startsWith('Kairo by CerbTEK |'))
+for(const link of doc.querySelectorAll('a.wordmark')) assert.equal(link.getAttribute('href'),base+'products/kairo')
+assert.equal(doc.querySelector('[aria-current="page"]').getAttribute('href'),base+'products/kairo')
+assert.doesNotMatch(product,/href="https:\/\/kairo\.cerbtek\.com/,'Unconfigured customer subdomain must not receive traffic')
 assert.equal(doc.querySelectorAll('h1').length,1)
 assert.ok(doc.title.includes('Put AI to work'))
 assert.ok(doc.querySelector('meta[name="description"]').content.length>70)
@@ -24,7 +33,7 @@ async function checkModule(path){
 }
 for(const script of doc.querySelectorAll('script[src],link[rel="modulepreload"]')) await checkModule(script.getAttribute('src')||script.getAttribute('href'))
 const app=await readFile(new URL('app/index.html',out),'utf8')
-assert.match(app,/Client sign-in/);assert.match(app,/name="robots" content="noindex"/)
+assert.match(app,/Kairo by CerbTEK \| Client sign-in/);assert.match(app,/name="robots" content="noindex"/)
 const investor=await readFile(new URL('investors/index.html',out),'utf8')
 assert.match(investor,/Investors/)
 const investorSource=await readFile(new URL('../src/investors.jsx',import.meta.url),'utf8')
@@ -33,4 +42,6 @@ assert.equal([...investorSource.matchAll(/mailto:([^?"]+)/g)].length,2)
 for(const match of investorSource.matchAll(/mailto:([^?"]+)/g)) assert.equal(match[1],'info@cerbtek.com')
 for(const img of doc.querySelectorAll('img')){const src=img.getAttribute('src');assert.ok(src.startsWith(base));await readFile(new URL(src.slice(base.length),out))}
 assert.match(root,/monthly or annual billing/);assert.match(root,/separate implementation fee/);assert.doesNotMatch(root,/local prototype|live phone service|IN DEVELOPMENT|in development|honest roadmap|role-specific|AI-ASSISTED WORK/);assert.match(root,/INSIDE KAIRO/)
-console.log('PASS marketing metadata, real email CTA, assets, navigation and backend-free public dependency graph; app and investors retained at '+base)
+for(const page of [root,product,app,investor]) assert.doesNotMatch(page,/%KAIRO_BASE%/,'All entry assets use the resolved mount')
+assert.equal(new JSDOM(investor).window.document.querySelector('link[rel="canonical"]').href,'https://www.cerbtek.com/investors')
+console.log('PASS dedicated product route, alias/canonical metadata, brand and mount-aware navigation; marketing metadata, real email CTA, assets, navigation and backend-free public dependency graph; app and investors retained at '+base)

@@ -265,7 +265,7 @@ export function App() {
 
   return <div className="app">
     <aside className="sidebar">
-      <div className="brand"><img className="brand-mark" src={`${APP_BASE}kairo-mark.svg`} alt="Kairo" width="42" height="42" /><div><strong>Kairo</strong><span>AI Enablement by CerbTEK LLC</span></div></div>
+      <div className="brand"><img className="brand-mark" src={`${APP_BASE}kairo-mark.svg`} alt="Kairo" width="42" height="42" /><div><strong>Kairo</strong><span>by CerbTEK</span></div></div>
       <div className="org-switcher">
         <span>Client organization</span>
         <select value={org?.id || ''} disabled={active==='Customer Follow-up'&&customerBusy||active==='Company Knowledge'&&knowledgeBusy} onChange={e => selectCompany(orgs.find(x=>x.id===e.target.value))}>
@@ -341,7 +341,7 @@ function Auth() {
   return <div className="auth-shell"><div className="auth-card">
     <div className="auth-brand"><img className="brand-banner" src={`${APP_BASE}kairo-banner.png`} alt="Kairo — AI Enablement by CerbTEK LLC. Connect, Automate, Empower." width="2048" height="683" /></div>
     <h1>{mode === 'signin' ? 'Sign in' : 'Create account'}</h1>
-    <p>Secure access to Kairo Command Center.</p>
+    <p>Secure access to Kairo by CerbTEK.</p>
     <form onSubmit={submit}>
       <label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label>
       <label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={mode==='signup'?12:8}/>{mode==='signup' && <small className="password-hint">12+ characters • upper & lowercase • number • symbol</small>}</label>
