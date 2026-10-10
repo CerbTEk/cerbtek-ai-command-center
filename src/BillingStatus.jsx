@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { billingMetricLabel, canViewBillingStatus, validateBillingStatus } from './billing-status-model'
+import BillingSandboxRun from './BillingSandboxRun'
 import './billing-status.css'
 
 export default function BillingStatus(props) {
@@ -50,12 +51,13 @@ function BillingStatusBody({ org, session, client }) {
   const snapshot = state.snapshot
   return <div className="billing-status" aria-busy={state.status === 'loading'}>
     <section className="panel billing-intro" aria-labelledby="billing-status-title">
-      <div><p className="eyebrow">READ-ONLY BILLING</p><h2 id="billing-status-title">Billing status for {org.name}</h2><p>Saved configuration and observed usage for this company.</p></div>
+      <div><p className="eyebrow">BILLING STATUS</p><h2 id="billing-status-title">Billing status for {org.name}</h2><p>Saved configuration and observed usage for this company.</p></div>
       <button type="button" className="secondary" disabled={state.status === 'loading'} onClick={refresh}>Refresh billing status</button>
     </section>
     {state.status === 'loading' && <p role="status">Checking authorized billing status…</p>}
     {state.status === 'unavailable' && <section className="panel" aria-labelledby="billing-unavailable-title"><h3 id="billing-unavailable-title">Billing status unavailable</h3><p role="alert">The billing backend or your access could not be verified. No configuration, usage totals, or charges are confirmed. Refresh to try again.</p></section>}
     {snapshot && <>
+      <BillingSandboxRun snapshot={snapshot} session={session} client={client}/>
       <section className="panel" aria-labelledby="billing-inactive-title">
         <div className="billing-inactive"><h3 id="billing-inactive-title">Billing remains inactive</h3><p>Commercial actions are disabled. Recorded bindings, subscriptions, and policy versions do not establish approval to charge customers.</p></div>
         <dl className="billing-facts">

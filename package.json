@@ -38,7 +38,7 @@
     "test:reporting:build": "node tests/customer-reporting-build.mjs",
     "check:reporting": "npm run test:reporting:ui && npm run build && npm run test:reporting:build",
     "test:billing:backend": "node --test --test-concurrency=1 backend/tests/billing-*.test.mjs",
-    "test:billing:ui": "vitest run --config vitest.all.config.js tests/billing-status.test.jsx tests/billing-app.test.jsx",
+    "test:billing:ui": "vitest run --config vitest.all.config.js tests/billing-status.test.jsx tests/billing-app.test.jsx tests/billing-worker-ui.test.jsx",
     "test:billing:build": "node tests/billing-build.mjs",
     "check:billing": "npm run test:billing:backend && npm run test:billing:ui && npm run build && npm run test:billing:build"
   },
