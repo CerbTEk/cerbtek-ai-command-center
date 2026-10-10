@@ -1,0 +1,7 @@
+{
+  "name": "kairo-owner-membership-verification",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test tests/*.test.mjs" },
+  "devDependencies": { "@supabase/supabase-js": "2.58.0" }
+}
