@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { knowledgeRequest } from './company-knowledge-client'
 import { deriveCustomerSetup, verifySetupKnowledge, verifySetupWorkspace } from './customer-setup-model'
 import './customer-setup.css'
+import WorkflowInstallations from './WorkflowInstallations'
 
 function SectionLink({ section, onGo, children }) {
   return <a href={`#${encodeURIComponent(section)}`} onClick={event => { if (onGo && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && event.button === 0) { event.preventDefault(); onGo(section) } }}>{children}</a>
@@ -10,7 +11,7 @@ export default function CustomerSetupJourney(props) {
   if (!props.org?.id || !props.session?.user?.id) return <section className="panel"><h2>Customer setup</h2><p>Sign in and choose a company to continue.</p></section>
   return <SetupBody key={`${props.session.user.id}:${props.org.id}`} {...props}/>
 }
-function SetupBody({ org, session, client, planning = {}, onGo }) {
+function SetupBody({ org, session, client, planning = {}, onGo, onDirtyChange, onBusyChange }) {
   const [snapshot, setSnapshot] = useState(null), [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [error, setError] = useState(false)
   const generation = useRef(0), operation = useRef(null), mounted = useRef(true)
   useEffect(() => { mounted.current = true; refresh(); return () => { mounted.current = false; generation.current++; operation.current?.abort(); operation.current = null } }, [client])
@@ -48,6 +49,7 @@ function SetupBody({ org, session, client, planning = {}, onGo }) {
   }
   const setup = snapshot && deriveCustomerSetup(snapshot.workspace, snapshot.documents, planning)
   return <div className="customer-setup" aria-label="Guided customer reply setup">
+    <WorkflowInstallations org={org} session={session} client={client} onGo={onGo} onDirtyChange={onDirtyChange} onBusyChange={onBusyChange}/>
     <section className="panel setup-outcome" aria-labelledby="setup-outcome-title">
       <p className="eyebrow">1 · CHOOSE THE OUTCOME</p><h2 id="setup-outcome-title">Reply to a customer with a reviewed email</h2>
       <p>Save an inquiry, draft from approved company guidance, have a different authorized person review the exact email, then use a separate send action.</p>

@@ -2,6 +2,8 @@ import { activationFixture } from './activation-fixture'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+// The reusable installer has its own boundary and lifecycle suite.
+vi.mock('../src/WorkflowInstallations', () => ({ default: () => null }))
 import CustomerReplyWorkspace from '../src/CustomerReplyWorkspace'
 import { canCancelWorkflow, draftPath, emailMatchesDraft, eligibleReviewers, filterWorkflows, independentReviewer, microsoftBindingMatches, validDraft, validKnowledgeSource, knowledgeSourceRef, sourceMatchesWorkflow, verifyWorkspace, workflowState } from '../src/customer-reply-model'
 

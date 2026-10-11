@@ -2,6 +2,8 @@ import { activationFixture } from './activation-fixture'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+// The reusable installer has its own boundary and lifecycle suite.
+vi.mock('../src/WorkflowInstallations', () => ({ default: () => null }))
 import CustomerSetupJourney from '../src/CustomerSetupJourney'
 import { deriveCustomerSetup, verifySetupKnowledge, verifySetupWorkspace } from '../src/customer-setup-model'
 import { sectionFromHash } from '../src/use-section-navigation'

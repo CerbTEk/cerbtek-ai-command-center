@@ -4,6 +4,7 @@ import { CUSTOMER_WORKFLOW_CONTRACT, REVIEW_ROLES, verifyWorkspace, validWorkflo
 import CustomerKnowledgeSources from './CustomerKnowledgeSources'
 import { KNOWLEDGE_DRAFT_CONTRACT, KNOWLEDGE_SELECTION_LIMIT, validKnowledgeSource, validKnowledgeSources, knowledgeSourceRef, knowledgeRefMatches, verifyKnowledgeResponse } from './customer-reply-model'
 import './customer-reply.css'
+import WorkflowInstallations from './WorkflowInstallations'
 import CustomerRequestEvidence from './CustomerRequestEvidence'
 
 import { activationState, savedActivationAuthorized, useActivationExpiry } from './ai-activation-readiness'
@@ -91,6 +92,7 @@ function BoundWorkspace({ org, session, client, members = [], onGo, onDirtyChang
   const actorId = session.user.id, scope = `${actorId}:${org.id}`
   const [data, setData] = useState(null), [loading, setLoading] = useState(true), [feedback, setFeedback] = useState(null), [needsRefresh, setNeedsRefresh] = useState(false)
   useActivationExpiry(data?.readiness?.activation?.expires_at)
+  const [installationDirty, setInstallationDirty] = useState(false), [installationBusy, setInstallationBusy] = useState(false)
   const [selected, setSelected] = useState(null), [panel, setPanel] = useState('list'), [filter, setFilter] = useState('open'), [intake, setIntake] = useState(emptyIntake)
   const [editingContext, setEditingContext] = useState(false), [contextForm, setContextForm] = useState({ company_name: org.name || '', reply_guidance: '' })
   const [checkedData, setCheckedData] = useState(false)
@@ -102,10 +104,10 @@ function BoundWorkspace({ org, session, client, members = [], onGo, onDirtyChang
   currentData.current = data
   const { busy, run } = useSafeOperation(scope)
   const draftAttempts = useExecutionAttempts(`${scope}:customer-draft`), emailAttempts = useExecutionAttempts(scope), intakeAttempts = useExecutionAttempts(`${scope}:customer-intake`)
-  const dirty = panel === 'intake' && Object.values(intake).some(Boolean) || editingContext && (contextForm.company_name !== (data?.context?.context.company_name || org.name || '') || contextForm.reply_guidance !== (data?.context?.context.reply_guidance || ''))
-  const blocked = busy || loading || needsRefresh || !data
+  const dirty = installationDirty || panel === 'intake' && Object.values(intake).some(Boolean) || editingContext && (contextForm.company_name !== (data?.context?.context.company_name || org.name || '') || contextForm.reply_guidance !== (data?.context?.context.reply_guidance || ''))
+  const blocked = installationBusy || busy || loading || needsRefresh || !data
   useEffect(() => { onDirtyChange?.(Boolean(dirty)); return () => onDirtyChange?.(false) }, [dirty, onDirtyChange])
-  useEffect(() => { onBusyChange?.(busy); return () => onBusyChange?.(false) }, [busy, onBusyChange])
+  useEffect(() => { onBusyChange?.(busy || installationBusy); return () => onBusyChange?.(false) }, [busy, installationBusy, onBusyChange])
   useEffect(() => { const protect = event => { if (dirty || busy) { event.preventDefault(); event.returnValue = '' } }; window.addEventListener('beforeunload', protect); return () => window.removeEventListener('beforeunload', protect) }, [dirty, busy])
   useEffect(() => {
     if (loading || panel === 'list') return
@@ -145,7 +147,7 @@ function BoundWorkspace({ org, session, client, members = [], onGo, onDirtyChang
   useEffect(() => { mounted.current = true; load(); return () => { mounted.current = false; readEpoch.current++ } }, [org.id, actorId, client])
   function updateKnowledge(next) { knowledgeState.current = next; setKnowledge(next) }
   function clearKnowledge() { knowledgeEpoch.current++; knowledgeLock.current = null; updateKnowledge(emptyKnowledge()) }
-  const mayLeave = () => !busy && (!dirty || window.confirm('Discard unsaved text in customer reply?'))
+  const mayLeave = () => !installationBusy && !busy && (!dirty || window.confirm('Discard unsaved text in customer reply?'))
   function navigate(nextPanel, id = null) { if (!mayLeave()) return; clearKnowledge(); setPanel(nextPanel); setSelected(id); setIntake(emptyIntake); setCheckedData(false); setEditingContext(false); setFeedback(null) }
   function go(section) { if (!mayLeave()) return; clearKnowledge(); if (onGo) onGo(section); else window.location.hash = encodeURIComponent(section) }
   const refresh = () => { if (busy || !mayLeave()) return; clearKnowledge(); setEditingContext(false); setIntake(emptyIntake); setCheckedData(false); setFeedback(null); run(async () => { await load() }) }
@@ -297,6 +299,7 @@ function BoundWorkspace({ org, session, client, members = [], onGo, onDirtyChang
   const visibleData = data ? { ...data, people: visiblePeople } : null
   return <section className="customer-reply-workspace" aria-label="Customer reply workspace">
     <div className="cr-heading"><div><p className="eyebrow">EMPLOYEE WORKSPACE</p><h1>Customer reply</h1><p>Move a customer request from saved context to a reviewed Microsoft email.</p></div><button type="button" className="secondary" disabled={busy || loading} onClick={refresh}>Refresh saved results</button></div>
+    {panel === 'list' && !editingContext && <WorkflowInstallations org={org} session={session} client={client} employee onGo={go} onDirtyChange={setInstallationDirty} onBusyChange={setInstallationBusy} onStarted={async id => { await load(); setSelected(id); setPanel('detail') }}/>}
     <Readiness data={data} onGo={go} disabled={blocked} onEditContext={() => { if (!mayLeave()) return; clearKnowledge(); setContextForm(data?.context?.context || { company_name: org.name || '', reply_guidance: '' }); setEditingContext(true) }}/>
     {loading && <p role="status" className="cr-notice">Checking saved requests and setup…</p>}
     {feedback && <p className={`cr-notice ${feedback.error ? 'cr-error' : ''}`} role={feedback.error ? 'alert' : 'status'}>{feedback.text}</p>}
