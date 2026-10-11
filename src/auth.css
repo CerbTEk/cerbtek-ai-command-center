@@ -1,0 +1,62 @@
+/* Account access only: keep the workspace and company website untouched. */
+.auth-shell.kairo-auth-shell{
+  min-height:100vh;min-height:100svh;padding:40px 20px;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:radial-gradient(ellipse at 50% 18%,rgba(191,135,30,.065),transparent 55%),#080909;
+  color:#f4f1e9;
+}
+.kairo-auth-shell .auth-card.kairo-auth-card{
+  width:100%;max-width:440px;min-width:0;padding:32px;
+  border:1px solid #333027;border-radius:20px;
+  background:linear-gradient(155deg,#141413,#101110 70%);
+  box-shadow:0 24px 72px #0005;
+}
+.kairo-auth-card .auth-brand{max-width:264px;margin:0 auto 26px}
+.kairo-auth-card .auth-brand .brand-banner{width:100%;height:auto;display:block;object-fit:contain;border-radius:8px}
+.kairo-auth-card .auth-content{min-width:0}
+.kairo-auth-card .auth-content h1{margin:0;color:#faf7ee;font-size:26px;font-weight:650;line-height:1.25;letter-spacing:-.025em}
+.kairo-auth-card .auth-content p{font-family:inherit;margin:9px 0 0;color:#abaea8;font-size:14px;line-height:1.6;letter-spacing:0}
+.kairo-auth-card .auth-content .eyebrow{margin:0 0 10px;color:#bcb6a6;font-size:10px;font-weight:700;letter-spacing:.13em}
+.kairo-auth-card .auth-content form{display:grid;gap:18px;margin:24px 0 0}
+.kairo-auth-card .auth-content label,.kairo-auth-card .auth-field{display:grid;gap:8px;margin:0;color:#dddcd5;font-size:13px;font-weight:550;line-height:1.4;letter-spacing:0;min-width:0}
+.kairo-auth-card .auth-field-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;min-width:0}
+.kairo-auth-card .auth-field-heading label{display:block}
+.kairo-auth-card .auth-content input{
+  min-width:0;width:100%;height:46px;padding:10px 13px;border:1px solid #42423b;border-radius:8px;
+  background:#0c0e0d;color:#faf9f3;font-family:inherit;font-size:15px;font-weight:400;line-height:1.5;
+  box-shadow:none;transition:border-color .15s,box-shadow .15s;
+}
+.kairo-auth-card .auth-content input:focus{border-color:#d8b55b;box-shadow:0 0 0 3px #d8b55b16}
+.kairo-auth-card .auth-content .primary{
+  width:100%;min-height:46px;margin:3px 0 0;padding:11px 16px;border:1px solid #e9c567;border-radius:8px;
+  background:linear-gradient(110deg,#e7c15d,#d6a743);color:#17150e;font-family:inherit;font-size:14px;font-weight:700;line-height:1.5;box-shadow:0 3px 12px #0002;
+}
+.kairo-auth-card .auth-content .primary:hover{filter:brightness(1.06);box-shadow:0 4px 16px #0003}
+.kairo-auth-card .auth-content .link{
+  display:inline-flex;align-items:center;justify-content:center;min-height:32px;margin:0;padding:3px 0;
+  color:#e2c16f;font-family:inherit;font-size:13px;font-weight:550;line-height:1.5;text-decoration:none;
+}
+.kairo-auth-card .auth-content .link:hover{color:#f6d889;text-decoration:underline;text-underline-offset:4px}
+.kairo-auth-card .auth-field-heading .link{flex-shrink:0;min-height:24px;font-size:12px;padding:0}
+.kairo-auth-card .auth-content>.link{display:flex;width:100%;margin-top:20px}
+.kairo-auth-card .auth-content .auth-account-switch{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:3px 6px;margin:20px 0 0;color:#999e98;font-size:13px;line-height:1.5}
+.kairo-auth-card .password-hint{color:#92978f;font-size:11px;font-weight:400;line-height:1.6;letter-spacing:0}
+.kairo-auth-card .auth-content [role="alert"],.kairo-auth-card .auth-content .message{margin:18px 0 0;padding:11px 13px;background:#2a1b163b;border:1px solid #855e414f;border-radius:8px;color:#edc6b2;font-family:inherit;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.kairo-auth-card .auth-content [role="status"]{padding:12px 0;color:#c6ccbf;line-height:1.7}
+.kairo-auth-card .auth-footer{margin-top:24px;padding-top:18px;border-top:1px solid #ffffff0c;text-align:center}
+.kairo-auth-card .auth-footer .auth-investor-link{display:inline-flex;align-items:center;gap:6px;margin:0;padding:2px 0;border:0;color:#939990;font-family:inherit;font-size:11px;font-weight:400;line-height:1.6;text-decoration:none}
+.kairo-auth-card .auth-footer .auth-investor-link:hover{color:#d7d8cc}
+.kairo-auth-card button:focus-visible,.kairo-auth-card a:focus-visible{outline:2px solid #e7c15d;outline-offset:4px}
+.kairo-auth-card button:disabled,.kairo-auth-card input:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:480px){
+  .auth-shell.kairo-auth-shell{padding:24px 16px}
+  .kairo-auth-shell .auth-card.kairo-auth-card{padding:26px 24px;border-radius:16px}
+  .kairo-auth-card .auth-brand{max-width:236px;margin-bottom:24px}
+  .kairo-auth-card .auth-content h1{font-size:24px}
+  .kairo-auth-card .auth-content input{font-size:16px}
+}
+@media(max-width:340px){
+  .kairo-auth-shell .auth-card.kairo-auth-card{padding:24px 20px}
+  .kairo-auth-card .auth-field-heading{gap:8px}
+  .kairo-auth-card .auth-field-heading .link{font-size:11px}
+}

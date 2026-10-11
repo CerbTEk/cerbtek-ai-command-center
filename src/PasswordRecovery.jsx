@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { supabase } from './supabase'
+import AuthFrame from './AuthFrame'
 import { clearRecoveryUrl, getRecoveryState, INVALID_RECOVERY, RECOVERY_NOTICE, recoveryRedirect, setRecoveryState, strongPassword, subscribeRecovery } from './password-recovery'
 
 export function ForgotPassword({ initialEmail = '', onBack }) {
@@ -99,8 +100,8 @@ export default function PasswordRecoveryGate({ children }) {
     finally { pending.current = false; setBusy(false) }
   }
   if (recovery.status === 'idle') return children
-  return <div className="auth-shell"><div className="auth-card">
-    <p className="eyebrow">KAIRO ACCOUNT RECOVERY</p>
+  return <AuthFrame>
+    <p className="eyebrow">ACCOUNT RECOVERY</p>
     {recovery.status === 'loading' ? <p role="status">Checking your reset link…</p> : request ? <ForgotPassword onBack={() => leave(false)}/> : <>
       {recovery.status === 'invalid' ? <><h1>Request a new reset link</h1><p role="alert">{INVALID_RECOVERY}</p><button className="primary" disabled={busy} onClick={() => leave(true)}>Request another link</button></> : recovery.status === 'complete' ? <><h1>Password updated</h1><p role="status">Your new password is saved. Return to sign in with it.</p></> : <>
         <h1>Choose a new password</h1>
@@ -115,5 +116,5 @@ export default function PasswordRecoveryGate({ children }) {
       <button type="button" className="link" disabled={busy} onClick={() => leave(false)}>Back to sign in</button>
     </>}
     {error && <p role="alert">{error}</p>}
-  </div></div>
+  </AuthFrame>
 }

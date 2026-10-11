@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { supabase } from './supabase'
 import PasswordRecoveryGate, { ForgotPassword } from './PasswordRecovery'
+import AuthFrame from './AuthFrame'
 import { assessmentComplete, deriveNextStep, onboardingComplete } from './first-use-guidance'
 import { useSectionNavigation } from './use-section-navigation'
 import KairoHelp from './KairoHelp'
@@ -349,23 +350,30 @@ function Auth() {
     if (res.error) setMessage(res.error.message)
     else if (mode === 'signup') setMessage('Account created. Check your email if confirmation is enabled.')
   }
-  if (mode === 'forgot') return <div className="auth-shell"><div className="auth-card"><ForgotPassword initialEmail={email} onBack={() => { setMode('signin'); setPassword(''); setMessage('') }}/></div></div>
-  return <div className="auth-shell"><div className="auth-card">
-    <div className="auth-brand"><img className="brand-banner" src={`${APP_BASE}kairo-banner.png`} alt="Kairo — AI Enablement by CerbTEK LLC. Connect, Automate, Empower." width="2048" height="683" /></div>
+  if (mode === 'forgot') return <AuthFrame><ForgotPassword initialEmail={email} onBack={() => { setMode('signin'); setPassword(''); setMessage('') }}/></AuthFrame>
+  return <AuthFrame>
     <h1>{mode === 'signin' ? 'Sign in' : 'Create account'}</h1>
-    <p>Secure access to Kairo by CerbTEK.</p>
+    <p>{mode === 'signin' ? 'Welcome back. Sign in to your workspace.' : 'Create your Kairo account to get started.'}</p>
     <form onSubmit={submit}>
       <label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label>
-      <label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={mode==='signup'?12:8}/>{mode==='signup' && <small className="password-hint">12+ characters • upper & lowercase • number • symbol</small>}</label>
+      <div className="auth-field">
+        <div className="auth-field-heading">
+          <label htmlFor="kairo-auth-password">Password</label>
+          {mode === 'signin' && <button type="button" className="link" onClick={() => { setPassword(''); setMessage(''); setMode('forgot') }}>Forgot password?</button>}
+        </div>
+        <input id="kairo-auth-password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={mode==='signup'?12:8}/>
+        {mode==='signup' && <small className="password-hint">12+ characters • upper & lowercase • number • symbol</small>}
+      </div>
       <button className="primary">{mode === 'signin' ? 'Sign in' : 'Create account'}</button>
     </form>
     {message && <div className="message">{message}</div>}
-    {mode === 'signin' && <button type="button" className="link" onClick={() => { setPassword(''); setMessage(''); setMode('forgot') }}>Forgot password?</button>}
-    <button className="link" onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}>
-      {mode === 'signin' ? 'Need an account? Create one' : 'Already have an account? Sign in'}
-    </button>
-    <a className="auth-investor-link" href={`${APP_BASE}investors/`}>Investors & strategic partners →</a>
-  </div></div>
+    <p className="auth-account-switch">
+      <span>{mode === 'signin' ? 'New to Kairo?' : 'Already have an account?'}</span>
+      <button type="button" className="link" onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}>
+        {mode === 'signin' ? 'Create an account' : 'Sign in'}
+      </button>
+    </p>
+  </AuthFrame>
 }
 
 function CreateOrganization({session,onCreated}) {
