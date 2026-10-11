@@ -1,0 +1,86 @@
+{
+  "baseline_commit": "8f6c3b2fd85f0b8bebd2b0d96182af69d4e54209",
+  "status": "source-only; no production mutation",
+  "files": [
+    {
+      "path": "src/CustomerReplyWorkspace.jsx",
+      "sha256": "8163e8ad42af22cd05b340b67deabf67b7b62d57d9f8f67789202dadc341dc9f",
+      "bytes": 49625
+    },
+    {
+      "path": "src/customer-reply-model.js",
+      "sha256": "5bab17fb67d3d8f7752d03834c484ea98f0e9cc4ee3a00c9e7938ce0484c689f",
+      "bytes": 17720
+    },
+    {
+      "path": "src/WorkflowInstallations.jsx",
+      "sha256": "96af6ba45c2a5ad2878fa96462bfdbada8517d13ffa2d2b18e91c789c00da34d",
+      "bytes": 19143
+    },
+    {
+      "path": "tests/customer-reply.test.jsx",
+      "sha256": "799454b4c4d70cd8142ddb3a39d85b12376f7f45bf95a663ca31df88258bcb51",
+      "bytes": 60321
+    },
+    {
+      "path": "backend/candidate/sql/employee-drafting-contract.sql",
+      "sha256": "bad2fb5169370359eba7a3bc5863e3b81fe84251688b7b90e3a392932f055d68",
+      "bytes": 38263
+    },
+    {
+      "path": "backend/candidate/edge/ai-draft/handler.mjs",
+      "sha256": "b5903645c334067a54a6ecadb43a05be9451cacc676a00a09a8d60e8b41f4d8c",
+      "bytes": 15501
+    },
+    {
+      "path": "backend/candidate/edge/ai-draft/activation.mjs",
+      "sha256": "c4354de56b25d58d3d776f9c0813781d9f1856ae4ca677ec223a8805e19ec022",
+      "bytes": 2786
+    },
+    {
+      "path": "backend/tests/fixtures/employee-drafting-fixture.mjs",
+      "sha256": "dc3b89d2e4bfb57074d92625d36192cb8cd2cffe8142e94aafdca4791c55e90a",
+      "bytes": 1418
+    },
+    {
+      "path": "backend/tests/employee-drafting-sql.test.mjs",
+      "sha256": "9e2f89cdddd84319629507d5827f9c97bdd877b24080877fdc9e54d9976d166a",
+      "bytes": 13264
+    },
+    {
+      "path": "backend/tests/employee-drafting-runtime.test.mjs",
+      "sha256": "409a0f95cd8eca98ad8419644417f7899433083b87f0de20c0e99b5d32b14b7e",
+      "bytes": 9285
+    },
+    {
+      "path": "backend/tests/ai-customer-workflow.test.mjs",
+      "sha256": "b3e8a34abd43e5aedb503f1e693ce3868096fe2989d6bdeebb0c8f84adb7e1c5",
+      "bytes": 6439
+    },
+    {
+      "path": "backend/docs/employee-drafting-source-review.md",
+      "sha256": "e6692e657337f6dcc8448af298a8d9ff1b263d2d22f9a8d67271fefc92dd28ef",
+      "bytes": 6160
+    },
+    {
+      "path": "docs/employee-drafting-candidate.md",
+      "sha256": "dc3b375152f81e64e831b40739ad02995da0b6c76533d0d1aa8bc0f03152acaa",
+      "bytes": 3330
+    },
+    {
+      "path": "REVIEW-README.md",
+      "sha256": "e5262feaef98b67a87ff6a68ff89b6441f124b6600e2fc15bbdedb9c93ef094b",
+      "bytes": 1448
+    }
+  ],
+  "checks": {
+    "ui_tests": 223,
+    "final_installer_tests": 12,
+    "production_build": "passed",
+    "live_provider_or_email": "not run",
+    "full_launch_qa": "not run",
+    "backend_focused_tests": 23,
+    "backend_targeted_regressions": 37,
+    "independent_review": "passed"
+  }
+}
