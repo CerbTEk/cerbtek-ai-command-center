@@ -1,0 +1,33 @@
+✔ HTTP→PostgreSQL→frontend verifier agrees on load/save/start and actor-scoped receipts (3437.16364ms)
+✔ full load with an independently active AI configuration remains verifiable without activating from installer (2256.6189ms)
+✔ auth token is verified and p_actor is derived exclusively from authenticated user (9.633266ms)
+✔ missing/anonymous/invalid auth never reaches RPC (2.717432ms)
+✔ origin/method/preflight/body-size limits run without writes (1.938673ms)
+✔ save passes an exact bounded spec, accepts nullable bindings, forbids optimistic readiness/execution (5.236902ms)
+✔ start requires immutable exact intake and returns verified durable provenance (4.402458ms)
+✔ load rejects cross-tenant/nested data and falsely active runtime rather than exposing it (7.143004ms)
+✔ explicit SQL transaction rejections differ from unknown delivery/storage errors (6.134134ms)
+✔ workspace preserves existing independent authorized inference readiness (0.55513ms)
+✔ catalog is immutable; missing bindings persist as setup_needed; all privileges service-only (2880.639391ms)
+✔ save is payload-and-actor idempotent, immutable revisions, current-revision validated (2112.747946ms)
+✔ save shape, references, recipe version and roles fail closed across tenants (2542.198224ms)
+✔ start calls guarded intake and assignment, stores revision provenance, and is idempotent (2454.801928ms)
+✔ assigned employee can start; reviewer, other members and viewers cannot; read scope is safe (2146.383227ms)
+✔ max_open_requests is serialized, includes older revisions, and frees only safe terminal state (2894.59223ms)
+✔ context/config/reconsent/authority changes fail closed at launch and preparation (11947.462089ms)
+✔ installation protects downstream assignee, source revision, and reviewer independence (1997.167159ms)
+✔ only designated reviewer can approve; changing connection blocks dispatch boundary (2016.645592ms)
+✔ start cannot adopt an existing uninstalled request key or mutate request provenance (2014.801503ms)
+✔ no independent draft manager yields an actionable configuration blocker (1814.256631ms)
+✔ optional current Company Knowledge works through existing guarded review and becomes stale on archive (1942.967757ms)
+✔ existing activation remains independent; changed installation fences model dispatch but not outcome recording (1935.987789ms)
+✔ changed installation is fenced at durable Microsoft receipt even after an earlier valid claim (1939.435745ms)
+✔ uninstalled customer workflow still follows its original guarded manual lifecycle (1837.998304ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 48780.694921

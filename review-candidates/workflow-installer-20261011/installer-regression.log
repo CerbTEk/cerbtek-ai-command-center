@@ -1,0 +1,26 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+ RUN  v3.2.4 /workspace/shared/kairo-workflow-installer-20261011
+
+ ✓ tests/customer-setup-app.test.jsx (7 tests) 2401ms
+   ✓ opens and refreshes the direct Customer Setup route  874ms
+   ✓ offers the guide from overview without changing prior setup navigation  623ms
+ ✓ tests/customer-setup.test.jsx (40 tests) 1227ms
+   ✓ truthful saved readiness > reads only deployed non-provider operations and presents all five stages  412ms
+ ✓ tests/workflow-installations.test.jsx (12 tests) 839ms
+ ✓ tests/customer-reply.test.jsx (97 tests) 10207ms
+   ✓ explicit Company Knowledge selection and pinned citations > never searches or selects automatically and sends only selected immutable refs when generating  411ms
+   ✓ explicit Company Knowledge selection and pinned citations > supports zero sources and keeps a removed excerpt out of prepare  506ms
+   ✓ explicit Company Knowledge selection and pinned citations > limits selection to five excerpts, including direct handler calls  1162ms
+   ✓ explicit Company Knowledge selection and pinned citations > clears transient selected sources on refresh and return navigation  305ms
+
+ Test Files  4 passed (4)
+      Tests  156 passed (156)
+   Start at  20:53:27
+   Duration  11.77s (transform 1.36s, setup 0ms, collect 2.75s, tests 14.67s, environment 2.27s, prepare 405ms)
+
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

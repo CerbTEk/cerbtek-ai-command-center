@@ -1,0 +1,56 @@
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -63,7 +63,7 @@
+   const mayLeaveKnowledge = () => !knowledgeBusy && (!knowledgeDirty || window.confirm('Leave company knowledge and discard unsaved changes?'))
+   const [active, setActive, sectionHeadingRef] = useSectionNavigation((next, current) => {
+     if (next === current) return true
+-    if (current === 'Customer Follow-up' && !mayLeaveCustomer()) return false
++    if (['Customer Follow-up', 'Customer Setup'].includes(current) && !mayLeaveCustomer()) return false
+     if (current === 'Company Knowledge' && !mayLeaveKnowledge()) return false
+     return current !== 'Funding' || (!fundingSaving && (!fundingDirty || window.confirm('Leave the funding workspace and discard unsaved changes?')))
+   })
+@@ -135,7 +135,7 @@
+       const id=new URLSearchParams(window.location.search).get('kairoCompany')
+       const target=orgs.find(item=>item.id===id)
+       if(target&&target.id!==currentContext.current.orgId) {
+-        if ((active==='Customer Follow-up' && !mayLeaveCustomer()) || (active==='Company Knowledge' && !mayLeaveKnowledge())) {
++        if ((['Customer Follow-up', 'Customer Setup'].includes(active) && !mayLeaveCustomer()) || (active==='Company Knowledge' && !mayLeaveKnowledge())) {
+           const url=new URL(window.location.href)
+           url.searchParams.set('kairoCompany',currentContext.current.orgId)
+           window.history.replaceState(window.history.state,'',url.pathname+url.search+url.hash)
+@@ -151,7 +151,7 @@
+   function selectCompany(next) {
+     if(!next||!orgs.some(item=>item.id===next.id)) return
+     if(next.id===org?.id) return
+-    if(active==='Customer Follow-up'&&!mayLeaveCustomer()) return
++    if(['Customer Follow-up', 'Customer Setup'].includes(active)&&!mayLeaveCustomer()) return
+     if(active==='Company Knowledge'&&!mayLeaveKnowledge()) return
+     setOrg(next)
+     const url=new URL(window.location.href)
+@@ -278,7 +278,7 @@
+       <div className="brand"><img className="brand-mark" src={`${APP_BASE}kairo-mark.svg`} alt="Kairo" width="42" height="42" /><div><strong>Kairo</strong><span>by CerbTEK</span></div></div>
+       <div className="org-switcher">
+         <span>Client organization</span>
+-        <select value={org?.id || ''} disabled={active==='Customer Follow-up'&&customerBusy||active==='Company Knowledge'&&knowledgeBusy} onChange={e => selectCompany(orgs.find(x=>x.id===e.target.value))}>
++        <select value={org?.id || ''} disabled={['Customer Follow-up', 'Customer Setup'].includes(active)&&customerBusy||active==='Company Knowledge'&&knowledgeBusy} onChange={e => selectCompany(orgs.find(x=>x.id===e.target.value))}>
+           {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+         </select>
+       </div>
+@@ -287,7 +287,7 @@
+           <Icon size={17}/>{label === 'CerbTek Staff' ? 'CerbTEK LLC Staff' : label === 'Team Access' ? 'Team & Roles' : label}
+         </button>
+       )}</nav>
+-      <button className="signout" disabled={active==='Customer Follow-up'&&customerBusy||active==='Company Knowledge'&&knowledgeBusy} onClick={() => {if((active!=='Customer Follow-up'||mayLeaveCustomer())&&(active!=='Company Knowledge'||mayLeaveKnowledge()))supabase.auth.signOut()}}><LogOut size={16}/>Sign out</button>
++      <button className="signout" disabled={['Customer Follow-up', 'Customer Setup'].includes(active)&&customerBusy||active==='Company Knowledge'&&knowledgeBusy} onClick={() => {if((!['Customer Follow-up', 'Customer Setup'].includes(active)||mayLeaveCustomer())&&(active!=='Company Knowledge'||mayLeaveKnowledge()))supabase.auth.signOut()}}><LogOut size={16}/>Sign out</button>
+     </aside>
+ 
+     <main>
+@@ -302,7 +302,7 @@
+         {dataLoading&&loadedOrgId===org.id&&loadedUserId===session.user.id&&!dataError&&<p role="status">Refreshing workspace…</p>}
+         {dataError?<Panel title="Workspace information unavailable"><p role="alert">{dataError}</p><button className="primary" onClick={()=>loadOrg(org.id)}>Refresh workspace</button></Panel>:loadedOrgId!==org.id||loadedUserId!==session.user.id?<p role="status">Loading workspace…</p>:<>
+         {active === 'Overview' && <Overview data={data} onGo={setActive}/>}
+-        {active === 'Customer Setup' && <Suspense fallback={<p role="status">Opening customer setup…</p>}><CustomerSetupJourney key={session.user.id+':'+org.id} org={org} session={session} client={supabase} planning={data} onGo={setActive}/></Suspense>}
++        {active === 'Customer Setup' && <Suspense fallback={<p role="status">Opening customer setup…</p>}><CustomerSetupJourney key={session.user.id+':'+org.id} org={org} session={session} client={supabase} planning={data} onGo={setActive} onDirtyChange={setCustomerDirty} onBusyChange={setCustomerBusy}/></Suspense>}
+         {active === 'Customer Follow-up' && <Suspense fallback={<p role="status">Opening customer follow-up…</p>}><CustomerReplyWorkspace key={session.user.id+':'+org.id} org={org} session={session} client={supabase} members={data.members} onGo={setActive} onDirtyChange={setCustomerDirty} onBusyChange={setCustomerBusy}/></Suspense>}
+         {active === 'Company Knowledge' && <Suspense fallback={<p role="status">Opening company knowledge…</p>}><CompanyKnowledge key={session.user.id+':'+org.id} org={org} session={session} client={supabase} onDirtyChange={setKnowledgeDirty} onBusyChange={setKnowledgeBusy}/></Suspense>}
+         {active === 'Billing' && <Suspense fallback={<p role="status">Opening billing status…</p>}><BillingStatus key={session.user.id+':'+org.id} org={org} session={session} client={supabase} members={data.members}/></Suspense>}

@@ -1,0 +1,46 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> kairo-command-center@0.1.0 build
+> vite build
+
+vite v6.1.0 building for production...
+transforming...
+✓ 1706 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/app/index.html                                 0.77 kB │ gzip:   0.40 kB
+dist/app/kairo/index.html                           0.77 kB │ gzip:   0.40 kB
+dist/investors/index.html                           0.93 kB │ gzip:   0.52 kB
+dist/index.html                                     3.71 kB │ gzip:   1.19 kB
+dist/products/kairo/index.html                     13.42 kB │ gzip:   4.12 kB
+dist/assets/WorkflowInstallations-z8hkIXF5.css      1.78 kB │ gzip:   0.70 kB
+dist/assets/CustomerSetupJourney-6vRt8Wxa.css       1.93 kB │ gzip:   0.74 kB
+dist/assets/BillingStatus-Bn_fLdSu.css              2.10 kB │ gzip:   0.75 kB
+dist/assets/CompanyKnowledge-D-QfZ4Af.css           3.68 kB │ gzip:   1.18 kB
+dist/assets/marketing-qvfAoY-R.css                  5.37 kB │ gzip:   1.72 kB
+dist/assets/CustomerReplyWorkspace-B9005uam.css     9.61 kB │ gzip:   2.13 kB
+dist/assets/product-jKVykPer.css                   14.17 kB │ gzip:   3.62 kB
+dist/assets/main-BQPAwkX3.css                      26.00 kB │ gzip:   6.01 kB
+dist/assets/investment-CV4OzbkP.css                37.71 kB │ gzip:   7.87 kB
+dist/assets/modulepreload-polyfill-B5Qt9EMX.js      0.71 kB │ gzip:   0.40 kB
+dist/assets/app-entry-BLKCiE3e.js                   1.35 kB │ gzip:   0.81 kB
+dist/assets/app-routing-DKXIL_bq.js                 1.40 kB │ gzip:   0.75 kB
+dist/assets/marketing-D37s0SzT.js                   1.48 kB │ gzip:   0.74 kB
+dist/assets/company-knowledge-client-DNAOYJoJ.js    2.13 kB │ gzip:   1.11 kB
+dist/assets/CustomerOperationsReport-Cde9NRFb.js    8.07 kB │ gzip:   2.86 kB
+dist/assets/investors-BR1EvSeI.js                   8.28 kB │ gzip:   2.66 kB
+dist/assets/customer-reply-model-DXyNIejm.js       12.64 kB │ gzip:   3.92 kB
+dist/assets/CustomerRequestEvidence-sBtZ4oy6.js    12.71 kB │ gzip:   4.16 kB
+dist/assets/BillingStatus-DihV5AXI.js              14.57 kB │ gzip:   4.57 kB
+dist/assets/CustomerSetupJourney-BMc9rvG1.js       16.55 kB │ gzip:   5.63 kB
+dist/assets/CompanyKnowledge-DkK2cLUI.js           18.49 kB │ gzip:   5.79 kB
+dist/assets/WorkflowInstallations-C2KDE9OJ.js      19.18 kB │ gzip:   6.05 kB
+dist/assets/CustomerReplyWorkspace-2ZeJ9BhT.js     43.19 kB │ gzip:  12.07 kB
+dist/assets/investment-PCRkvdkS.js                144.08 kB │ gzip:  46.39 kB
+dist/assets/main-m0f4Uc7k.js                      494.23 kB │ gzip: 138.68 kB
+✓ built in 12.43s
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

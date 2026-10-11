@@ -1,0 +1,18 @@
+✔ catalog is immutable; missing bindings persist as setup_needed; all privileges service-only (3043.132603ms)
+✔ save is payload-and-actor idempotent, immutable revisions, current-revision validated (1809.234927ms)
+✔ save shape, references, recipe version and roles fail closed across tenants (1783.064864ms)
+✔ start calls guarded intake and assignment, stores revision provenance, and is idempotent (1820.866453ms)
+✔ assigned employee can start; reviewer, other members and viewers cannot; read scope is safe (2127.373705ms)
+✔ max_open_requests is serialized, includes older revisions, and frees only safe terminal state (1957.805746ms)
+✔ context/config/reconsent/authority changes fail closed at launch and preparation (9004.801489ms)
+✔ installation protects downstream assignee, source revision, and reviewer independence (1947.282269ms)
+✔ only designated reviewer can approve; changing connection blocks dispatch boundary (1840.849044ms)
+✔ start cannot adopt an existing uninstalled request key or mutate request provenance (1795.02831ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 27446.324714

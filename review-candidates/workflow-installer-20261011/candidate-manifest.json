@@ -1,0 +1,164 @@
+{
+  "baseline_commit": "5e3d62bc32b03b556d45760e089badf2c8b4a54a",
+  "baseline_main_blob": "1b9fe5b76bbe2dbd8cb3c3fb9815c6f7d2a7e2e3",
+  "state": "source-only review candidate; no deployment",
+  "checks": {
+    "frontend": 156,
+    "backend": 25,
+    "build": "passed",
+    "live_qa": "not run",
+    "browser_visual": "blocked before rendering by container socket restriction"
+  },
+  "files": [
+    {
+      "path": "src/WorkflowInstallations.jsx",
+      "sha256": "96885854a00bf8438a0f1682ed9d4d833c3beaefc64445429fce1a9390e61e35",
+      "bytes": 19056
+    },
+    {
+      "path": "src/workflow-installation-model.js",
+      "sha256": "71dc6bf0d56be6b40ccdce2ae04191ccde9b1267e2a6d8bb052ac16df88c3ddc",
+      "bytes": 4199
+    },
+    {
+      "path": "src/workflow-installations.css",
+      "sha256": "3a6a2e7763db744ffe7e91576e1ff97c8a49667e6eece36ccb0f83b78b30e627",
+      "bytes": 1802
+    },
+    {
+      "path": "src/CustomerSetupJourney.jsx",
+      "sha256": "358d0983a57cf04a1d52c16d922b44d2a2e021554674182ce9cc666b6519cb04",
+      "bytes": 11441
+    },
+    {
+      "path": "src/CustomerReplyWorkspace.jsx",
+      "sha256": "bbb1f1a79854eee375668b4530a6997fde7565374911ec0e161753724dd6200a",
+      "bytes": 48198
+    },
+    {
+      "path": "tests/workflow-installations.test.jsx",
+      "sha256": "18425323122d7cab492820a95230042d858dde23fccbc39635681265d0ac018f",
+      "bytes": 10031
+    },
+    {
+      "path": "tests/customer-setup.test.jsx",
+      "sha256": "5ca972a0ab64fcb04d55595524ddbbd862f7911556a442f6109e02a3a741238a",
+      "bytes": 16607
+    },
+    {
+      "path": "tests/customer-reply.test.jsx",
+      "sha256": "0d4132e7129681780410da0f3a5af60966e2c4f7a036c6c44a5c091e953db040",
+      "bytes": 54085
+    },
+    {
+      "path": "main-integration.patch",
+      "sha256": "fd5f9e39146bcdddbf5144ae261f4e6b0e97bab91e4e39e761312f422b34172b",
+      "bytes": 5636
+    },
+    {
+      "path": "docs/workflow-installer-candidate.md",
+      "sha256": "48c01e694c588a5b66cfb6297427ec806916b6a1e4340dea48bb0b92a34463e3",
+      "bytes": 5687
+    },
+    {
+      "path": "installer-regression.log",
+      "sha256": "562eb890fd9ca9ae2fa12b8d8de69a4b66ad65226a52ee3aecd1069400bfea72",
+      "bytes": 1644
+    },
+    {
+      "path": "installer-build.log",
+      "sha256": "b604e714846d9ee2705194b51b57ee846d39b12c874aff6e8177b7d4d709a985",
+      "bytes": 2905
+    },
+    {
+      "path": "backend/candidate/edge/workflow-installations/README.md",
+      "sha256": "3bed8313836bd06d377f6cf230f210f6d35e0f78c628083f780b4dd8db4836de",
+      "bytes": 10610
+    },
+    {
+      "path": "backend/candidate/edge/workflow-installations/handler.mjs",
+      "sha256": "8c95aa39188c3b79acca4d1e6bf9bdcc8df463661c48a26f75f417363d1632cf",
+      "bytes": 10170
+    },
+    {
+      "path": "backend/candidate/edge/workflow-installations/index.ts",
+      "sha256": "ee56600cdaa55c879ab553a7bf9a56867c025c4d7bfedc622ea39c755525ac87",
+      "bytes": 542
+    },
+    {
+      "path": "backend/candidate/sql/workflow-installations-contract.sql",
+      "sha256": "7df69f97e0346d81cd2e36acb403c0315ff3a8fb13f0558dadfc1cee2eb9dbf1",
+      "bytes": 32007
+    },
+    {
+      "path": "backend/tests/backend-test-results.txt",
+      "sha256": "943f5c4719b72cea22f88520d98b5a272d03712df370191260bd3371ed7c7046",
+      "bytes": 2724
+    },
+    {
+      "path": "backend/tests/fixtures/installer-dependencies/ai-draft-contract.sql",
+      "sha256": "79205174abe8818e3f65d4efc8c23e88cb498f9b7d6e0d93f3778c5e4a48c55c",
+      "bytes": 9927
+    },
+    {
+      "path": "backend/tests/fixtures/installer-dependencies/ai-inference-activation-contract.sql",
+      "sha256": "6ab16ba63fa65567014d88855d91b9b0ca662f80875e5b543f721261dba53e1e",
+      "bytes": 19320
+    },
+    {
+      "path": "backend/tests/fixtures/installer-dependencies/company-knowledge-contract.sql",
+      "sha256": "310153151f2822f589bf29ba3f6d6beb008d4884396e54313e5e14a4de23a201",
+      "bytes": 21173
+    },
+    {
+      "path": "backend/tests/fixtures/installer-dependencies/customer-workflow-contract.sql",
+      "sha256": "fe5000e9a8229b80deb98353efe611bd222350ae97a6cf6a6237ba328b812601",
+      "bytes": 36190
+    },
+    {
+      "path": "backend/tests/fixtures/installer-dependencies/guard-contract.sql",
+      "sha256": "5592f966f6aaf22a784929f0b5e60b599d18395a3bfa8575aa104ec0c0b49d3a",
+      "bytes": 8618
+    },
+    {
+      "path": "backend/tests/fixtures/installer-dependencies/knowledge-draft-contract.sql",
+      "sha256": "2558734c806e13c6192bb71fdb4c58a4ebf46a9cbf12eb7d046f29221eb0ca1d",
+      "bytes": 40229
+    },
+    {
+      "path": "backend/tests/fixtures/installer-dependencies/oauth-binding-fixture.sql",
+      "sha256": "c7503a92a1a2afe52ddbf75de68e2791dc4955ef49a74b831b8760eca17c3d5e",
+      "bytes": 1071
+    },
+    {
+      "path": "backend/tests/fixtures/installer-dependencies/reconciliation-contract.sql",
+      "sha256": "4ba19426e8240b9df185b59ac22a8702c8c39ab883eefe63e2a8342ec2582af8",
+      "bytes": 8490
+    },
+    {
+      "path": "backend/tests/fixtures/workflow-installation-fixture.mjs",
+      "sha256": "99c52fca6527fee5064b7c9fb055ebdb830680e3cbecb755b289ee14d11a3859",
+      "bytes": 10417
+    },
+    {
+      "path": "backend/tests/sql-test-results.txt",
+      "sha256": "a0dfe0390b10793ef7ca61941693dae97b8672ac0860f1ee9e6281cd6dc40813",
+      "bytes": 1181
+    },
+    {
+      "path": "backend/tests/workflow-installations-integration.test.mjs",
+      "sha256": "fd3aa05f1032ef88e88408018fb6fb75066dbf8dec1a5ce4acb273e4ad9875cc",
+      "bytes": 4257
+    },
+    {
+      "path": "backend/tests/workflow-installations-routes.test.mjs",
+      "sha256": "2275b4a1b803cbeeec857f5be5ee916e12b7cbcbcb711ba5a89d80e510cdefe8",
+      "bytes": 8896
+    },
+    {
+      "path": "backend/tests/workflow-installations-sql.test.mjs",
+      "sha256": "272fb62dcd76d224fd7c4cb587e5f8ba8f17d13057c843f609aaf30e268a2505",
+      "bytes": 16074
+    }
+  ]
+}
