@@ -33,8 +33,9 @@ test('stale or malformed server snapshot fails closed with sanitized error befor
   const x=fixture({inputResult});assert.deepEqual(await x.request({}),{status:409,body:{error:'customer_workflow_conflict'}});assert.equal(x.calls.length,1);assert.equal(x.provider().calls,0);
  }
 });
-test('employee role does not silently gain existing AI execution authority',async()=>{
- for(const role of ['member','viewer','platform_admin']){const x=fixture({role});assert.equal((await x.request({})).status,403);assert.equal(x.calls.length,0);assert.equal(x.provider().calls,0);}
+test('viewer and unknown roles cannot run; employee requires installed workflow SQL authorization',async()=>{
+ for(const role of ['viewer','platform_admin']){const x=fixture({role});assert.equal((await x.request({})).status,403);assert.equal(x.calls.length,0);assert.equal(x.provider().calls,0);}
+ const x=fixture({role:'member',inputResult:{error:{message:'Assigned installed workflow authorization required'}}});assert.equal((await x.request({})).status,409);assert.equal(x.calls.length,1);assert.equal(x.provider().calls,0);
 });
 test('authoritatively disabled inference still cannot reserve or call provider for a connected inquiry',async()=>{
  const x=fixture({live:false});assert.deepEqual(await x.request({}),{status:409,body:{error:'activation_disabled'}});assert.deepEqual(x.calls.map(c=>c.name),['customer_workflow_draft_input','ai_inference_readiness']);assert.equal(x.provider().calls,0);

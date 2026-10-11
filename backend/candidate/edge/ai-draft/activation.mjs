@@ -12,9 +12,9 @@ export function activationVerdict(value,{organizationId,configurationId,now=Date
  // Explicit projection: never forward unexpected server fields to a browser.
  return Object.fromEntries(Object.keys(denied).map(k=>[k,value[k]??denied[k]]));
 }
-export async function readActivation(supabase,{organizationId,actorId,configurationId,credential}){
+export async function readActivation(supabase,{organizationId,actorId,configurationId,credential,workflow}){
  try{
-  const {data,error}=await supabase.rpc('ai_inference_readiness',{p_org:organizationId,p_actor:actorId,p_config:configurationId??null,p_account:credential?.accountReference??null,p_fingerprint:credential?.credentialFingerprint??null});
+  const {data,error}=await supabase.rpc(workflow?'customer_workflow_ai_readiness':'ai_inference_readiness',{p_org:organizationId,p_actor:actorId,p_config:configurationId??null,p_account:credential?.accountReference??null,p_fingerprint:credential?.credentialFingerprint??null,...(workflow?{p_workflow:workflow.id,p_expected_revision:workflow.revision,p_request_key:workflow.requestKey}:{})});
   return activationVerdict(error?null:data,{organizationId,configurationId});
  }catch{return activationVerdict(null,{organizationId,configurationId})}
 }

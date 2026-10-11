@@ -30,6 +30,25 @@ export function validDraft(value, sources = []) {
 }
 export const validWorkflow = (value, organizationId) => nonempty(value?.id) && value.organization_id === organizationId && Number.isInteger(value.revision) && value.revision > 0 && WORKFLOW_STATES.includes(value.status) && nonempty(value.requested_by) && validEmail(value.customer_email) && nonempty(value.subject) && nonempty(value.message)
 
+// Server-derived permission is scoped to this exact actor, company, request and
+// revision. It is a display hint only; every backend step repeats authorization.
+export function validDraftAuthority(authority, workflow, actorId) {
+  return Boolean(authority && authority.contract_version === 1 &&
+    authority.organization_id === workflow?.organization_id && authority.workflow_id === workflow?.id &&
+    authority.workflow_revision === workflow?.revision && authority.actor_id === actorId &&
+    knowledgeId(authority.installation_id) && Number.isInteger(authority.installation_revision) && authority.installation_revision > 0 &&
+    typeof authority.can_generate === 'boolean' && (authority.reason === null || nonempty(authority.reason)))
+}
+export function canRequestDraft(workflow, actor) {
+  if (!workflow || !actor?.id) return false
+  if (workflow.draft_authority !== undefined && workflow.draft_authority !== null) {
+    if (!validDraftAuthority(workflow.draft_authority, workflow, actor.id) || !workflow.draft_authority.can_generate) return false
+    return REVIEW_ROLES.includes(actor.role) || actor.role === 'member' && workflow.assigned_to === actor.id
+  }
+  return REVIEW_ROLES.includes(actor.role)
+}
+export const canReviewDraftAsActor = (workflow, actorId) => !workflow?.draft_authority || workflow.draft_requested_by !== actorId
+
 export function draftPath(workflow, pendingKey) {
   if (!workflow || workflow.status === 'cancelled' || workflow.action_request_id || workflow.knowledge_stale) return null
   const run = workflow.ai_run
@@ -58,6 +77,7 @@ export function verifyWorkspace(data, organizationId, userId) {
   if (data.configuration && data.configuration.organization_id !== organizationId) throw new Error('workspace_unverified')
   if (data.knowledge_contract_version != null && data.knowledge_contract_version !== KNOWLEDGE_DRAFT_CONTRACT) throw new Error('workspace_unverified')
   for (const item of data.workflows) {
+    if (item.draft_authority != null && !validDraftAuthority(item.draft_authority, item, userId)) throw new Error('workspace_unverified')
     if (data.knowledge_contract_version === KNOWLEDGE_DRAFT_CONTRACT) {
       if (typeof item.knowledge_stale !== 'boolean' || !validKnowledgeSources(item.knowledge_sources) || item.knowledge_stale && (item.knowledge_sources.length || item.ai_run?.draft != null || item.action_request?.payload != null)) throw new Error('workspace_unverified')
     } else if (item.knowledge_sources?.length || item.knowledge_stale) throw new Error('workspace_unverified')

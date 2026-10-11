@@ -12,25 +12,29 @@ export function createHandler({supabase,catalog=[],resolveCredential=async()=>nu
   if(request.method!=='POST')return reply({error:'method_not_allowed'},405);
   try{
    const token=request.headers.get('authorization')?.match(/^Bearer (.+)$/i)?.[1];if(!token)throw new DraftError('sign_in_required',401);
-   const {data:auth,error:authError}=await supabase.auth.getUser(token);if(authError||!auth?.user)throw new DraftError('sign_in_required',401);
+   const {data:auth,error:authError}=await supabase.auth.getUser(token);if(authError||!auth?.user||auth.user.is_anonymous===true)throw new DraftError('sign_in_required',401);
    const raw=await request.text();if(new TextEncoder().encode(raw).length>25000)throw new DraftError('request_too_large',413);
    let b;try{b=JSON.parse(raw)}catch{throw new DraftError('invalid_request')}
    if(!uuid(b?.organization_id))throw new DraftError('invalid_organization');
    const {data:membership,error:membershipError}=await supabase.from('organization_members').select('role').eq('organization_id',b.organization_id).eq('user_id',auth.user.id).maybeSingle();
-   if(membershipError||!membership||!['owner','admin','consultant'].includes(membership.role))throw new DraftError('organization_access_denied',403);
+   // Members get one narrow action: run the exact prepared installed workflow.
+   // SQL independently rechecks installation, assignment and current bindings.
+   const memberRun=membership?.role==='member'&&b.operation==='run'&&uuid(b.configuration_id)&&uuid(b.request_key)&&uuid(b.customer_workflow_id)&&Number.isSafeInteger(b.expected_revision)&&b.expected_revision>0&&Object.keys(b).every(key=>['operation','organization_id','configuration_id','request_key','customer_workflow_id','expected_revision'].includes(key));
+   if(membershipError||!membership||(!['owner','admin','consultant'].includes(membership.role)&&!memberRun))throw new DraftError('organization_access_denied',403);
    const rpc=async(name,args)=>{const r=await supabase.rpc(name,args);if(r.error)throw new DraftError('configuration_or_run_conflict',409);return r.data};
    const common={p_org:b.organization_id,p_actor:auth.user.id};
    const visibleRun=async run=>{
-    if(run?.knowledge_bound!==true)return run;
+    if(!run)return run;
+    if(run.knowledge_bound!==true&&!memberRun)return run;
     if(!uuid(run.id)||run.organization_id!==b.organization_id)throw new DraftError('customer_workflow_conflict',409);
     // AI Setup can also read linked drafts. Always use the current visibility
     // projection, never raw stored source-derived text after access/freshness changes.
     const visible=await rpc('customer_workflow_visible_run',{...common,p_run:run.id});
-    if(!visible||Array.isArray(visible)||visible.id!==run.id||visible.organization_id!==b.organization_id||visible.knowledge_bound!==true||typeof visible.knowledge_stale!=='boolean'||!Array.isArray(visible.knowledge_sources))throw new DraftError('customer_workflow_conflict',409);
+    if(!visible||Array.isArray(visible)||visible.id!==run.id||visible.organization_id!==b.organization_id||typeof visible.knowledge_bound!=='boolean'||(run.knowledge_bound===true&&visible.knowledge_bound!==true)||typeof visible.knowledge_stale!=='boolean'||!Array.isArray(visible.knowledge_sources))throw new DraftError('customer_workflow_conflict',409);
     if(visible.knowledge_stale){
      if(visible.draft!==null||visible.knowledge_sources.length!==0)throw new DraftError('customer_workflow_conflict',409);
     }else{
-     try{validateTrustedInput({context:'x',sources:visible.knowledge_sources},{max_input_bytes:12000})}catch{throw new DraftError('customer_workflow_conflict',409)}
+     if(run.knowledge_bound===true||visible.knowledge_sources.length){try{validateTrustedInput({context:'x',sources:visible.knowledge_sources},{max_input_bytes:12000})}catch{throw new DraftError('customer_workflow_conflict',409)}}
     }
     return visible;
    };
@@ -118,6 +122,7 @@ export function createHandler({supabase,catalog=[],resolveCredential=async()=>nu
     if(error||!data||Array.isArray(data)||typeof data.context!=='string'||Object.keys(data).some(key=>!['context','sources'].includes(key)))throw new DraftError('customer_workflow_conflict',409);
     try{
      const trusted=Object.hasOwn(data,'sources')?validateTrustedInput(data,config,{requireCurrent:false}):validateInput(data,config);
+     if(memberRun&&trusted.sources?.length)throw new Error('Member knowledge selection is not authorized');
      suppliedInput={context:trusted.context};trustedSources=trusted.sources;connectedWorkflow=true;
     }catch{throw new DraftError('customer_workflow_conflict',409)}
    }
@@ -135,7 +140,7 @@ export function createHandler({supabase,catalog=[],resolveCredential=async()=>nu
     return reply({run:await visibleRun(prior.data)});
    }
    const boundCredential=await connectionFor(config.provider);
-   const activation=await readActivation(supabase,{organizationId:b.organization_id,actorId:auth.user.id,configurationId:record.id,credential:boundCredential});
+   const activation=await readActivation(supabase,{organizationId:b.organization_id,actorId:auth.user.id,configurationId:record.id,credential:boundCredential,...(memberRun?{workflow:{id:b.customer_workflow_id,revision:b.expected_revision,requestKey:b.request_key}}:{})});
    if(!activation.enabled||!activation.account_binding_verified)throw new DraftError(activation.enabled?'activation_account_mismatch':activation.status,409);
    const credential=await availableModel(config);
    const binding={p_account:credential.accountReference,p_fingerprint:credential.credentialFingerprint};

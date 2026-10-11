@@ -533,3 +533,89 @@ describe('saved activation is necessary but does not prove provider acceptance',
     expect(operations(f)).toHaveLength(0)
   })
 })
+
+describe('installed employee draft delegation', () => {
+  const delegate = f => {
+    f.workflow.assigned_to = f.actorId
+    f.workflow.draft_authority = { contract_version: 1, organization_id: f.data.organization_id, workflow_id: f.workflow.id, workflow_revision: f.workflow.revision, actor_id: f.actorId, installation_id: '11111111-1111-4111-8111-111111111111', installation_revision: 1, can_generate: true, reason: null }
+    return f
+  }
+  it('allows an assigned employee to prepare and request only the bound draft, once', async () => {
+    const f = delegate(fixture({ role: 'member', live: true })), pending = deferred()
+    f.client.functions.invoke.mockImplementation(async (name, { body }) => {
+      if (body.operation === 'load') return { data: clone(f.data) }
+      if (body.operation === 'prepare_draft') {
+        Object.assign(f.workflow, { status: 'drafting', revision: 2, ai_request_key: body.request_key, configuration_id: f.configuration.id, draft_requested_by: f.actorId })
+        f.workflow.draft_authority.workflow_revision = 2
+        return f.envelope({ workflow: clone(f.workflow) })
+      }
+      if (name === 'ai-draft' && body.operation === 'run') return pending.promise
+      throw new Error('Unexpected operation')
+    })
+    await select(f)
+    const button = screen.getByRole('button', { name: 'Generate AI draft' })
+    expect(button.disabled).toBe(false)
+    act(() => { directClick(button); directClick(button) })
+    await waitFor(() => expect(operations(f)).toHaveLength(2))
+    expect(operations(f).map(([name, { body }]) => [name, body.operation])).toEqual([['customer-workflow', 'prepare_draft'], ['ai-draft', 'run']])
+    const body = operations(f)[1][1].body
+    expect(body).toEqual({ operation: 'run', organization_id: f.data.organization_id, customer_workflow_id: f.workflow.id, expected_revision: 2, configuration_id: f.configuration.id, request_key: f.workflow.ai_request_key })
+    expect(screen.queryByRole('button', { name: 'Accept draft for use' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Send approved email' })).toBeNull()
+    await act(async () => pending.resolve({ data: { run: { id: 'ai-employee', organization_id: f.data.organization_id, requested_by: f.actorId, configuration_id: f.configuration.id, request_key: body.request_key, status: 'awaiting_review' } } }))
+    await screen.findByText('AI draft saved for review. No email has been queued or sent.')
+  })
+  it.each(['actor', 'company', 'request', 'revision', 'installation', 'version'])('rejects a mismatched %s delegation projection', async kind => {
+    const f = delegate(fixture({ role: 'member', live: true })), a = f.workflow.draft_authority
+    if (kind === 'actor') a.actor_id = 'someone-else'
+    if (kind === 'company') a.organization_id = 'another-company'
+    if (kind === 'request') a.workflow_id = 'another-request'
+    if (kind === 'revision') a.workflow_revision++
+    if (kind === 'installation') a.installation_id = 'unverified'
+    if (kind === 'version') a.contract_version = 2
+    await mount(f)
+    expect(screen.getByRole('alert').textContent).toContain('could not be verified')
+    expect(operations(f)).toHaveLength(0)
+  })
+  it.each(['unassigned', 'blocked', 'viewer', 'activation', 'configuration', 'unknown'])('blocks employee drafting when %s', async kind => {
+    const f = delegate(fixture({ role: 'member', live: true }))
+    if (kind === 'unassigned') f.workflow.assigned_to = 'another-employee'
+    if (kind === 'blocked') { f.workflow.draft_authority.can_generate = false; f.workflow.draft_authority.reason = 'installation_changed' }
+    if (kind === 'viewer') f.data.actor.role = 'viewer'
+    if (kind === 'activation') f.data.readiness.live_inference_enabled = false
+    if (kind === 'configuration') f.data.configuration = null
+    if (kind === 'unknown') { f.workflow.status = 'ai_unknown'; f.workflow.ai_run = null }
+    await select(f)
+    const button = screen.queryByRole('button', { name: 'Generate AI draft' })
+    if (button) { expect(button.disabled).toBe(true); act(() => directClick(button)) }
+    expect(operations(f)).toHaveLength(0)
+  })
+  it('resumes the same prepared employee key after interruption without preparing again', async () => {
+    const f = delegate(fixture({ role: 'member', live: true, status: 'drafting' }))
+    f.workflow.ai_run = null; f.workflow.draft_requested_by = f.actorId
+    f.client.functions.invoke.mockImplementation(async (name, { body }) => {
+      if (body.operation === 'load') return { data: clone(f.data) }
+      if (name === 'ai-draft' && body.operation === 'run') return { data: { run: { id: 'ai-employee', organization_id: f.data.organization_id, requested_by: f.actorId, configuration_id: f.configuration.id, request_key: 'draft-key', status: 'reserved' } } }
+      throw new Error('Unexpected operation')
+    })
+    await select(f); click('Resume saved AI request')
+    await screen.findByText('AI request recorded. Check its saved outcome before continuing.')
+    expect(operations(f)).toHaveLength(1)
+    expect(operations(f)[0][1].body.request_key).toBe('draft-key')
+  })
+  it.each(['draft_ready', 'approved'])('does not add employee review or send controls for %s', async status => {
+    const f = delegate(fixture({ role: 'member', status: status === 'draft_ready' ? status : 'draft_accepted', actionStatus: status === 'approved' ? 'Approved' : undefined, live: true }))
+    f.workflow.draft_requested_by = f.actorId; f.workflow.ai_run.requested_by = f.actorId
+    await select(f)
+    for (const name of ['Accept draft for use', 'Reject AI draft', 'Approve exact email', 'Send approved email', 'Edit reply context']) expect(screen.queryByRole('button', { name })).toBeNull()
+    expect(operations(f)).toHaveLength(0)
+  })
+  it('does not let an installed manager review their own draft', async () => {
+    const f = delegate(fixture({ status: 'draft_ready', live: true }))
+    f.workflow.draft_requested_by = f.actorId; f.workflow.ai_run.requested_by = f.actorId
+    await select(f)
+    expect(screen.queryByRole('button', { name: 'Accept draft for use' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Reject AI draft' })).toBeNull()
+    expect(operations(f)).toHaveLength(0)
+  })
+})
