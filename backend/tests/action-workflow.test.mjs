@@ -51,6 +51,13 @@ function mock(state) {
       if (Object.hasOwn(state.overrides,name)) { const override = state.overrides[name]; return typeof override === 'function' ? override(args) : clone(override); }
       if (name === 'assert_agent_workflow_lineage') { const run=state.tables.workflow_runs.find(r=>r.id===args.p_run_id); return {data:run?.agent_run_request_id?{agent_request_id:run.agent_run_request_id}:null,error:null}; }
       if (name === 'finish_agent_workflow') return {data:true,error:null};
+      if (name === 'review_email_action') {
+        if (state.fail['action_requests:update']) return {data:null,error:{}};
+        const row=state.tables.action_requests.find(r=>r.id===args.p_request_id&&r.status==='Pending');
+        if(!row)return {data:null,error:{}};
+        const value=args.p_decision==='approve'?{status:'Approved',approved_by:args.p_actor_id,approved_at:new Date(now()).toISOString(),error_message:null}:{status:'Rejected',rejected_by:args.p_actor_id,rejected_at:new Date(now()).toISOString(),error_message:null};
+        state.events.push(['action_requests','update',clone(value),[['id',row.id],['status','Pending']]]);Object.assign(row,value);return {data:clone(row),error:null};
+      }
       if (name === 'claim_microsoft_action') {
         const row = state.tables.action_requests.find(row => row.id === args.request_id);
         if (!row || row.status !== 'Approved') return { error: {}, data: null };
@@ -227,4 +234,40 @@ for(const problem of ['missing','wrong-company','unredacted'])test(`knowledge ac
  const s=fixture();const action=s.tables.action_requests[0];action.status='Pending';action.customer_workflow_id='customer-workflow';
  s.overrides.customer_workflow_visible_action=()=>({data:problem==='missing'?null:{...clone(action),organization_id:problem==='wrong-company'?'other':'org',status:'Rejected',knowledge_stale:true},error:null});
  const out=await invoke(actionHandler,s,{op:'reject',request_id:'request'});assert.equal(out.response.status,503);assert(!JSON.stringify(out.body).includes(mail.message));assert.equal(action.status,'Rejected');assert.equal(s.graph.length,0);
+});
+
+// Gmail uses the same durable approval/claim/receipt state machine and one send.
+function gmailFixture(){
+ const s=fixture(),c=s.tables.oauth_connections[0],i=s.tables.integrations[0],a=s.tables.action_requests[0];
+ Object.assign(c,{provider:'google',external_account_id:'google-sub-123',external_account_email:'support@example.test',scopes:['openid','email','profile','https://www.googleapis.com/auth/gmail.send']});
+ Object.assign(i,{provider:'Google',scopes:c.scopes.join(' ')});a.provider='google';a.approved_connection_binding={...connectionBinding(c,i),external_account_email:c.external_account_email};
+ s.fetchImpl=async(url,options)=>url==='https://openidconnect.googleapis.com/v1/userinfo'?new Response(JSON.stringify({sub:c.external_account_id,email:c.external_account_email,email_verified:true}),{status:200,headers:{'Content-Type':'application/json'}}):new Response(JSON.stringify({id:'gmail-message-1',threadId:'gmail-thread-1'}),{status:200,headers:{'Content-Type':'application/json'}});
+ return s;
+}
+test('Gmail approved account and exact body dispatch once after verified identity and durable receipt',async()=>{
+ const s=gmailFixture(),out=await execute(s);assert.equal(out.response.status,200);assert.equal(out.body.outcome,'provider_accepted');assert.equal(out.body.delivered,false);
+ const sent=s.graph.filter(call=>call.options.method==='POST');assert.equal(sent.length,1);assert.equal(sent[0].url,'https://gmail.googleapis.com/gmail/v1/users/me/messages/send');
+ const mime=Buffer.from(JSON.parse(sent[0].options.body).raw,'base64url').toString('utf8');assert(mime.includes('From: support@example.test\r\n'));assert(mime.includes('To: person@example.test\r\n'));assert.equal(Buffer.from(mime.split('\r\n\r\n')[1].replace(/\r\n/g,''),'base64').toString('utf8'),mail.message);
+ assert.equal(s.receipts[0].p_phase,'Dispatching');assert.equal(s.receipts[1].p_provider_reference,'gmail-message-1');assert.equal(s.tables.integration_runs[0].provider,'google');
+ const dispatch=s.events.findIndex(e=>e[0]==='rpc'&&e[1]==='record_microsoft_attempt'&&e[2].p_phase==='Dispatching'),post=s.events.findIndex(e=>e[0]==='fetch'&&e[1].endsWith('/messages/send'));assert(dispatch<post);
+ await execute(s);assert.equal(s.graph.filter(call=>call.options.method==='POST').length,1);
+});
+test('Gmail mismatched Google subject cannot reach dispatch receipt or send',async()=>{
+ const s=gmailFixture();s.fetchImpl=async()=>new Response(JSON.stringify({sub:'different-sub',email:'support@example.test',email_verified:true}),{status:200,headers:{'Content-Type':'application/json'}});const out=await execute(s);assert.equal(out.body.outcome,'not_dispatched_needs_reconciliation');assert.equal(s.receipts,undefined);assert.equal(s.graph.filter(call=>call.options.method==='POST').length,0);
+});
+test('Gmail approved email address mutation fails before credentials or provider contact',async()=>{
+ const s=gmailFixture();s.tables.oauth_connections[0].external_account_email='changed@example.test';const out=await execute(s);assert.equal(out.body.outcome,'not_dispatched_needs_reconciliation');assert.equal(s.tokenCalls,0);assert.equal(s.graph.length,0);
+});
+for(const status of [400,401,403,429,500])test(`Gmail status ${status} retains unknown claimed state and cannot resend`,async()=>{
+ const s=gmailFixture(),original=s.fetchImpl;s.fetchImpl=(url,options)=>url.endsWith('/messages/send')?Promise.resolve(new Response('{}',{status,headers:{'Content-Type':'application/json'}})):original(url,options);const out=await execute(s);assert.equal(out.body.outcome,'unknown');assert.equal(out.body.retryable,false);assert.equal(s.tables.action_requests[0].status,'Executing');await execute(s);assert.equal(s.graph.filter(c=>c.options.method==='POST').length,1);
+});
+test('Gmail accepted send with lost storage acknowledgement stays accepted pending reconciliation',async()=>{
+ const s=gmailFixture();s.overrides.record_microsoft_attempt=args=>({data:args.p_phase==='Dispatching',error:null});const out=await execute(s);assert.equal(out.body.outcome,'provider_accepted_needs_reconciliation');assert.equal(out.body.retryable,false);assert.equal(s.graph.filter(c=>c.options.method==='POST').length,1);
+});
+test('Gmail subject/header injection cannot reach provider or dispatch',async()=>{
+ const s=gmailFixture();s.tables.action_requests[0].payload.subject='Hello\r\nBcc: attacker@example.test';const out=await execute(s);assert.equal(out.body.outcome,'not_dispatched_needs_reconciliation');assert.equal(s.graph.length,0);
+});
+
+test('viewer cannot create manual Microsoft or Google email proposals',async()=>{
+ for(const provider of ['microsoft','google']){const s=provider==='google'?gmailFixture():fixture();s.tables.organization_members.find(row=>row.user_id===s.userId).role='viewer';const out=await invoke(actionHandler,s,{op:'queue-email',organization_id:'org',provider,...mail});assert.equal(out.response.status,403);assert.equal(queryEvents(s,'action_requests','insert').length,0);assert.equal(s.tokenCalls,0);assert.equal(s.graph.length,0)}
 });

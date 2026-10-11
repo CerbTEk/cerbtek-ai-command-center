@@ -2,6 +2,9 @@ import TeamRoles from './TeamRoles'
 import AIDraftSetup from './AIDraftSetup'
 import WorkflowMonitor from './WorkflowMonitor'
 import IntegrationProviderPlanner from './IntegrationProviderPlanner'
+import CompanyEmailConnections from './CompanyEmailConnections'
+import { companyEmailReturn } from './company-email-callback'
+import { emailProviderName, EMAIL_PROVIDERS } from './company-email-model'
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
@@ -186,8 +189,9 @@ function WorkspaceApp() {
       if(!isCurrent()) return
       if(error) throw error
       setOrgs(data||[])
-      const linkedCompany=new URLSearchParams(window.location.search).get('kairoCompany')
-      setOrg(current=>(data||[]).find(item=>item.id===current?.id)||(data||[]).find(item=>item.id===linkedCompany)||data?.[0]||null)
+      const emailReturn=companyEmailReturn()
+      const linkedCompany=emailReturn?.actor_id===userId?emailReturn.organization_id:new URLSearchParams(window.location.search).get('kairoCompany')
+      setOrg(current=>(emailReturn?.actor_id===userId?(data||[]).find(item=>item.id===linkedCompany):null)||(data||[]).find(item=>item.id===current?.id)||(data||[]).find(item=>item.id===linkedCompany)||data?.[0]||null)
     } catch(error) {
       if(isCurrent()) setOrgsError('Your companies could not be loaded. Please try again before creating a workspace.')
     } finally { if(isCurrent()) setOrgsLoading(false) }
@@ -211,7 +215,7 @@ function WorkspaceApp() {
       supabase.from('audit_events').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(100),
       supabase.from('organization_onboarding').select('*').eq('organization_id', orgId).maybeSingle(),
       supabase.from('readiness_assessments').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('oauth_connections').select('*').eq('organization_id', orgId),
+      supabase.from('oauth_connections').select('id,organization_id,integration_id,provider,status,external_account_id,external_account_email,external_account_name,scopes,oauth_verified_version,oauth_revision,last_connected_at').eq('organization_id', orgId),
       supabase.from('integration_runs').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(20),
       supabase.from('action_requests').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}).limit(20),
       supabase.from('workflow_definitions').select('*').eq('organization_id', orgId).order('created_at',{ascending:false}),
@@ -313,7 +317,7 @@ function WorkspaceApp() {
         {active === 'Systems' && <Systems org={org} session={session} rows={data.systems} reload={() => loadOrg(org.id)}/>}
         {active === 'Workflows' && <Workflows key={session.user.id+':'+org.id} org={org} session={session} rows={data.workflows} definitions={data.workflowDefinitions} runs={data.workflowRuns} approvalPolicies={data.approvalPolicies} schedules={data.workflowSchedules} reload={() => loadOrg(org.id)}/>} 
         {active === 'Opportunities' && <Opportunities org={org} session={session} workflows={data.workflows} rows={data.opps} reload={() => loadOrg(org.id)}/>}
-        {active === 'Integrations' && <Integrations key={session.user.id+':'+org.id} org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} runs={data.integrationRuns} requests={data.actionRequests} reload={() => loadOrg(org.id)}/>}
+        {active === 'Integrations' && <Integrations key={session.user.id+':'+org.id} org={org} session={session} systems={data.systems} rows={data.integrations} oauth={data.oauth} runs={data.integrationRuns} requests={data.actionRequests} actorRole={data.members.find(member=>member.user_id===session.user.id)?.role} reload={() => loadOrg(org.id)}/>}
         {active === 'AI Setup' && <AIDraftSetup key={session.user.id+':'+org.id} organizationId={org.id} client={supabase}/>}
         {active === 'Agents' && <Agents key={session.user.id+':'+org.id} org={org} session={session} rows={data.agents} integrations={data.integrations} workflows={data.workflowDefinitions} mappings={data.agentWorkflows} requests={data.agentRunRequests} runs={data.workflowRuns} reload={() => loadOrg(org.id)}/>}
         {active === 'AI Ops' && <><WorkflowMonitor key={session.user.id+':'+org.id} organizationId={org.id} userId={session.user.id} definitions={data.workflowDefinitions} schedules={data.workflowSchedules} agents={data.agents} client={supabase} onManage={()=>setActive('Workflows')}/><AIOps data={data} reload={() => loadOrg(org.id)}/></>}
@@ -784,7 +788,8 @@ export function Workflows({org,session,rows,definitions,runs,approvalPolicies,sc
             <option value="approval.email">Approval-gated email</option>
           </select></label>
           {stepType==='approval.email' && <>
-            <label>Recipient<input type="email" value={emailTo} onChange={e=>setEmailTo(e.target.value)} required/></label>
+            <label className="span-2">Sending provider and account<select value={selectedSender?.id||''} disabled={busy} onChange={event=>setSenderId(event.target.value)}><option value="">Choose an account</option>{sendConnections.map(row=><option key={row.id} value={row.id}>{emailProviderName(row.provider)} · {row.external_account_email||row.external_account_name||row.external_account_id||row.id}</option>)}</select></label>
+        <label>Recipient<input type="email" value={emailTo} onChange={e=>setEmailTo(e.target.value)} required/></label>
             <label>Subject<input value={emailSubject} onChange={e=>setEmailSubject(e.target.value)} required/></label>
             <label className="span-2">Message<textarea value={emailMessage} onChange={e=>setEmailMessage(e.target.value)} required/></label>
           </>}
@@ -917,7 +922,7 @@ function Opportunities({org,session,workflows,rows,reload}) {
   </>
 }
 
-export function Integrations({org,session,systems,rows,oauth,runs,requests,reload}) {
+export function Integrations({org,session,systems,rows,oauth,runs,requests,actorRole,reload}) {
   const scope=session.user.id+':'+org.id+':integrations'
   const {busy,run}=useSafeOperation(scope)
   const attempts=useExecutionAttempts(scope)
@@ -934,17 +939,24 @@ export function Integrations({org,session,systems,rows,oauth,runs,requests,reloa
   const [classification,setClassification]=useState('Internal')
   const [inventoryMessage,setInventoryMessage]=useState('')
   const savingInventory=busy
-  const [tenantId,setTenantId]=useState('organizations')
-  const [clientId,setClientId]=useState('')
-  const [clientSecret,setClientSecret]=useState('')
-  const [scopeFlags,setScopeFlags]=useState({mail:false,sendMail:false,calendar:false,files:false})
-  const [connectMessage,setConnectMessage]=useState('')
   const [runMessage,setRunMessage]=useState('')
   const [runningAction,setRunningAction]=useState('')
-  const microsoft=oauth.find(x=>x.provider==='microsoft')
-  const verifiedConnected=microsoft?.status==='Connected'&&microsoft.oauth_verified_version===1
-  const canSendEmail=verifiedConnected&&(microsoft.scopes||[]).includes('Mail.Send')
+  const connections=oauth.filter(row=>EMAIL_PROVIDERS.includes(row.provider)&&row.status==='Connected'&&row.oauth_verified_version===1&&(!row.organization_id||row.organization_id===org.id))
+  const hasCapability=(row,capability)=>(row.scopes||[]).includes(row.provider==='google'?'https://www.googleapis.com/auth/gmail.'+(capability==='read'?'readonly':'send'):capability==='read'?'Mail.Read':'Mail.Send')
+  const sendConnections=connections.filter(row=>hasCapability(row,'send'))
+  const [senderId,setSenderId]=useState('')
+  const selectedSender=sendConnections.find(row=>row.id===senderId)||(sendConnections.length===1&&!senderId?sendConnections[0]:null)
+  const canProposeEmail=['owner','admin','consultant','member'].includes(actorRole)
+  const canReviewEmail=['owner','admin','consultant'].includes(actorRole)
+  const canSendEmail=Boolean(selectedSender)&&canProposeEmail
   const emailRequests=(requests||[]).filter(request=>request.action_type==='send_email')
+  function requestConnection(request) {
+    const row=sendConnections.find(item=>item.id===request.connection_id&&item.provider===request.provider)
+    if(!row) return null
+    const binding=request.approved_connection_binding
+    if(request.status==='Approved'&&(!binding||binding.id!==row.id||binding.organization_id!==org.id||binding.external_account_id!==row.external_account_id||(row.oauth_revision&&binding.oauth_revision!==row.oauth_revision)||(binding.provider!==row.provider&&!(row.provider==='microsoft'&&binding.provider===undefined)))) return null
+    return row
+  }
 
   async function save(e){
     e.preventDefault()
@@ -960,26 +972,6 @@ export function Integrations({org,session,systems,rows,oauth,runs,requests,reloa
     },error=>setInventoryMessage('Save was not confirmed. Your entries are still here. '+(error.message||'Check the saved inventory before continuing.')))
   }
 
-  async function connectMicrosoft(e){
-    e.preventDefault()
-    await run(async current=>{
-      setConnectMessage('Preparing Microsoft consent…')
-      const scopes=['openid','profile','offline_access','User.Read']
-      if(scopeFlags.mail) scopes.push('Mail.Read')
-      if(scopeFlags.sendMail) scopes.push('Mail.Send')
-      if(scopeFlags.calendar) scopes.push('Calendars.Read')
-      if(scopeFlags.files) scopes.push('Files.Read.All')
-      const {data,error}=await supabase.functions.invoke('microsoft-connect',{
-        body:{organization_id:org.id,tenant_id:tenantId,client_id:clientId,client_secret:clientSecret,scopes}
-      })
-      if(!current()) return
-      if(error) throw error
-      if(data?.error) throw new Error(data.error)
-      if(data?.authorize_url) window.location.assign(data.authorize_url)
-      else setConnectMessage('Microsoft consent could not be prepared. Check the saved connection before continuing.')
-    },error=>setConnectMessage(error.message||'Microsoft consent could not be prepared.'))
-  }
-
   const [emailTo,setEmailTo]=useState('')
   const [emailSubject,setEmailSubject]=useState('')
   const [emailMessage,setEmailMessage]=useState('')
@@ -987,10 +979,11 @@ export function Integrations({org,session,systems,rows,oauth,runs,requests,reloa
 
   async function queueEmail(e){
     e.preventDefault()
+    if(!selectedSender||!canProposeEmail) return
     await run(async current=>{
       setApprovalMessage('Submitting for approval…')
       const {data,error}=await supabase.functions.invoke('microsoft-action',{body:{
-        op:'queue-email',organization_id:org.id,to:emailTo,subject:emailSubject,message:emailMessage
+        op:'queue-email',organization_id:org.id,connection_id:selectedSender.id,provider:selectedSender.provider,to:emailTo,subject:emailSubject,message:emailMessage
       }})
       if(!current()) return
       if(error) throw error
@@ -1001,17 +994,18 @@ export function Integrations({org,session,systems,rows,oauth,runs,requests,reloa
   }
 
   async function actOnRequest(op,request){
-    if(op==='approve'&&(!request.requested_by||request.requested_by===session.user.id)) return
-    if(op==='execute'&&(!canSendEmail||attempts.get(request.id)||request.status!=='Approved')) return
+    if(!canReviewEmail) return
+    if(op==='approve'&&(!requestConnection(request)||!request.requested_by||request.requested_by===session.user.id)) return
+    if(op==='execute'&&(!requestConnection(request)||attempts.get(request.id)||request.status!=='Approved')) return
     await run(async current=>{
       if(op==='execute') attempts.mark(request.id)
-      setApprovalMessage(op==='execute'?'Submitting approved email to Microsoft…':op==='approve'?'Approving…':'Rejecting…')
+      setApprovalMessage(op==='execute'?'Submitting approved email to the saved provider…':op==='approve'?'Approving…':'Rejecting…')
       const {data,error}=await supabase.functions.invoke('microsoft-action',{body:{op,request_id:request.id}})
       if(!current()) return
       if(op==='execute'){
         if(!error&&acceptedEmail(data)){
           attempts.mark(request.id,'accepted')
-          setApprovalMessage('Microsoft accepted the approved email. Delivery is not confirmed.'+(data.workflow_status==='Needs review'?' The linked workflow needs review. Do not resend.':data.workflow_status==='Waiting Approval'?' The linked workflow is waiting for another human approval.':''))
+          setApprovalMessage(emailProviderName(request.provider)+' accepted the approved email. Delivery is not confirmed.'+(data.workflow_status==='Needs review'?' The linked workflow needs review. Do not resend.':data.workflow_status==='Waiting Approval'?' The linked workflow is waiting for another human approval.':''))
         } else setApprovalMessage(reviewEmailMessage(data))
       } else {
         if(error) throw error
@@ -1022,80 +1016,48 @@ export function Integrations({org,session,systems,rows,oauth,runs,requests,reloa
     },error=>setApprovalMessage(op==='execute'?reviewEmailMessage():error.message||'The review was not confirmed.'))
   }
 
-  async function executeMicrosoft(action){
+  async function executeEmailRead(connection,action){
     await run(async current=>{
       setRunningAction(action);setRunMessage('Running '+action.replaceAll('-',' ')+'…')
-      const {data,error}=await supabase.functions.invoke('microsoft-execute',{body:{organization_id:org.id,action}})
+      const {data,error}=await supabase.functions.invoke('microsoft-execute',{body:{organization_id:org.id,provider:connection.provider,connection_id:connection.id,action}})
       if(!current()) return
       if(error) throw error
       if(data?.error||data?.ok!==true) throw new Error(data?.error||'The read result could not be confirmed.')
-      setRunMessage(data?.summary||'Microsoft read completed.');setRunningAction('');await reload()
+      setRunMessage(data?.summary||'Provider read completed.');setRunningAction('');await reload()
     },error=>{setRunningAction('');setRunMessage(error.message||'The read result could not be confirmed.')})
   }
 
   return <>
     <IntegrationProviderPlanner key={session.user.id+':'+org.id} rows={rows} onSave={saveProviderPlan}/>
-    <Panel title="Microsoft 365 / Graph">
-      <div className="integration-hero">
-        <div>
-          <p className="eyebrow">FIRST PRODUCTION CONNECTOR</p>
-          <h4>Microsoft 365</h4>
-          <p>Connect an authorized Microsoft Entra application using OAuth 2.0. Client secrets and refresh tokens are stored server-side in Supabase Vault, never in the browser database.</p>
-          {microsoft?.status!=='Connected'&&<p><b>Microsoft administrator setup:</b> ask your Microsoft 365 administrator for the approved app registration details below. Choose only the access the planned workflow needs. Your connection uses ongoing access so Kairo can run authorized actions later.</p>}
-        </div>
-        <div className={verifiedConnected?'connection-badge connected':'connection-badge'}>{microsoft?.status==='Connected'&&!verifiedConnected?'Authorization required':microsoft?.status||'Not Connected'}</div>
-      </div>
-      {microsoft?.status==='Connected'&&!verifiedConnected&&<p role="status">This Microsoft connection needs renewed authorization before it can read or send. Complete the setup below.</p>}
-      {verifiedConnected ? <>
-      <div className="connected-details">
-        <div><span>Account</span><b>{microsoft.external_account_name||'Microsoft account connected'}</b></div>
-        <div><span>Scopes</span><b>{(microsoft.scopes||[]).join(', ')}</b></div>
-        <div><span>Connected</span><b>{microsoft.last_connected_at?new Date(microsoft.last_connected_at).toLocaleString():'—'}</b></div>
-      </div>
-      <div className="execution-strip">
-        <div><span>Safe live actions</span><b>Read-only Microsoft Graph execution</b></div>
-        <div className="execution-actions">
-          <button className="secondary" disabled={busy||!!runningAction} onClick={()=>executeMicrosoft('health')}>Health check</button>
-          <button className="secondary" disabled={busy||!!runningAction} onClick={()=>executeMicrosoft('profile')}>Verify profile</button>
-          <button className="secondary" disabled={busy||!!runningAction || !(microsoft.scopes||[]).includes('Mail.Read')} onClick={()=>executeMicrosoft('inbox-status')}>Inbox status</button>
-          <button className="secondary" disabled={busy||!!runningAction || !(microsoft.scopes||[]).includes('Calendars.Read')} onClick={()=>executeMicrosoft('calendar-next')}>Upcoming calendar</button>
-        </div>
-      </div>
-      {!(microsoft.scopes||[]).includes('Mail.Read')&&<p className="permission-help">Inbox status needs Mail.Read permission. Ask your Microsoft 365 administrator to review access if this workflow needs it.</p>}
-      {!(microsoft.scopes||[]).includes('Calendars.Read')&&<p className="permission-help">Upcoming calendar needs Calendars.Read permission.</p>}
-      {runMessage && <div className="message">{runMessage}</div>}
-      </> :
-      <form className="microsoft-form" onSubmit={connectMicrosoft}>
-        <label>Tenant ID or domain<input value={tenantId} onChange={e=>setTenantId(e.target.value)} placeholder="organizations or tenant GUID"/></label>
-        <label>Application (client) ID<input value={clientId} onChange={e=>setClientId(e.target.value)} required/></label>
-        <label className="span-2">Client secret<input type="password" value={clientSecret} onChange={e=>setClientSecret(e.target.value)} required autoComplete="off"/></label>
-        <div className="span-2 permission-grid">
-          <label className="permission locked"><input type="checkbox" checked readOnly/><span><b>Profile</b><em>User.Read</em><small>Read the connected account's profile.</small></span></label>
-          <label className="permission"><input type="checkbox" checked={scopeFlags.mail} onChange={e=>setScopeFlags({...scopeFlags,mail:e.target.checked})}/><span><b>Email read</b><em>Mail.Read</em><small>Read mail, including inbox status.</small></span></label>
-          <label className="permission"><input type="checkbox" checked={scopeFlags.sendMail} onChange={e=>setScopeFlags({...scopeFlags,sendMail:e.target.checked})}/><span><b>Email send</b><em>Mail.Send</em><small>Send mail through the existing review and send controls.</small></span></label>
-          <label className="permission"><input type="checkbox" checked={scopeFlags.calendar} onChange={e=>setScopeFlags({...scopeFlags,calendar:e.target.checked})}/><span><b>Calendar read</b><em>Calendars.Read</em><small>Read calendar events.</small></span></label>
-          <label className="permission"><input type="checkbox" checked={scopeFlags.files} onChange={e=>setScopeFlags({...scopeFlags,files:e.target.checked})}/><span><b>Files read</b><em>Files.Read.All</em><small>Read files the connected account can access.</small></span></label>
-        </div>
-        <div className="span-2 connect-actions"><span>{connectMessage}</span><button className="primary" disabled={busy}>Connect Microsoft 365</button></div>
-      </form>}
-    </Panel>
+    <CompanyEmailConnections org={org} session={session} client={supabase} onChanged={reload}/>
+    {connections.length>0&&<Panel title="Connected email account checks">
+      <p>These read actions contact the provider only when you choose them. Review the exact account first.</p>
+      {connections.map(connection=><div className="execution-strip" key={connection.id}><div><b>{emailProviderName(connection.provider)}</b><span>{connection.external_account_email||connection.external_account_name||connection.external_account_id||'Verified account'}</span></div><div className="execution-actions">
+        <button className="secondary" disabled={busy||!!runningAction} onClick={()=>executeEmailRead(connection,'health')}>Health check: {emailProviderName(connection.provider)}</button>
+        <button className="secondary" disabled={busy||!!runningAction} onClick={()=>executeEmailRead(connection,'profile')}>Verify profile: {emailProviderName(connection.provider)}</button>
+        <button className="secondary" disabled={busy||!!runningAction||!hasCapability(connection,'read')} onClick={()=>executeEmailRead(connection,'inbox-status')}>Inbox status: {emailProviderName(connection.provider)}</button>
+        {connection.provider==='microsoft'&&(connection.scopes||[]).includes('Calendars.Read')&&<button className="secondary" disabled={busy||!!runningAction} onClick={()=>executeEmailRead(connection,'calendar-next')}>Upcoming calendar</button>}
+      </div></div>)}{runMessage&&<p role="status">{runMessage}</p>}
+    </Panel>}
 
-    {(canSendEmail||emailRequests.length>0) && <Panel title="Controlled Microsoft email">
-      <p>Create an email action, require human approval, then execute it through Microsoft Graph. Nothing is sent at request time.</p>
-      {canSendEmail?<form className="approval-email-form" onSubmit={queueEmail}>
+    {(sendConnections.length>0||emailRequests.length>0) && <Panel title="Controlled company email">
+      <p>Create an email action for the selected provider and account, require human approval, then send it separately. Nothing is sent at request time.</p>
+      {sendConnections.length>0?<form className="approval-email-form" onSubmit={queueEmail}>
+        <label className="span-2">Sending provider and account<select value={selectedSender?.id||''} disabled={busy} onChange={event=>setSenderId(event.target.value)}><option value="">Choose an account</option>{sendConnections.map(row=><option key={row.id} value={row.id}>{emailProviderName(row.provider)} · {row.external_account_email||row.external_account_name||row.external_account_id||row.id}</option>)}</select></label>
         <label>Recipient<input type="email" value={emailTo} onChange={e=>setEmailTo(e.target.value)} required/></label>
         <label>Subject<input value={emailSubject} onChange={e=>setEmailSubject(e.target.value)} required/></label>
         <label className="span-2">Message<textarea value={emailMessage} onChange={e=>setEmailMessage(e.target.value)} required/></label>
-        <div className="span-2 connect-actions"><span role="status">{approvalMessage}</span><button className="primary" disabled={busy}>Submit for approval</button></div>
-      </form>:<p role="status">New email proposals and sending require a verified Microsoft connection with Mail.Send. Saved requests remain available for review.</p>}
+        <div className="span-2 connect-actions"><span role="status">{approvalMessage}</span><button className="primary" disabled={busy||!canSendEmail}>Submit for approval</button></div>
+      </form>:<p role="status">New email proposals and sending require a verified company email connection with send permission. Saved requests remain available for review.</p>}
+      {!canProposeEmail&&<p role="status">A company member or manager can propose an email. Only an authorized independent manager can approve or send it.</p>}
       {!canSendEmail&&approvalMessage&&<p role="status">{approvalMessage}</p>}
       <div className="approval-list">{emailRequests.length ? emailRequests.map(r=>
         <div className="approval-row" key={r.id}>
-          <div className="approval-preview"><b>{r.payload?.subject||r.title}</b><span>To {r.payload?.to||'—'} • {r.status==='Executing'?'Needs review':r.status==='Executed'?'Microsoft accepted':r.status} • {new Date(r.created_at).toLocaleString()}</span><span className="approval-preview-label">Message to be sent</span><p className="approval-message">{r.payload?.message||'Message preview unavailable. Review the original request before approving.'}</p>{r.error_message&&<span role="status">Last action: {r.error_message}</span>}{r.status==='Pending'&&r.requested_by===session.user.id&&<p>A different authorized person must approve your email.</p>}{r.status!=='Executed'&&(r.status==='Executing'||attempts.get(r.id)==='review')&&<p role="status">Email outcome needs review. Do not resend.</p>}</div>
+          <div className="approval-preview"><b>{r.payload?.subject||r.title}</b><span>To {r.payload?.to||'—'} • {r.status==='Executing'?'Needs review':r.status==='Executed'?emailProviderName(r.provider)+' accepted':r.status} • {new Date(r.created_at).toLocaleString()}</span><span>{emailProviderName(r.provider)} · Account {requestConnection(r)?.external_account_email||requestConnection(r)?.external_account_name||r.approved_connection_binding?.external_account_id||requestConnection(r)?.external_account_id||'Connection unavailable'} · Connection {r.connection_id||'unverified'}</span><span className="approval-preview-label">Message to be sent</span><p className="approval-message">{r.payload?.message||'Message preview unavailable. Review the original request before approving.'}</p>{r.error_message&&<span role="status">Last action: {r.error_message}</span>}{r.status==='Pending'&&r.requested_by===session.user.id&&<p>A different authorized person must approve your email.</p>}{r.status!=='Executed'&&(r.status==='Executing'||attempts.get(r.id)==='review')&&<p role="status">Email outcome needs review. Do not resend.</p>}</div>
           <div className="approval-actions">
-            {r.status==='Pending' && <><button className="secondary" disabled={busy||!canSendEmail||!r.payload?.message||!r.requested_by||r.requested_by===session.user.id} onClick={()=>actOnRequest('approve',r)}>Approve</button><button className="secondary" disabled={busy} onClick={()=>actOnRequest('reject',r)}>Reject</button></>}
-            {r.status==='Approved' && canSendEmail && <button className="primary small" disabled={busy||!r.payload?.message||!!attempts.get(r.id)||!r.requested_by||!r.approved_by||r.approved_by===r.requested_by} onClick={()=>actOnRequest('execute',r)}>Send approved email</button>}
-            {(r.status==='Executed'||attempts.get(r.id)==='accepted') && <span className="status-text">Microsoft accepted. Delivery is not confirmed.</span>}
+            {r.status==='Pending' && <><button className="secondary" disabled={busy||!canReviewEmail||!requestConnection(r)||!r.payload?.message||!r.requested_by||r.requested_by===session.user.id} onClick={()=>actOnRequest('approve',r)}>Approve</button><button className="secondary" disabled={busy||!canReviewEmail} onClick={()=>actOnRequest('reject',r)}>Reject</button></>}
+            {r.status==='Approved' && requestConnection(r) && <button className="primary small" disabled={busy||!canReviewEmail||!r.payload?.message||!!attempts.get(r.id)||!r.requested_by||!r.approved_by||r.approved_by===r.requested_by} onClick={()=>actOnRequest('execute',r)}>Send approved email</button>}
+            {(r.status==='Executed'||attempts.get(r.id)==='accepted') && <span className="status-text">{emailProviderName(r.provider)} accepted. Delivery is not confirmed.</span>}
             {r.status==='Failed' && <span className="status-text">Failed</span>}
           </div>
         </div>

@@ -1,0 +1,108 @@
+{
+  "mode": "Source-only candidate; real TypeScript handlers with mocked provider and actual SQL contracts in PGlite. No deployment, real credentials, consent, mailbox reads, external sends or paid calls.",
+  "checked_at": "2026-10-11T18:06:21.569432+00:00",
+  "results": {
+    "existing_oauth_assertions": {
+      "passed": 41,
+      "failed": 0
+    },
+    "new_oauth_route_tests": {
+      "passed": 22,
+      "failed": 0
+    },
+    "new_oauth_sql_tests": {
+      "passed": 18,
+      "failed": 0
+    }
+  },
+  "deployment_gates": [
+    "Verify actual encrypted Vault store/update/read-back and empty-string tombstone semantics",
+    "Install and verify five-minute expired-staging cleanup schedule with backlog draining",
+    "Configure/verify CerbTek provider applications and exact callback endpoints",
+    "Configure public callback gateway and authenticated start/finalize/list/disconnect routes",
+    "Run separately authorized real-account staging consent/refresh/cleanup tests"
+  ],
+  "files": [
+    {
+      "path": "backend/candidate/edge/_shared/company-email-oauth.ts",
+      "sha256": "6e6a75521e36dc9e117710366af667d05dc8e24e2dfaefb9edfcef8a95ec4e56"
+    },
+    {
+      "path": "backend/candidate/edge/_shared/google-connection.ts",
+      "sha256": "a7563895d2226d684de976e55b2cca68107e63483c8e29e9bb999a8f0a0d9162"
+    },
+    {
+      "path": "backend/candidate/edge/_shared/microsoft-connection.ts",
+      "sha256": "dd2275de9a185a15265e9ad267c624bc7c7726c557edf430efbfa16f1e5363ad"
+    },
+    {
+      "path": "backend/candidate/edge/microsoft-connect/handler.ts",
+      "sha256": "48b0bd474df412c39e5258247b668d1d2f98a38a48263d9c03f82fe875655582"
+    },
+    {
+      "path": "backend/candidate/edge/microsoft-connect/index.ts",
+      "sha256": "c1473d8ff310910106db9dd29f0091b5bed4799e4336b7c5641d8659ae48c530"
+    },
+    {
+      "path": "backend/candidate/edge/microsoft-oauth-callback/handler.ts",
+      "sha256": "53e76c8536c3d6b3c245c517cefbd363efec8d5d59c644d7b9c83edfe2783a1b"
+    },
+    {
+      "path": "backend/candidate/edge/microsoft-oauth-callback/index.ts",
+      "sha256": "d8cf14ce0a74e1b8de7dc18bf1129a410e9f78f2426a80dc9dd1db34b56f24f2"
+    },
+    {
+      "path": "backend/candidate/edge/google-connect/handler.ts",
+      "sha256": "115456803f09e04aacddca9b9fd34c88055cd7e0ddd7e1e71fc7184df5bfb63c"
+    },
+    {
+      "path": "backend/candidate/edge/google-connect/index.ts",
+      "sha256": "e812dfdeb5acf1440342ef63ed770ee21656efec4b4ea3a42dc82472cdfe35c0"
+    },
+    {
+      "path": "backend/candidate/edge/google-oauth-callback/handler.ts",
+      "sha256": "16e54bb54eca532c398235bb87791197f6bd4cf7a2233eb039d0e2fe29bb93f3"
+    },
+    {
+      "path": "backend/candidate/edge/google-oauth-callback/index.ts",
+      "sha256": "d8cf14ce0a74e1b8de7dc18bf1129a410e9f78f2426a80dc9dd1db34b56f24f2"
+    },
+    {
+      "path": "backend/candidate/edge/company-email-connections/handler.ts",
+      "sha256": "b12abafa4e1eb84113048f1a768433fb54d70fd1b407a87a04721ebf19fb48c2"
+    },
+    {
+      "path": "backend/candidate/edge/company-email-connections/index.ts",
+      "sha256": "fbd6572e5d78153ea673841a55b76a8f0243e3a0efb4ead52b832ac864b9d145"
+    },
+    {
+      "path": "backend/candidate/sql/company-email-oauth-contract.sql",
+      "sha256": "90b8376d284a96c64f516d3b4e5ae44a3e12719d1018b2563baf6e27a9b0d8a7"
+    },
+    {
+      "path": "backend/tests/oauth-routes.test.mjs",
+      "sha256": "20f8871aa709b8df4ca979a4576698d851fd85d0d1b25a7099d2c94ccd4e0b15"
+    },
+    {
+      "path": "backend/tests/company-email-oauth-routes.test.mjs",
+      "sha256": "b5d4e81d0a8848719ba022a5686b049b5a98923402bca95e199a56218cac9c13"
+    },
+    {
+      "path": "backend/tests/company-email-oauth-sql.test.mjs",
+      "sha256": "327128d61efde0b172dd96e05639133723a65b09da84c04674e368c83dc891cf"
+    },
+    {
+      "path": "backend/tests/fixtures/company-email-oauth-fixture.mjs",
+      "sha256": "46d4e7ebb1e832d2c3db467968221f29b0bee4747b0429572d00fe51f1ce5269"
+    },
+    {
+      "path": "backend/docs/company-email-oauth-candidate.md",
+      "sha256": "35eef2db6b09c0ea517c095732e0e8a06e246027ea48ba8e1197b770766c2a9a"
+    }
+  ],
+  "schema_verification": {
+    "source": "backend/evidence/company-email-production-metadata.json and company-email-production-columns.json",
+    "fixture": "Captured integrations/oauth_connections types/nullability/defaults/checks, service membership SELECT-only, edge_update_secret void",
+    "constraint_change": "Guarded existing named provider check: microsoft only -> microsoft/google; unchanged status enums; disconnect uses Disabled"
+  }
+}

@@ -11,7 +11,7 @@ export const canonicalScopes = (scopes: string[]): string[] => [...new Set(scope
 export function connectionBinding(c: Row, i: Row) {
   return {
     id: c.id, organization_id: c.organization_id, integration_id: c.integration_id,
-    provider: c.provider, tenant_id: c.tenant_id, client_id: c.client_id,
+    provider: c.provider, ...(c.provider === "google" ? {external_account_email: c.external_account_email} : {}), tenant_id: c.tenant_id, client_id: c.client_id,
     external_account_id: c.external_account_id, access_secret_id: c.access_secret_id,
     refresh_secret_id: c.refresh_secret_id, client_secret_id: c.client_secret_id,
     oauth_verified_version: c.oauth_verified_version, oauth_revision: c.oauth_revision,
@@ -51,7 +51,14 @@ export async function providerJson(fetchImpl: typeof fetch, url: string, init: R
   const response = await fetchImpl(url, {...init, redirect: "error", signal: AbortSignal.timeout(20000)});
   if (!response.ok) throw new Error("Microsoft provider request failed");
   let json: any;
-  try { json = await response.json(); } catch { throw new Error("Microsoft returned an invalid response"); }
+  try {
+    const maxBytes=131072;
+    if(Number(response.headers.get("content-length"))>maxBytes || !response.body)throw new Error("Provider response too large");
+    const reader=response.body.getReader(),parts:Uint8Array[]=[];let size=0;
+    try { while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>maxBytes){await reader.cancel();throw new Error("Provider response too large");}parts.push(value);} } finally {reader.releaseLock();}
+    const bytes=new Uint8Array(size);let offset=0;for(const part of parts){bytes.set(part,offset);offset+=part.length;}
+    json=JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(bytes));
+  } catch { throw new Error("Microsoft returned an invalid response"); }
   if (!json || typeof json !== "object" || Array.isArray(json)) throw new Error("Microsoft returned an invalid response");
   return json;
 }
@@ -65,7 +72,7 @@ export async function verifiedMailbox(fetchImpl: typeof fetch, accessToken: stri
       || (expectedId !== undefined && account.id !== expectedId)) {
     throw new Error("Microsoft mailbox identity could not be verified");
   }
-  return {id: account.id, name: typeof account.displayName === "string" && account.displayName.trim() ? account.displayName.slice(0,512) : principal.slice(0,512)};
+  return {id: account.id, email: principal.toLowerCase().slice(0,320), name: typeof account.displayName === "string" && account.displayName.trim() ? account.displayName.slice(0,512) : principal.slice(0,512)};
 }
 export async function loadMicrosoftIntegration(supabase: Client, connection: Row) {
   const {data: i, error} = await supabase.from("integrations").select("*")
@@ -77,7 +84,7 @@ export async function loadMicrosoftIntegration(supabase: Client, connection: Row
   return i;
 }
 export async function validateConnection(supabase: Client, connection: Row, binding: Row) {
-  await requireTrue(supabase, "validate_microsoft_connection", {
+  await requireTrue(supabase, connection.oauth_connected_by ? "validate_email_connection" : "validate_microsoft_connection", {
     p_connection_id: connection.id, p_organization_id: connection.organization_id, p_expected_binding: binding,
   });
 }
@@ -110,6 +117,10 @@ export async function getMicrosoftAccessToken({supabase, connection, fetchImpl =
   });
   const result = tokenResult(json, connection.scopes, now());
   const account = await verifiedMailbox(fetchImpl, result.accessToken, connection.external_account_id);
+  if (connection.oauth_connected_by) {
+    await requireTrue(supabase,"commit_email_refresh",{p_connection_id:connection.id,p_organization_id:connection.organization_id,p_expected_refresh_revision:connection.oauth_refresh_revision,p_expected_binding:binding,p_access_token:result.accessToken,p_refresh_token:result.refreshToken,p_expires_at:result.expiresAt,p_account_id:account.id,p_account_email:account.email,p_granted_scopes:result.grantedScopes});
+    return result.accessToken;
+  }
   await requireTrue(supabase, "commit_microsoft_refresh", {connection_id: connection.id, organization_id: connection.organization_id,
     expected_refresh_revision: connection.oauth_refresh_revision, expected_binding: binding,
     access_token: result.accessToken, refresh_token: result.refreshToken, expires_at: result.expiresAt,

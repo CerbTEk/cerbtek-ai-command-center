@@ -53,7 +53,7 @@ function SetupBody({ org, session, client, planning = {}, onGo, onDirtyChange, o
     <section className="panel setup-outcome" aria-labelledby="setup-outcome-title">
       <p className="eyebrow">1 · CHOOSE THE OUTCOME</p><h2 id="setup-outcome-title">Reply to a customer with a reviewed email</h2>
       <p>Save an inquiry, draft from approved company guidance, have a different authorized person review the exact email, then use a separate send action.</p>
-      <p>Available in this release: manual inquiry capture, versioned reply guidance, optional selected Company Knowledge excerpts, AI draft configuration, human approval, and recorded Microsoft email outcomes. Phone intake, automatic inbox retrieval, Google or AWS connectors, and billing are not part of this setup.</p>
+      <p>Available in this release: manual inquiry capture, versioned reply guidance, optional selected Company Knowledge excerpts, AI draft configuration, human approval, and recorded company email outcomes. Manager-selected Microsoft folders or Gmail labels support manual mailbox intake after email connection. Phone intake, background inbox sync, AWS connectors, and billing are not part of this setup.</p>
       <p className="setup-note">Code available → saved configuration → verified connection → live acceptance. These are separate states. This guide never activates a provider or sends a message.</p>
     </section>
     <section className="panel" aria-labelledby="setup-readiness-title">
@@ -75,7 +75,7 @@ function SetupBody({ org, session, client, planning = {}, onGo, onDirtyChange, o
       <p>The check above reads only the existing customer-workflow and Company Knowledge services. It does not refresh provider models, generate a draft, grant access, or send email.</p>
       <ol><li>Save and review approved company guidance and the customer-reply configuration in their existing screens.</li><li>Return here and recheck the saved connection and reviewer prerequisites.</li><li>Inspect any saved request with a pending or unknown outcome before deciding whether another attempt is safe.</li></ol>
       {setup?.uncertain && <p role="alert" className="setup-blocked">A visible request has an unresolved AI or email outcome. Open Customer Follow-up and inspect it. Do not generate a replacement or resend.</p>}
-      {snapshot && <p>{snapshot.workspace.workflows.length} visible saved requests checked (up to {snapshot.workspace.limit || 100}). {setup.accepted} record Microsoft acceptance; acceptance does not establish delivery or overall activation. History is limited to records available to your role.</p>}
+      {snapshot && <p>{snapshot.workspace.workflows.length} visible saved requests checked (up to {snapshot.workspace.limit || 100}). {setup.accepted} record provider acceptance; acceptance does not establish delivery or overall activation. History is limited to records available to your role.</p>}
       <SectionLink section="Customer Follow-up" onGo={onGo}>Review saved customer requests</SectionLink>
     </section>
     <section className="panel" aria-labelledby="setup-activation-title">

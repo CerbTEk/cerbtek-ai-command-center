@@ -1,0 +1,178 @@
+{
+  "captured_at": "2026-10-11T18:20:46.765Z",
+  "project_id": "suohuogalotxhsnkumvy",
+  "migrations": [
+    {
+      "name": "company-email-oauth-contract.sql",
+      "sha256": "90b8376d284a96c64f516d3b4e5ae44a3e12719d1018b2563baf6e27a9b0d8a7",
+      "status": "success",
+      "version": "20261011181658"
+    },
+    {
+      "name": "company-email-workflow-contract.sql",
+      "sha256": "2c88be3d79de29ca9cff739725c08e67f03147037b2b792fddf595fb051f42e8",
+      "status": "success",
+      "version": "20261011181750"
+    },
+    {
+      "name": "company-email-cleanup-schedule.sql",
+      "version": "20261011182227",
+      "sha256": "832347cea46967d46fc0c679f07a1ffb5c99a172607242d49f104a793f93cc6d",
+      "status": "success"
+    }
+  ],
+  "edge": [
+    {
+      "name": "microsoft-connect",
+      "version": 7,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "files": 5,
+      "exact_source_match": true,
+      "mismatches": []
+    },
+    {
+      "name": "microsoft-oauth-callback",
+      "version": 6,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "files": 5,
+      "exact_source_match": true,
+      "mismatches": []
+    },
+    {
+      "name": "google-connect",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "files": 5,
+      "exact_source_match": true,
+      "mismatches": []
+    },
+    {
+      "name": "google-oauth-callback",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "files": 5,
+      "exact_source_match": true,
+      "mismatches": []
+    },
+    {
+      "name": "company-email-connections",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "files": 5,
+      "exact_source_match": true,
+      "mismatches": []
+    },
+    {
+      "name": "mailbox-intake",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "files": 7,
+      "exact_source_match": true,
+      "mismatches": []
+    },
+    {
+      "name": "customer-workflow",
+      "version": 7,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "files": 2,
+      "exact_source_match": true,
+      "mismatches": []
+    },
+    {
+      "name": "workflow-installations",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "files": 2,
+      "exact_source_match": true,
+      "mismatches": []
+    },
+    {
+      "name": "microsoft-action",
+      "version": 9,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "files": 8,
+      "exact_source_match": true,
+      "mismatches": []
+    },
+    {
+      "name": "microsoft-execute",
+      "version": 6,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "files": 6,
+      "exact_source_match": true,
+      "mismatches": []
+    },
+    {
+      "name": "agent-run",
+      "version": 6,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "files": 8,
+      "exact_source_match": true,
+      "mismatches": []
+    },
+    {
+      "name": "workflow-runner",
+      "version": 7,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "files": 7,
+      "exact_source_match": true,
+      "mismatches": []
+    },
+    {
+      "name": "workflow-resume",
+      "version": 6,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "files": 7,
+      "exact_source_match": true,
+      "mismatches": []
+    }
+  ],
+  "sql_verification": {
+    "functions": 36,
+    "exact_body_matches": 36,
+    "anon_or_authenticated_execute_grants": 0,
+    "private_setup_rls": true,
+    "browser_private_setup_select_insert": false
+  },
+  "security_advisor": {
+    "warnings": 0,
+    "errors": 0,
+    "info": "RLS enabled without browser policy on 25 service-only tables; expected count rose from24 to25"
+  },
+  "cleanup": {
+    "job_id": 5,
+    "name": "kairo-company-email-oauth-cleanup",
+    "schedule": "*/5 * * * *",
+    "active": true,
+    "database": "postgres",
+    "username": "postgres",
+    "host": "localhost",
+    "port": 5432,
+    "limit": 100,
+    "statement_timeout": "30s",
+    "lock_timeout": "2s",
+    "first_scheduled_run": {
+      "run_id": 14666,
+      "status": "succeeded",
+      "return_message": "1 row",
+      "start_time": "2026-10-11 18:25:00.016978+00",
+      "end_time": "2026-10-11 18:25:00.022952+00",
+      "note": "No setup records existed; this verifies scheduling/execution, not real-token clearing."
+    }
+  },
+  "public_probe_evidence": "company-email-public-edge-probes.json",
+  "provider_operations": "None. Connections and setup records both0 when verified."
+}

@@ -74,3 +74,10 @@ test('knowledge search and preview preserve verified manager actor and exact ref
  s.result.actor.role='owner';s.result.organization_id=other;assert.equal((await invoke(s,{operation:'knowledge_source',...knowledgeRef})).status,503);
  for(const query of ['', 'a', 'x'.repeat(201),{},null])assert.equal((await invoke(s,{operation:'knowledge_search',query})).status,400);
 });
+
+test('queue accepts only an explicit UUID account selector and delegates exact draft/provider choice to SQL',async()=>{
+ const s=fixture();s.result={id:workflow,organization_id:org,revision:3,action_request:{id:key,provider:'google',connection_id:config,status:'Pending'}};
+ const out=await invoke(s,{operation:'queue',workflow_id:workflow,expected_revision:2,connection_id:config});assert.equal(out.status,200);assert.deepEqual(s.calls[0],{name:'customer_workflow_queue_email',args:{p_org:org,p_actor:actor,p_workflow:workflow,p_expected_revision:2,p_connection:config}});
+ const f=fixture();for(const value of ['forged',null,{},'https://attacker.test'])assert.equal((await invoke(f,{operation:'queue',workflow_id:workflow,expected_revision:2,connection_id:value})).status,400);assert.equal(f.calls.length,0);
+ assert.equal((await invoke(f,{operation:'queue',workflow_id:workflow,expected_revision:2,connection_id:config,provider:'google'})).status,400);
+});

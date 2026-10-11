@@ -1,0 +1,290 @@
+[
+  {
+    "name": "private.require_company_email_actor",
+    "md5": "176d2254fec26acb5868a5fbe43a0944",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "private.email_requested_scopes",
+    "md5": "06162f4812365355b535529609d55210",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "private.email_grant_matches",
+    "md5": "d92e177fcdb4f91000c65708df5d37e3",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "private.email_connection_binding",
+    "md5": "33c476049aec727a4b4c73e85b1e7b8c",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "private.guard_company_email_authority",
+    "md5": "41b6f562e849a35b68c04d55acc650a6",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "private.clear_company_email_secrets",
+    "md5": "a4ba3ef4ea0cb3c295a088f70309c819",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.begin_company_email_oauth_setup",
+    "md5": "d5158e0e3078e465d32bdf5f75698ea7",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "private.assert_company_email_setup",
+    "md5": "510b4392ea781182d7cef7c4465179ec",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.claim_company_email_oauth_setup",
+    "md5": "f0e9748d8bfb94e0db90ce4032a8b7a8",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.stage_company_email_oauth_setup",
+    "md5": "5a4f12e20f6b8b74b711be7e24a63a66",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.finish_company_email_oauth_setup",
+    "md5": "4247859091a33fee9641c890e1576550",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.fail_company_email_oauth_setup",
+    "md5": "32b1767c5aa3d8365917b38ecd1c8644",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.validate_email_connection",
+    "md5": "746cdb38366de294791f48c5692cf7dc",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.commit_email_refresh",
+    "md5": "b9beb73cd2e24aeb4b7a7b6ff21b1f9a",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.disconnect_company_email_connection",
+    "md5": "45a864eed62de1045ecfc76758a5a076",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.cleanup_expired_company_email_oauth_setups",
+    "md5": "da81f95ac6fd35e74e5f3090509ce5f0",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "private.company_email_connection_live",
+    "md5": "62cff63d36fad225d0347b52a7d8c381",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.list_company_email_connections",
+    "md5": "0efa9845352b1a5505330f085c0bdba1",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "private.email_has_scope",
+    "md5": "a608fab3802bbbc931e84f5fcd1d6e34",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "private.installation_email_id",
+    "md5": "1a55efcdecbb662dfb4ae01191ed64fa",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "private.workflow_email_connection_live",
+    "md5": "2d97ba610316795c2300a1ca2f0e357a",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "private.workflow_installation_connection",
+    "md5": "108142ab3347ee51aca455bb9c6a6e42",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "private.workflow_installation_readiness",
+    "md5": "e5df20c855f170e0c6e8fdcd3087f97d",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.workflow_installations_save",
+    "md5": "bd149bb5a48a72449caeb8643312bde6",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "private.workflow_installation_assert_action",
+    "md5": "5e7a03f507213cf2bc24ac130d630cba",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "private.customer_workflow_project",
+    "md5": "7156f4aaced61ccf42bdbe8d02dd428b",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.workflow_installations_start",
+    "md5": "ce2533ca7922857a7363c6464e0a46be",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.customer_workflow_load",
+    "md5": "1ce0b04ef73331ea6b5daf8c0d3db7c5",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.customer_workflow_queue_email",
+    "md5": "77f51db69a73f1d960509543ef08278a",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.customer_workflow_queue",
+    "md5": "25e7c853a47c225545de4954d693bc0c",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "private.guard_execution_request",
+    "md5": "be512379eed7e3e9d6725553ce2c1f7b",
+    "acl": "{postgres=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.review_email_action",
+    "md5": "e5f7c04276dd9ff176ac1259df05265e",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.claim_microsoft_action",
+    "md5": "db8ceca077e364ded30d7008b09f3d53",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.record_microsoft_attempt",
+    "md5": "bcd6616a19b4af6507378335476aa410",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.mailbox_intake_authorize",
+    "md5": "3d961c1bed6cf09704ae0bcc99c3db3a",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  },
+  {
+    "name": "public.mailbox_intake_load",
+    "md5": "5dc591781e8e1ebf7fc77d9082687cd8",
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "exact_body_match": true
+  }
+]

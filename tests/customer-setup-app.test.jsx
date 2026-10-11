@@ -52,6 +52,6 @@ it('closes cleanly on sign-out and permits no setup snapshot on signed-out page'
 it('supports narrow DOM with semantic headings and interactive links', async () => {
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 375 }); render(<App/>); await opened()
   expect(screen.getByRole('heading', { name: 'Reply to a customer with a reviewed email' })).toBeTruthy()
-  const link = screen.getByRole('link', { name: 'Review Microsoft connection' }); link.focus(); expect(document.activeElement).toBe(link)
+  const link = screen.getByRole('link', { name: 'Review company email' }); link.focus(); expect(document.activeElement).toBe(link)
   fireEvent.click(link); await screen.findByRole('heading', { level: 1, name: 'Integrations' })
 })

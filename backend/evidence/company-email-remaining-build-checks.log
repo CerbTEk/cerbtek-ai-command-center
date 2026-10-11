@@ -1,0 +1,30 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> kairo-command-center@0.1.0 test:marketing-build
+> node tests/marketing-build.mjs
+
+PASS distinct CerbTEK company and Kairo product routes, canonical metadata, brand and mount-aware navigation; marketing metadata, real email CTA, assets, navigation and backend-free public dependency graph; app and investors retained at /
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> kairo-command-center@0.1.0 test:knowledge:build
+> node tests/company-knowledge-build.mjs
+
+Company Knowledge component bundle, responsive CSS and plain-text/no-provider checks passed. Pixel/browser QA was not run.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> kairo-command-center@0.1.0 test:setup:build
+> node tests/customer-setup-build.mjs
+
+Customer setup read-only operations, lazy bundle, responsive/focus rules and dark-theme text contrast passed. DOM coverage is separate; no pixel/browser QA was run.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> kairo-command-center@0.1.0 test:reporting:build
+> node tests/customer-reporting-build.mjs
+
+Reporting read-only boundary, lazy bundle, public-bundle isolation, responsive/focus targets and text contrast passed. DOM checks are separate; browser pixels remain unrun.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> kairo-command-center@0.1.0 test:billing:build
+> node tests/billing-build.mjs
+
+Billing read-only UI operations, lazy bundle, responsive/focus rules and dark-theme text contrast passed. DOM coverage is separate; browser/pixel QA was not run.

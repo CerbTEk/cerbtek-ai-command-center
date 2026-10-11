@@ -1,3 +1,4 @@
+import { EMAIL_PROVIDERS, emailProviderName } from './company-email-model'
 import { verifyWorkspace, workflowState } from './customer-reply-model'
 import { workflowMonitorWindow, timestampMs } from './workflow-monitor-data'
 
@@ -13,14 +14,14 @@ export function customerRequestEvidence(workflow) {
   const run = workflow.ai_run, action = workflow.action_request, receipt = action ? workflow.receipt : null
   const config = workflow.configuration
   const boundRun = run && present(run.id) && run.organization_id === workflow.organization_id && present(workflow.ai_request_key) && run.request_key === workflow.ai_request_key && present(workflow.configuration_id) && run.configuration_id === workflow.configuration_id && present(workflow.draft_requested_by) && run.requested_by === workflow.draft_requested_by ? run : null
-  const boundAction = action && present(action.id) && action.id === workflow.action_request_id && action.organization_id === workflow.organization_id && action.customer_workflow_id === workflow.id && action.provider === 'microsoft' && action.action_type === 'send_email' ? action : null
+  const boundAction = action && present(action.id) && action.id === workflow.action_request_id && action.organization_id === workflow.organization_id && action.customer_workflow_id === workflow.id && EMAIL_PROVIDERS.includes(action.provider) && action.action_type === 'send_email' ? action : null
   const boundConfig = boundRun && config?.id === boundRun.configuration_id && config.organization_id === workflow.organization_id ? config : null
   const boundReceipt = boundAction ? receipt : null
   const accepted = boundReceipt && ['ProviderAccepted', 'ConfirmedAccepted'].includes(boundReceipt.phase) || boundAction?.status === 'Executed'
   const notSent = boundReceipt?.phase === 'ConfirmedNotSent'
   const contradictory = Boolean(notSent && boundAction?.status === 'Executed')
   const email = contradictory ? { label: 'Conflicting send records', detail: 'Acceptance and a not-sent reconciliation disagree. An operator must inspect the saved records.', key: 'attention' }
-    : accepted ? { label: 'Microsoft accepted', detail: 'The provider accepted the email. Delivery, reading and business resolution are not recorded.', key: 'accepted' }
+    : accepted ? { label: `${emailProviderName(boundAction?.provider)} accepted`, detail: 'The provider accepted the email. Delivery, reading and business resolution are not recorded.', key: 'accepted' }
     : notSent ? { label: 'Confirmed not sent', detail: 'The saved reconciliation records that this attempt was not sent.', key: 'not_sent' }
     : workflow.status === 'cancelled' && !boundReceipt ? { label: 'Cancelled before dispatch', detail: 'This request is cancelled. Earlier approval states remain in its saved history; no dispatch receipt is recorded.', key: 'cancelled' }
     : boundReceipt?.phase === 'Dispatching' || ['Executing', 'Failed'].includes(boundAction?.status) ? { label: 'Send outcome needs review', detail: 'Dispatch may have started. Do not resend while the outcome is unresolved.', key: 'attention' }
@@ -52,7 +53,7 @@ export function customerRequestEvidence(workflow) {
     if (boundAction.rejected_at) add('email_rejected', 'Email rejection recorded', boundAction.rejected_at, 'The approval was rejected.')
     if (boundReceipt) {
       if (instant(boundReceipt.dispatch_started_at)) add('dispatch', 'Email dispatch attempt recorded', boundReceipt.dispatch_started_at, `Receipt phase: ${boundReceipt.phase || 'Unavailable'}`)
-      if (boundReceipt.provider_accepted_at) add('provider_accepted', 'Microsoft acceptance recorded', boundReceipt.provider_accepted_at, 'Delivery and business resolution are not confirmed.')
+      if (boundReceipt.provider_accepted_at) add('provider_accepted', `${emailProviderName(boundAction.provider)} acceptance recorded`, boundReceipt.provider_accepted_at, 'Delivery and business resolution are not confirmed.')
       if (boundReceipt.reconciled_at) add('reconciled', 'Email outcome reconciled', boundReceipt.reconciled_at, `Receipt phase: ${boundReceipt.phase || 'Unavailable'}`)
     }
     if (boundAction.executed_at) add('action_recorded', 'Email action marked executed', boundAction.executed_at, 'This action status is separate from delivery confirmation.')

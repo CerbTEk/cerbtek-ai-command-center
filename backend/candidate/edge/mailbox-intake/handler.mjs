@@ -1,11 +1,13 @@
-import { createMicrosoftIntakeProvider } from './provider.mjs';
+import { createMicrosoftIntakeProvider, MailboxProviderError } from './provider.mjs';
+import { createGmailIntakeProvider } from './gmail-provider.mjs';
+import { GMAIL_READ_SCOPE } from '../_shared/gmail-send.mjs';
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const exact=(v,keys)=>object(v)&&Object.keys(v).length===keys.length&&keys.every(k=>Object.hasOwn(v,k));
 const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(v);
 const id=v=>typeof v==='string'&&v.length>0&&v.length<=1024&&!/[\x00-\x1f\x7f]/.test(v);
 const ops={load:[],folders:[],save:['expected_source_revision','folder_id'],preview:['source_revision'],import:['source_revision','preview_id']};
 class IntakeError extends Error {constructor(code,status=409,outcome='not_applied'){super(code);this.code=code;this.status=status;this.outcome=outcome}}
-export function createHandler({supabase,getAccessToken,fetchImpl=fetch,providerFactory=createMicrosoftIntakeProvider,allowedOrigins=[]}){
+export function createHandler({supabase,getAccessToken,getGoogleAccessToken,fetchImpl=fetch,providerFactory,allowedOrigins=[]}){
  return async request=>{
   const origin=request.headers.get('origin'),headers={'Content-Type':'application/json','Cache-Control':'no-store',Vary:'Origin'};
   if(origin&&allowedOrigins.includes(origin))Object.assign(headers,{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'authorization, apikey, content-type, x-client-info','Access-Control-Allow-Methods':'POST, OPTIONS'});
@@ -39,13 +41,13 @@ export function createHandler({supabase,getAccessToken,fetchImpl=fetch,providerF
     }
     return data;
    };
-   const envelope={ok:true,contract_version:1,organization_id:body.organization_id,installation_id:body.installation_id,installation_revision:body.installation_revision};
+   const envelope={ok:true,contract_version:2,organization_id:body.organization_id,installation_id:body.installation_id,installation_revision:body.installation_revision};
    const verifySource=s=>s===null||object(s)&&uuid(s.id)&&Number.isSafeInteger(s.revision)&&s.revision>0&&s.organization_id===body.organization_id&&s.installation_id===body.installation_id&&s.installation_revision===body.installation_revision&&id(s.folder_id)&&id(s.mailbox_id)&&typeof s.folder_name==='string';
    const publicSource=s=>s===null?null:Object.fromEntries(['id','revision','folder_id','folder_name','mailbox_id'].map(k=>[k,s[k]]));
    const invalid=()=>{throw new IntakeError('mailbox_response_unverified',503,writeAttempted?'unknown':'not_applied')};
    if(body.operation==='load'){
     const data=await rpc('mailbox_intake_load');
-    if(!object(data)||!verifySource(data.source)||!object(data.capabilities)||typeof data.capabilities.mail_read!=='boolean'||!id(data.capabilities.mailbox_id)||typeof data.capabilities.account_name!=='string'||!Array.isArray(data.imports)||data.imports.length>20||!data.imports.every(r=>uuid(r.preview_id)&&uuid(r.workflow_id)&&id(r.message_id)))invalid();
+    if(!object(data)||!verifySource(data.source)||!object(data.capabilities)||typeof data.capabilities.mail_read!=='boolean'||!['microsoft','google'].includes(data.capabilities.provider)||!uuid(data.capabilities.connection_id)||!id(data.capabilities.mailbox_id)||typeof data.capabilities.account_name!=='string'||!Array.isArray(data.imports)||data.imports.length>20||!data.imports.every(r=>uuid(r.preview_id)&&uuid(r.workflow_id)&&id(r.message_id)))invalid();
     return reply({...envelope,...data,source:publicSource(data.source)});
    }
    if(body.operation==='import'){
@@ -56,17 +58,22 @@ export function createHandler({supabase,getAccessToken,fetchImpl=fetch,providerF
    let frozen;
    const authority=async()=>{
     const a=await rpc('mailbox_intake_authorize',{p_source_revision:body.operation==='preview'?body.source_revision:null,p_require_read:true});
-    if(!object(a)||!uuid(a.connection_id)||!id(a.mailbox_id)||a.mail_read!==true||typeof a.connection_fingerprint!=='string'||!verifySource(a.source))invalid();
+    if(!object(a)||!['microsoft','google'].includes(a.provider)||!uuid(a.connection_id)||!id(a.mailbox_id)||(a.provider==='google'&&(typeof a.account_email!=='string'||!a.account_email))||a.mail_read!==true||typeof a.connection_fingerprint!=='string'||!verifySource(a.source))invalid();
     if(frozen&&JSON.stringify(a)!==JSON.stringify(frozen))throw new IntakeError('mailbox_source_changed_or_not_ready');
     frozen??=a;return a;
    };
    const authorize=async()=>{
     const a=await authority();
     const {data:c,error}=await supabase.from('oauth_connections').select('*').eq('id',a.connection_id).eq('organization_id',body.organization_id).single();
-    if(error||!c||c.id!==a.connection_id||c.organization_id!==body.organization_id||c.external_account_id!==a.mailbox_id||!Array.isArray(c.scopes)||!c.scopes.includes('Mail.Read'))throw new IntakeError('mailbox_connection_unavailable');
-    return {connection:c,mailbox_id:a.mailbox_id,...(body.operation==='preview'?{folder_id:a.source.folder_id}:{})};
+    if(error||!c||c.id!==a.connection_id||c.organization_id!==body.organization_id||c.provider!==a.provider||c.external_account_id!==a.mailbox_id||(a.provider==='google'&&c.external_account_email!==a.account_email)||!Array.isArray(c.scopes)||!c.scopes.includes(a.provider==='google'?GMAIL_READ_SCOPE:'Mail.Read'))throw new IntakeError('mailbox_connection_unavailable');
+    return {connection:c,mailbox_id:a.mailbox_id,...(a.provider==='google'?{account_email:a.account_email}:{}),...(body.operation==='preview'?{folder_id:a.source.folder_id}:{})};
    };
-   const provider=providerFactory({fetchImpl,authorize,getAccessToken:connection=>getAccessToken(connection)});
+   // Provider choice comes only from the frozen server authorization, never request fields.
+   await authority();
+   const providerName=frozen.provider;
+   const factory=providerFactory??(providerName==='google'?createGmailIntakeProvider:createMicrosoftIntakeProvider);
+   const access=providerName==='google'?getGoogleAccessToken:getAccessToken;
+   const provider=factory({fetchImpl,authorize,getAccessToken:connection=>{if(typeof access!=='function')throw new IntakeError('mailbox_credentials_unavailable',503);return access(connection)}});
    if(body.operation==='folders'){
     const data=await provider.folders();await authority();
     if(!object(data)||!Array.isArray(data.folders)||data.folders.length>50||typeof data.has_more!=='boolean'||!data.folders.every(f=>id(f.id)&&typeof f.name==='string'&&f.name.length>0&&f.name.length<=200))invalid();
@@ -85,6 +92,6 @@ export function createHandler({supabase,getAccessToken,fetchImpl=fetch,providerF
    const previews=await rpc('mailbox_intake_capture',{p_source_revision:body.source_revision,p_expected_binding:frozen,p_messages:data.messages},true);
    if(!Array.isArray(previews)||previews.length!==data.messages.length||!previews.every(p=>uuid(p.id)&&id(p.message_id)&&object(p.intake)&&typeof p.expires_at==='string'))invalid();
    return reply({...envelope,previews:previews.map(p=>Object.fromEntries(['id','expires_at','message_id','thread_id','received_at','has_attachments','intake'].map(k=>[k,p[k]]))),has_more:data.has_more,skipped:data.skipped});
-  }catch(error){return reply({ok:false,error:error instanceof IntakeError?error.code:'mailbox_intake_unavailable',write_outcome:error instanceof IntakeError?error.outcome:writeAttempted?'unknown':'not_applied'},error instanceof IntakeError?error.status:503)}
+  }catch(error){const known=error instanceof IntakeError||error instanceof MailboxProviderError;return reply({ok:false,error:known?error.code:'mailbox_intake_unavailable',write_outcome:error instanceof IntakeError?error.outcome:writeAttempted?'unknown':'not_applied'},known?error.status:503)}
  };
 }

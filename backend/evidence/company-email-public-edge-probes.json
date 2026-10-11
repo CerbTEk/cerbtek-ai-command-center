@@ -1,0 +1,70 @@
+{
+  "at": "2026-10-11T18:21:41.072786+00:00",
+  "unauthenticated_no_provider_calls": true,
+  "results": [
+    {
+      "route": "microsoft-connect",
+      "method": "OPTIONS",
+      "status": 200,
+      "allow_origin": "https://www.cerbtek.com",
+      "location": null,
+      "body": "ok"
+    },
+    {
+      "route": "google-connect",
+      "method": "OPTIONS",
+      "status": 200,
+      "allow_origin": "https://www.cerbtek.com",
+      "location": null,
+      "body": "ok"
+    },
+    {
+      "route": "company-email-connections",
+      "method": "OPTIONS",
+      "status": 200,
+      "allow_origin": "https://www.cerbtek.com",
+      "location": null,
+      "body": "ok"
+    },
+    {
+      "route": "mailbox-intake",
+      "method": "OPTIONS",
+      "status": 204,
+      "allow_origin": "https://www.cerbtek.com",
+      "location": null,
+      "body": ""
+    },
+    {
+      "route": "google-connect",
+      "method": "POST",
+      "status": 401,
+      "allow_origin": "*",
+      "location": null,
+      "body": "{\"code\":\"UNAUTHORIZED_NO_AUTH_HEADER\",\"message\":\"Missing authorization header\"}"
+    },
+    {
+      "route": "company-email-connections",
+      "method": "POST",
+      "status": 401,
+      "allow_origin": "*",
+      "location": null,
+      "body": "{\"code\":\"UNAUTHORIZED_NO_AUTH_HEADER\",\"message\":\"Missing authorization header\"}"
+    },
+    {
+      "route": "microsoft-oauth-callback",
+      "method": "GET",
+      "status": 302,
+      "allow_origin": null,
+      "location": "https://www.cerbtek.com/app/kairo?microsoft=error&message=Email+authorization+failed.+Start+a+new+company+connection+setup.",
+      "body": ""
+    },
+    {
+      "route": "google-oauth-callback",
+      "method": "GET",
+      "status": 302,
+      "allow_origin": null,
+      "location": "https://www.cerbtek.com/app/kairo?google=error&message=Email+authorization+failed.+Start+a+new+company+connection+setup.",
+      "body": ""
+    }
+  ]
+}

@@ -56,5 +56,5 @@ export function useExecutionAttempts(scope) {
 export const needsReconciliation = data => data?.status === 'Executing' || data?.retryable === false && data?.ok === false || ['unknown', 'provider_accepted_needs_reconciliation', 'not_dispatched_needs_reconciliation'].includes(data?.outcome)
 export const acceptedEmail = data => data?.ok === true && data?.status === 'Executed' && data?.outcome === 'provider_accepted'
 export const reviewEmailMessage = data => data?.outcome === 'provider_accepted_needs_reconciliation'
-  ? 'Microsoft accepted the email; its saved record needs review. Do not resend. Delivery is not confirmed.'
-  : 'Email outcome needs review. Do not resend. Check the saved request and Microsoft account before taking any further action.'
+  ? 'The provider accepted the email; its saved record needs review. Do not resend. Delivery is not confirmed.'
+  : 'Email outcome needs review. Do not resend. Check the saved request and email account before taking any further action.'

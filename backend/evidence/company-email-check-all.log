@@ -1,0 +1,878 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> kairo-command-center@0.1.0 check:all
+> npm run test:backend && npm run test:ui && npm run test:funding-db && npm run test:marketing && npm run build && npm run test:funding-build && npm run test:marketing-build && npm run test:knowledge:build && npm run test:setup:build && npm run test:reporting:build && npm run test:billing:build
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> kairo-command-center@0.1.0 test:backend
+> node --test --test-concurrency=1 backend/tests/*.test.mjs
+
+✔ manual queue preserves real pending proposal and never dispatches (9.924216ms)
+✔ manual queue rejects client-forged workflow_run_id (1.175995ms)
+✔ manual queue rejects client-forged approved_by (0.734231ms)
+✔ manual queue rejects client-forged status (0.717531ms)
+✔ manual queue rejects client-forged agent_run_request_id (3.217039ms)
+✔ manual queue rejects client-forged connection_id (0.926797ms)
+✔ self approval is denied with no mutation (1.121935ms)
+✔ distinct authorized approver approves pending using conditional write (1.672557ms)
+✔ review fails closed when conditional write cannot be confirmed (1.439947ms)
+✔ authorization storage failure does not become implied permission (1.226102ms)
+✔ claim failure never obtains token or dispatches (0.974894ms)
+✔ Dispatching requires literal true, got null (1.49141ms)
+✔ Dispatching requires literal true, got false (0.675504ms)
+✔ Dispatching requires literal true, got {} (0.435874ms)
+✔ Dispatching requires literal true, got 1 (0.442468ms)
+✔ Dispatching requires literal true, got "true" (0.355351ms)
+✔ dispatch order is claim then token then acknowledged durable Dispatching then Graph (1.817048ms)
+✔ changed scope invalidates frozen approved identity (0.770236ms)
+✔ changed account invalidates frozen approved identity (0.416322ms)
+✔ changed integration invalidates frozen approved identity (0.521139ms)
+✔ changed tenant invalidates frozen approved identity (0.434087ms)
+✔ changed revision invalidates frozen approved identity (0.452818ms)
+✔ token failure leaves nonretryable claimed predispatch state (1.224088ms)
+✔ unexpected Graph 200 remains unresolved and never resets (0.837232ms)
+✔ unexpected Graph 201 remains unresolved and never resets (0.524012ms)
+✔ unexpected Graph 400 remains unresolved and never resets (0.805634ms)
+✔ unexpected Graph 401 remains unresolved and never resets (0.557081ms)
+✔ unexpected Graph 429 remains unresolved and never resets (0.611577ms)
+✔ unexpected Graph 500 remains unresolved and never resets (0.583469ms)
+✔ network uncertainty never sends twice on repeated execution (1.256396ms)
+✔ provider accepted receipt failure returns accepted pending without retry (0.855027ms)
+✔ completion failure preserves ProviderAccepted receipt (0.717667ms)
+✔ audit failure does not erase provider acceptance or reclassify send (1.072363ms)
+✔ workflow resume throw leaves accepted email Executed (1.573297ms)
+✔ workflow resume 202 leaves accepted email Executed (1.030252ms)
+✔ workflow resume 500 leaves accepted email Executed (2.903345ms)
+✔ manual note workflow uses trusted creation snapshot and completes (2.53074ms)
+✔ manual workflow rejects forged lineage {"agent_run_request_id":"fake"} (0.525832ms)
+✔ manual workflow rejects forged lineage {"outputs":[]} (0.30138ms)
+✔ manual workflow rejects forged lineage {"action_request_id":"fake"} (0.215486ms)
+✔ manual workflow rejects forged lineage {"nested":[[{"agent_id":"fake"}]]} (0.187199ms)
+✔ manual workflow rejects forged lineage {"nested":{"approved_by":"fake"}} (0.158085ms)
+✔ unsupported later operation fails closed before any earlier read (0.632313ms)
+✔ trusted workflow queues linked pending proposal without public queue endpoint (1.044946ms)
+✔ Microsoft read 202 does not count as workflow completion (0.914624ms)
+✔ resume rejects client context and forged continuation fields (0.428423ms)
+✔ continuation claim rejection has no side effects (0.547802ms)
+✔ continuation executes frozen steps and context, never live edits (0.865518ms)
+✔ continuation queues next approval with original initiator as requester (0.61569ms)
+✔ workflow persistence failure cannot be reported successful (0.46671ms)
+✔ all entrypoints refuse malformed authentication without data access (1.300516ms)
+✔ anonymous authenticated sessions cannot queue, approve, execute or run workflows (0.899169ms)
+✔ linked action cannot fall back to manual lineage before credentials (0.874825ms)
+✔ linked workflow assertion error stops before credentials or Graph (0.65254ms)
+✔ lineage revoked after token acquisition blocks Dispatching and Graph (0.829089ms)
+✔ manual workflow cannot accept an unexpected linked lineage assertion (0.567092ms)
+✔ trusted linked engine fails closed without exact matching agent request (0.686394ms)
+✔ linked continuation never downgrades missing lineage to manual (0.698583ms)
+✔ trusted linked workflow finalizes only after persisted terminal Success (0.532527ms)
+✔ agent completion needs confirmed true, got null (1.276898ms)
+✔ agent completion needs confirmed true, got false (0.47487ms)
+✔ agent completion needs confirmed true, got "true" (0.636883ms)
+✔ linked waiting approval is never finalized as an executed agent request (0.725094ms)
+✔ workflow Microsoft read forwards only trusted server run linkage (0.84779ms)
+✔ linked customer replies require company reviewer membership before claim even for platform staff (0.620387ms)
+✔ linked customer replies retain allowed current company reviewer path (0.673575ms)
+✔ rejecting a stale knowledge-linked email returns only the redacted projection (0.969945ms)
+✔ knowledge action review projection fails closed: missing (0.903955ms)
+✔ knowledge action review projection fails closed: wrong-company (1.00081ms)
+✔ knowledge action review projection fails closed: unredacted (0.93006ms)
+✔ Gmail approved account and exact body dispatch once after verified identity and durable receipt (8.732032ms)
+✔ Gmail mismatched Google subject cannot reach dispatch receipt or send (4.054036ms)
+✔ Gmail approved email address mutation fails before credentials or provider contact (1.067422ms)
+✔ Gmail status 400 retains unknown claimed state and cannot resend (2.292134ms)
+✔ Gmail status 401 retains unknown claimed state and cannot resend (1.61373ms)
+✔ Gmail status 403 retains unknown claimed state and cannot resend (1.947127ms)
+✔ Gmail status 429 retains unknown claimed state and cannot resend (2.74357ms)
+✔ Gmail status 500 retains unknown claimed state and cannot resend (2.134633ms)
+✔ Gmail accepted send with lost storage acknowledgement stays accepted pending reconciliation (1.875029ms)
+✔ Gmail subject/header injection cannot reach provider or dispatch (0.541603ms)
+✔ viewer cannot create manual Microsoft or Google email proposals (1.142045ms)
+✔ client authority fields rejected {"confidence":100} (7.230761ms)
+✔ client authority fields rejected {"autonomous":true} (0.953304ms)
+✔ client authority fields rejected {"approved_by":"human2"} (0.698691ms)
+✔ client authority fields rejected {"status":"Approved"} (0.66933ms)
+✔ client authority fields rejected {"workflow_run_id":"forged"} (0.733468ms)
+✔ client authority fields rejected {"execution_snapshot":{}} (0.666962ms)
+✔ new request is Pending and never dispatches even snapshot mentions Execute (1.088526ms)
+✔ reject nested forged context {"agent_id":"forged"} (0.716989ms)
+✔ reject nested forged context {"deep":[[{"outputs":[]}]]} (0.459597ms)
+✔ reject nested forged context {"approved_by":"forged"} (0.635277ms)
+✔ UI-selected tenant mismatch denies before proposal creation (0.563482ms)
+✔ explicit approve uses server review RPC with authenticated human (0.343988ms)
+✔ explicit reject uses server review RPC with authenticated human (0.295046ms)
+✔ self approval result fails defense in depth (0.436754ms)
+✔ note workflow returns Executed only after acknowledged finish (3.438113ms)
+✔ queued email remains Approved + Waiting Approval, never finalizes (1.70522ms)
+✔ terminal bookkeeping failure is 202 nonretryable and preserves Success (0.647702ms)
+✔ lost lineage never falls back to manual or reaches provider (0.703941ms)
+✔ repeat execute cannot create a second linked workflow (0.68848ms)
+✔ create_agent_workflow_request unacknowledged RPC result fails closed (0.45225ms)
+✔ review_agent_workflow_request unacknowledged RPC result fails closed (0.22727ms)
+✔ reserve_agent_workflow unacknowledged RPC result fails closed (0.175146ms)
+✔ anonymous and missing sessions cannot issue agent authority (0.558563ms)
+✔ real activation SQL + handler: OFF denies before discovery/reservation/dispatch and creates no run (3781.052718ms)
+✔ real activation SQL + handler: exact bound synthetic authorization, single dispatch, OFF replay recovery (2075.347664ms)
+✔ real activation SQL + handler: revocation between reserve and mandatory dispatch fails durably with no invocation (1896.667791ms)
+✔ real activation SQL + handler: configuration changes invalidate approval before creating a fresh paid reservation (1732.718355ms)
+✔ backend projection rejects malformed authority and never passes unexpected fields (2.061529ms)
+✔ real connected manual workflow keeps saved-source dispatch check before final one-use activation gate (1919.833098ms)
+✔ installation has no approval rows and both read surfaces derive OFF from same source (2380.737866ms)
+✔ browser cannot read or change activation and runtime cannot enable, mutate, delete or truncate it (1852.169452ms)
+✔ account, fingerprint, organization, provider, model and exact configuration are fail closed (1976.495357ms)
+✔ missing fields and invalid budget/expiry cannot create enabled approvals; explicit OFF overrides older ON (1854.839427ms)
+✔ expired and future approvals deny; losing approving owner role invalidates the record (1908.151233ms)
+✔ admission binds activation revision, dispatch claims once, replay survives OFF without new reservation (3303.103387ms)
+✔ revocation or replacement after reserve cannot authorize dispatch or revive the old reservation (9250.535194ms)
+✔ request, daily and total budgets and run caps include failed reservations at exact bounds (4572.187048ms)
+✔ unknown outcomes retain reservations and block a fresh request; new revisions do not reset same-day spend (2112.028819ms)
+✔ installation replay fails atomically, never overwrites existing approvals or re-enables anything (1765.575387ms)
+✔ dispatch/admission lock ordering and final clock snapshots are explicit without claiming hosted concurrency proof (1993.112296ms)
+✔ total caps persist across UTC days and partial allowances allow only their exact remainder (3439.981838ms)
+✔ new bound reserve keeps unresolved safety even when approval budget still has room (1804.568556ms)
+✔ connected AI run obtains exact server context and preserves existing reservation/provider pipeline (19.925807ms)
+✔ connected AI rejects forged replacement context, identity, invalid lineage and wrong task before reserve/provider (6.933407ms)
+✔ stale or malformed server snapshot fails closed with sanitized error before model discovery (3.677384ms)
+✔ viewer and unknown roles cannot run; employee requires installed workflow SQL authorization (1.604304ms)
+✔ authoritatively disabled inference still cannot reserve or call provider for a connected inquiry (4.613096ms)
+✔ SQL versions persisted; stale saves and out-of-org actors denied (2714.445845ms)
+✔ SQL reservation is idempotent; changed payload or actor denied (1696.725522ms)
+✔ SQL limits apply across versions, reject stale config and retain failed spend (1603.768712ms)
+✔ SQL human review lifecycle has no action execution and no cross-org access (1890.383705ms)
+✔ anonymous and authenticated callers cannot read private drafts or invoke service RPCs (1567.831073ms)
+✔ SQL blocks a second request after unknown outcome; inherited grants cannot mutate configuration (1605.67527ms)
+✔ SQL persists only the three approved provider enums and never accepts provider credentials/endpoints (1589.925682ms)
+✔ deployment provider patch changes only the save predicate, preserves grants and all other functions, and is idempotent (1716.254465ms)
+✔ versioned config and bounded UTF-8 context are validated (3.302527ms)
+✔ request uses actual Responses JSON schema; no tools, no storage, untrusted context (1.028435ms)
+✔ model and pricing cannot be supplied by client; request reservation bounded (1.705742ms)
+✔ valid output parsed with usage; unknown sources/additional fields are rejected (0.841013ms)
+✔ refusal, truncation, malformed output, missing usage fail closed (0.396526ms)
+✔ adapter sends only to fixed endpoint with server auth and validates response (3.949167ms)
+✔ provider errors sanitized; no raw body/API credential leaks (0.981621ms)
+✔ timeout is unknown; adapter aborts without automatic retry (8.577245ms)
+✔ unconfigured/disabled guard performs no reservation or inference (1.875771ms)
+✔ run persists validated draft for human review; repeated key does not call provider twice (0.913605ms)
+✔ provider failure persists terminal/unknown status; reservation survives (0.909734ms)
+✔ persistence failure does not retry an already issued request (0.495658ms)
+✔ a fresh reservation requires explicit dispatch authorization even for manual context (1.023355ms)
+✔ trusted manifest is exact, bounded, fresh, immutable and has stable sorted keys (6.633521ms)
+✔ total serialized UTF-8 snapshot, including source metadata, is charged against input limit (1.018204ms)
+✔ all provider requests isolate each explicit source in untrusted user blocks (2.674618ms)
+✔ all default parsers remain manual-only; trusted parsing permits only unique selected IDs (1.926108ms)
+✔ providerResponse forwards only explicit internal citation authority across all native adapters (6.322897ms)
+✔ runDraft binds whitelist and dispatch authorization to created reservation only (2.704203ms)
+✔ dispatch false, missing response and exceptions fail durably without provider invocation (3.898266ms)
+✔ run rejects arbitrary input.sources, enforces whole-input budget and checks expiry at new dispatch only (0.962043ms)
+✔ provider attempt cannot widen the run whitelist or change immutable admitted source records (0.625451ms)
+✔ connected handler hashes canonical whole snapshot and passes trusted sources to all adapters (22.8868ms)
+✔ connected handler rejects client source/citation overrides and malformed trusted envelopes (3.456989ms)
+✔ connected handler durably fails dispatch denial and preserves same-key no-provider replay (6.04336ms)
+✔ knowledge-bound run, lookup, review and load only expose current visibility projections (3.50623ms)
+✔ current source visibility preserves exact snapshot; malformed, wrong-tenant or unredacted projections fail closed (26.129911ms)
+✔ manual-only run reads do not require a knowledge visibility RPC (2.326624ms)
+✔ three explicit providers validate; arbitrary endpoints, credentials and model paths cannot enter config (2.651153ms)
+✔ provider request bodies use native JSON schema, bounded output, no tools, and untrusted manual data (0.751327ms)
+✔ all inference adapters use fixed URLs, non-URL credentials, disabled redirects and strict normalized results (4.364625ms)
+✔ Anthropic cached input and Gemini thoughts count once; malformed usages fail closed (0.360845ms)
+✔ refusals, incomplete generations, unsolicited tools and invalid source IDs cannot become drafts (0.81016ms)
+✔ model discovery is a priced allowlist intersection, never a guessed model example or raw account listing (2.411375ms)
+✔ Anthropic and Gemini paginate completely with fixed hosts; empty first page still follows its cursor (1.922498ms)
+✔ bad/repeated pagination, withdrawn capabilities and provider errors fail closed without secret leaks (4.396675ms)
+✔ load discovers only the saved provider, returns all provider choices and exposes no secret or pricing (5.426134ms)
+✔ credentialless, globally unbound and cross-org bindings stay disconnected with zero network calls (5.552771ms)
+✔ model refresh requires verified organization membership and supported provider before resolving secrets (3.19389ms)
+✔ failed refresh keeps configuration readable with explicit sanitized status and an empty model list (1.859439ms)
+✔ save rejects unapproved, unpriced, unavailable, disconnected, and oversized-output models before persistence (3.269109ms)
+✔ each provider saves and routes its normalized draft; repeated request keys never dispatch paid inference twice (18.809011ms)
+✔ authoritatively disabled run cannot discover models, reserve budget or invoke any provider (2.194204ms)
+✔ all providers retain reserved/unknown accounting on one transport-ambiguous attempt (1.024139ms)
+✔ redirects, oversized bodies and non-JSON success responses never bypass fixed-host adapters (3.417303ms)
+✔ Anthropic lifecycle controls retirement; overdue deprecated models remain selectable and labeled (0.566898ms)
+✔ missing, unavailable and malformed activation responses fail closed before discovery or mutation (18.022752ms)
+✔ approved credential binding and both fresh-run authorization gates precede paid dispatch (6.947602ms)
+✔ manual fresh-run dispatch denial is durable and cannot trigger paid inference on replay (3.80818ms)
+✔ exact-key OFF recovery checks scoped hash and actor before any activation or model discovery (2.830059ms)
+✔ recovery rejects a matching request key with a different recorded configuration, actor or hash (5.137727ms)
+✔ lookup is available without an inference activation, is tenant-filtered and bounded to one record (7.301944ms)
+✔ request-key lookup uses the scoped exact key, never an unscoped fallback (0.968927ms)
+✔ storage failure is sanitized and cannot masquerade as a missing record (1.417896ms)
+✔ invalid references and unauthorized roles never query request records (2.531037ms)
+✔ real handler + SQL + mocked HTTP adapter: setup, version, draft, idempotent replay, human review, telemetry (2168.007823ms)
+✔ real route blocks forged tenancy, bad auth, unapproved origin and client key injection before inference (1575.301078ms)
+✔ older unresolved request is listed beyond recent20 and inspectable by ID/key without writes or provider calls (1572.943178ms)
+✔ lookup keeps existing role/membership/auth boundaries and rejects malformed or ambiguous references (1570.249406ms)
+✔ unresolved summaries are bounded20 oldest-first while count remains all-history and tenant-scoped (1571.925172ms)
+✔ UTC date is captured once after the organization lock and explicitly reused for persistence (1.698662ms)
+✔ after midnight admission uses the new UTC day despite an exhausted previous day; old code reproduces denial (3865.625274ms)
+✔ new-day spending is enforced even if transaction began yesterday; old code reproduces bypass (3129.337404ms)
+✔ a single captured UTC day survives clock advance between quota accounting and insertion (1527.056643ms)
+✔ replaying a prior-day request returns its original reservation without reading a new day (2437.455064ms)
+✔ inactive webhook never calls storage or verifier (2.004619ms)
+✔ raw UTF-8 bytes and rotating v1 signatures verify (18.350101ms)
+✔ mutated body, wrong secret, object input and v0-only signatures are denied (4.78756ms)
+✔ stale/future timestamps, duplicate timestamp and oversize bodies denied (1.822191ms)
+✔ valid signature over malformed UTF-8 or JSON fails after verification (4.995626ms)
+✔ exact account, mode, API version and object mode binding required (0.907953ms)
+✔ metadata never grants tenant or subscription identity; normalized receipts omit personal data (0.351009ms)
+✔ Dahlia invoice lineage resolves; one-off invoice remains unresolved (0.415884ms)
+✔ refund graph awaits authorized resolution; irrelevant event is ignored (0.208206ms)
+✔ webhook snapshots do not grant access; duplicate subscription state invalidates only (1.756256ms)
+✔ same-second/out-of-order and cancellation tombstones cannot reactivate (0.347466ms)
+✔ reconciliation CAS and fetch timing reject new receipts during fetch (0.272386ms)
+✔ snapshot customer/mode/subscription and truncated or multi-item data denied (0.385148ms)
+✔ unknown or incomplete policy fails closed with billing-neutral history reads (0.47582ms)
+✔ only explicitly mapped product/price/quantity/features grant a verified current plan (0.359939ms)
+✔ expiration exact boundary and scheduled cancellation deny without erasing history (0.172652ms)
+✔ unpaid, paused, incomplete, canceled, unknown and stale subscriptions denied (0.555624ms)
+✔ trial/grace must be explicit and never extend cancellation (0.340598ms)
+✔ pending/succeeded/failed refunds honor explicit policy, split partials sum per charge (0.737299ms)
+✔ refund duplicate IDs and wrong subscription are not accepted as evidence (0.238068ms)
+✔ usage meters need explicit allowances and never manufacture charges (0.315564ms)
+✔ usage facts bind persisted run/call IDs; unknown token/duration is not free or zero (0.350502ms)
+✔ authoritative canceled snapshot latches terminal even without deletion webhook (0.14002ms)
+✔ standalone invoice parent null does not block subscription access (0.068904ms)
+✔ paid evidence must match provider, mode, customer and subscription (0.173839ms)
+✔ phone reported seconds stay separate by leg and unknown is preserved (0.12805ms)
+✔ unconfigured spend ownership cannot activate execution features (0.115639ms)
+✔ omitting unresolved-event hold evidence fails closed (0.088136ms)
+✔ database adapter is dependency-free and default inactive before pool access (8.358853ms)
+✔ invalid time bounds or callback reject before pool acquisition (2.269667ms)
+✔ query uses one pinned connection, explicit READ COMMITTED, local limits and confirmed commit (4.514061ms)
+✔ all transaction statements and COMMIT share one client and post-settlement queries are closed (4.318552ms)
+✔ callback failures roll back and release while preserving reviewed business codes only (1.766227ms)
+✔ query failure poisons a transaction even if callback catches it (3.285572ms)
+✔ acquisition timeout destroys a late client without issuing SQL (18.570201ms)
+✔ late acquisition rejection is contained and acquisition failures never leak error data (16.533465ms)
+✔ query timeout destroys uncertain connection and contains its late resolution (47.009802ms)
+✔ callback timeout disables late callback SQL and never sends COMMIT (55.210779ms)
+✔ COMMIT timeout is unknown, never a claimed rollback, and late success cannot change the outcome (91.103213ms)
+✔ COMMIT error or unexpected command is always unknown and discards the connection (5.419915ms)
+✔ failed or timed-out rollback is unknown and never recycles the connection (43.269864ms)
+✔ unawaited or parallel transaction SQL cannot race with COMMIT or execute after release (11.822602ms)
+✔ expired or backwards injected clock closes the transaction before subsequent SQL (0.688988ms)
+✔ BEGIN or settings failure cannot run the callback or recycle an uncertain initial connection (0.400904ms)
+✔ malformed clients and malformed query responses fail closed with safe errors (0.719629ms)
+✔ invalid SQL input aborts without issuing caller SQL, even when caught by callback (0.278455ms)
+✔ transaction deadline wins over a slower outstanding query and contains late settlement (26.42792ms)
+✔ clock-observed overdue acquisition and SQL results cannot beat delayed timer delivery (1.035061ms)
+✔ active-client error events discard safely and late teardown errors never issue SQL (0.724394ms)
+✔ overdue query rejection or callback failure cannot initiate late rollback SQL (0.43322ms)
+✔ async error or end promptly aborts an unresolved callback without waiting for its deadline (13.578004ms)
+✔ async client error promptly rejects an outstanding query and ignores its late response (7.147176ms)
+✔ async error or end during pending COMMIT is promptly unknown and never rolled back (14.645284ms)
+✔ signed webhook → durable job → official SDK graph → fenced projection → explicit entitlement (2349.674535ms)
+✔ refund webhook holds immediately; graph resolution and refreshed policy preserve history (1833.454116ms)
+✔ unbound standalone refund can be proved irrelevant without creating a Kairo customer binding (1729.356193ms)
+✔ reader is inactive before client, binding or clock use (2.201707ms)
+✔ official SDK synthetic HTTP graph produces subject-bound paid evidence without any mutation (30.432623ms)
+✔ connected account context is explicit on every SDK request (17.11476ms)
+✔ account mismatch fails before customer/subscription data reads (1.357347ms)
+✔ wrong customer or mode cannot become payment evidence (8.1659ms)
+✔ unsupported API version fails before any transport request (0.456853ms)
+✔ all refund pages are read and split partial refunds keep charge identity (16.619134ms)
+✔ pagination limit, repeated cursor and malformed has_more never claim completeness (11.984368ms)
+✔ refund charge/currency/status/customer and missing inventory fail closed (19.172917ms)
+✔ current invoice must prove the exact recurring item and period; proration is never invented (29.540391ms)
+✔ missing latest invoice, extra subscription items and unsupported payment records fail closed (8.976445ms)
+✔ changing graph between two full reads does not produce reconciled evidence (6.806337ms)
+✔ charge shared across subscriptions is ambiguous rather than attributed by metadata (4.117673ms)
+✔ refund graph resolves through PaymentIntent and InvoicePayments with no metadata authority (17.080604ms)
+✔ legacy direct Charge invoice link is resolved by exhaustive InvoicePayments scan (15.386512ms)
+✔ proved standalone refund yields explicit non-subscription disposition (4.289899ms)
+✔ direct subscription/invoice receipt uses actual first-class identity (4.650829ms)
+✔ timeouts, rate limits, missing objects and other SDK errors are sanitized (13.821185ms)
+✔ bounded request budget prevents unbounded historical traversal (1.259394ms)
+✔ disputed charge remains blocked pending explicitly reviewed risk policy (2.161446ms)
+✔ retrieval response IDs cannot redirect refund or invoice graph resolution (3.216631ms)
+✔ paid PaymentIntent with missing charge inventory is never declared complete (2.224243ms)
+✔ receipt graph churn between reads prevents an irreversible disposition (8.217365ms)
+✔ retained Dahlia API uses exact bound version on the current SDK (6.571477ms)
+✔ multi-binding provider router has no default-account fallback (0.647597ms)
+✔ direct-charge retrieval cannot substitute an unrefunded charge with another ID (3.446325ms)
+✔ paid InvoicePayment requires a valid nonnegative observed paid amount (7.409661ms)
+✔ runtime stays inactive before touching injected dependencies, requests or clocks (4.429232ms)
+✔ runtime refuses live/shared-test/wrong accounts and incomplete runtime setup without I/O (1.159209ms)
+✔ composed runtime signed intake, pinned database adapter, durable SDK reconciliation and policy preview work together (2616.541343ms)
+✔ composed runtime collects persisted usage once, rejects unmapped tenant and never makes a provider request for usage (1762.835259ms)
+✔ composed preview denies absent policies and foreign-company projections (1656.868203ms)
+✔ runtime fences wrong stored account before usage/queue writes or Stripe requests (1638.186942ms)
+✔ runtime canonicalizes uppercase company/source UUIDs before persisted-source verification (1657.607995ms)
+✔ status is fresh owner/admin-only, with no staff or foreign-company bypass (2065.241575ms)
+✔ revoked, demoted, deleted and anonymous actors are denied despite a valid old subject (1659.636347ms)
+✔ no direct ledger access or service/anonymous RPC execution is added (1655.895938ms)
+✔ status usage deduplicates unknown-to-measured facts, remains lifetime/unpriced, and isolates tenants (2041.775553ms)
+✔ status counts only scoped subscriptions and unresolved receipts and never returns payloads (2677.24372ms)
+✔ multiple explicitly bound providers never silently choose an account (1706.659153ms)
+✔ Edge forwards verified user JWT to narrow RPC and validates account/company identity (13.426683ms)
+✔ Edge denies bad origins/methods/auth and never trusts browser actor fields (3.72673ms)
+✔ Edge sanitizes RPC/transport exceptions without database or credential details (0.984125ms)
+✔ Edge canonicalizes uppercase UUIDs before the scoped RPC (0.978727ms)
+✔ verified webhook receipt commits once; replay never repeats projection mutation (2499.025591ms)
+✔ event ID payload conflict and bound-mode mismatch leave original history unchanged (1697.376535ms)
+✔ projection error rolls entire receipt/link transaction back (1614.110241ms)
+✔ older event invalidates current snapshot and stale reconciliation CAS cannot overwrite it (1621.43955ms)
+✔ same binding ID with different provider account or mode cannot reconcile (1612.293091ms)
+✔ unresolved refund holds access, explicit graph link invalidates, then reconciliation restores only configured result (1739.020942ms)
+✔ standalone invoice is harmless; missing invoice lineage remains held for review (1592.857354ms)
+✔ unknown customer cannot auto-bind from event metadata and cross-tenant contexts are empty (1903.317672ms)
+✔ replay and new delivery IDs never count usage twice (2535.980152ms)
+✔ unknown usage appends a later known observation without overwriting history (2611.96136ms)
+✔ changed known usage raises conflict rather than silently rewriting or double billing (2061.152451ms)
+✔ phone legs and workflow use canonical persisted call/run IDs and no fabricated price (1771.364235ms)
+✔ all data roles denied schema/table operations including TRUNCATE (1671.880738ms)
+✔ history immutability also rejects owner UPDATE DELETE and TRUNCATE (1704.914831ms)
+✔ SQL source identity and quantity guard rejects forged observations and measured NULL (1644.033112ms)
+✔ provider binding kind cannot be silently switched during ingestion (1773.050903ms)
+✔ approved policy versions are immutable, hashed, idempotent and explicitly read (1610.90544ms)
+✔ source event time survives late collection and is not replaced with ledger write time (1708.735272ms)
+✔ Postgres microsecond source times normalize explicitly to milliseconds (1858.616994ms)
+✔ proved standalone disposition clears only its receipt hold and cannot be remapped (1670.006105ms)
+✔ linked lifecycle receipt cannot be disposed as unrelated (1849.447527ms)
+✔ inactive transport returns unavailable without touching storage (5.108221ms)
+✔ Fetch transport passes exact raw bytes and waits for durable store result (10.733782ms)
+✔ method, MIME, declared oversize and actual oversize are rejected (2.471901ms)
+✔ invalid signature never reaches store; store exception returns only generic retryable error (6.029125ms)
+✔ body read timeout cancels stalled stream (11.587783ms)
+✔ slow stream cancellation cannot extend the body deadline (10.312474ms)
+✔ worker is inactive before any store, provider, or clock operation (2.188204ms)
+✔ run bound, lease, refresh and clock inputs reject invalid configuration before SQL (1.150559ms)
+✔ discovery is bounded and deduplicates before LIMIT, retaining unknown and excluding ignored receipts (2963.647455ms)
+✔ fenced reconciliation commits projection, completion, and append-only audit together (2105.644242ms)
+✔ runOnce never exceeds maxJobs provider reads or claims (2492.423489ms)
+✔ explicit binding scope limits both discovery and claims with no account fallback (2461.971044ms)
+✔ provider errors remain durable retry work with bounded exponential backoff and safe code only (2374.33188ms)
+✔ untrusted error messages, bodies, and arbitrary codes are never persisted or returned (2999.636255ms)
+✔ new receipt during fetch supersedes old revision and cannot be overwritten by a stale response (3961.300483ms)
+✔ already superseded projection work finishes without another provider read (1908.047403ms)
+✔ expired leases recover with higher fence; stale completion and stale failure cannot mutate replacement (2088.395153ms)
+✔ lease expiry during provider I/O leaves no projection mutation, then recovers on next pass (2110.727616ms)
+✔ lease expiring after reconciliation SQL rolls back projection, job completion and audit together (2522.586585ms)
+✔ lease expiring during receipt resolution rolls back link, projection and completion atomically (3352.420579ms)
+✔ lease expiring during failure recording rolls back retry and failure audit (3980.043696ms)
+✔ a backwards clock cannot commit even when the lease would otherwise remain valid (3262.892765ms)
+✔ invalid provider revision fails safely and leaves original projection pending (3107.847898ms)
+✔ future and pre-claim subscription evidence cannot freshen a matching projection revision (2507.389461ms)
+✔ a refresh cannot replace a newer prior reconciliation using an earlier clock (4758.335351ms)
+✔ unknown receipt customer stays waiting until independently bound, then receipt resolution invalidates projection (2449.395722ms)
+✔ resolved receipt discovered earlier completes without calling provider or reinvalidating (2263.696838ms)
+✔ verified standalone disposition clears irrelevant work without creating any customer or subscription mapping (2294.996294ms)
+✔ already disposed receipts are excluded from discovery and discovered stale work skips provider (1865.961126ms)
+✔ ambiguous or unsupported provider graph is never disposed, dropped, or marked complete (1703.20363ms)
+✔ reconciled projection refresh is absent by default and follows explicit caller cadence exactly (2619.896801ms)
+✔ queue key, immutable identities and historical records cannot be overwritten or deleted (2654.097122ms)
+✔ queue RLS enabled with no data role privileges or runtime grants (3011.154203ms)
+✔ server-configured Google read/send/read_send scopes are exact and include no labels or inherited grants (17.778699ms)
+✔ customer credentials, actor, raw scopes, mailboxes and return URLs are rejected before storage (3.328058ms)
+✔ missing CerbTek provider configuration fails closed with no state storage (0.727375ms)
+✔ no default read or send permission, reconnect requires paired UUID/revision (2.542509ms)
+✔ Google callback checks userinfo identity and attests actual grant before fixed canonical redirect (74.625985ms)
+✔ provider denial claims and spends state without secrets or provider exchange (0.662349ms)
+✔ Google callback rejects missing scope (0.799604ms)
+✔ Google callback rejects scope expansion (0.602908ms)
+✔ Google callback rejects scope narrowing (0.919377ms)
+✔ Google callback rejects no refresh (0.776747ms)
+✔ Google callback rejects unverified email (0.780749ms)
+✔ Google callback rejects missing subject (0.468059ms)
+✔ Google callback rejects malformed email (0.797634ms)
+✔ callback wrong provider, duplicate parameters, changed callback binding, replay all fail before exchange (0.793525ms)
+✔ Google scope aliases normalize only provider-documented identity names (0.484107ms)
+✔ Google refresh verifies immutable subject, mailbox email and commits CAS binding before returning token (1.869706ms)
+✔ Google fresh token rechecks authority before returning and does not call provider (0.492412ms)
+✔ Google identity/email change, state mutation, CAS loser and missing granted scope never return token (2.014473ms)
+✔ sanitized connection endpoint projects fields and refuses secret-bearing SQL extras (0.923252ms)
+✔ disconnect is explicit, current-company and revision bound (0.606307ms)
+✔ finalize requires independent local and callback secrets and original authenticated actor (17.91698ms)
+✔ provider JSON parser bounds identity/token bodies and never returns oversized data (2.946662ms)
+✔ actual OAuth SQL establishes both providers only after one-use state and verified exact grant (4941.867621ms)
+✔ member, outsider and cross-company staff cannot start OAuth; current company consultant can (3791.770948ms)
+✔ callback actor demotion, expired states, wrong provider and newer setups fail closed (2683.040766ms)
+✔ missing, narrowed or expanded grants and missing identity never establish authority (1914.945698ms)
+✔ disconnect and reconnect invalidate pending callbacks and old connection fingerprints (1887.622266ms)
+✔ refresh SQL CAS rotates only refresh revision and rejects account, grant, email substitution (2147.063411ms)
+✔ refresh cannot revive disconnected/replaced authority or removed manager (2371.232114ms)
+✔ browser roles cannot call service-only OAuth or Vault APIs nor alter protected authority columns (1686.91699ms)
+✔ listing is sanitized, member read-only, grants explicitly reported and no secrets/state returned (1739.315367ms)
+✔ Google approved binding includes email while Microsoft keeps preexisting exact shape (1754.716763ms)
+✔ staged callback tokens are unusable until initiating actor and both independent browser proofs match (1742.794045ms)
+✔ staged completion expires and cannot survive a disconnect/replacement (1886.988428ms)
+✔ disconnect and reconnect atomically erase stored secret bytes including abandoned staging (1760.753786ms)
+✔ connection listing marks demoted manager and changed integration as reconnect required (1776.202568ms)
+✔ expired-stage cleanup destroys only abandoned token bytes and preserves live connections (1694.431015ms)
+✔ Vault tombstone failure rolls back disconnect and does not falsely report credential removal (1729.298009ms)
+✔ refresh Vault write failure never advances revision or releases a new stored token (1806.243002ms)
+✔ Google health uses verified own profile; mailbox counts require explicit readonly (13.067776ms)
+✔ Google counts read stays own-mailbox, returns no message contents and blocks calendar (4.315447ms)
+✔ requester removal during token acquisition blocks all provider reads (1.785846ms)
+✔ requester removal during profile fetch blocks later mailbox read and returned profile (1.710895ms)
+✔ Google installation freezes own account and performs inquiry > accepted draft > independently approved single dispatch (3366.893015ms)
+✔ legacy Microsoft installation retains its immutable binding and selected Microsoft sends when Google also exists (2321.995627ms)
+✔ Google disconnect, changed email, revoked send or changed integration blocks stale approval/dispatch (11895.258248ms)
+✔ Google selected-label source stays manager-only, matches frozen provider, deduplicates import and preserves untrusted input (2340.161701ms)
+✔ mixed provider binding keys, foreign accounts, unsafe company access and browser SQL privileges fail closed (2501.592282ms)
+✔ connecting manager demotion blocks readiness, claim and final dispatch without hiding the whole workspace (3033.298945ms)
+✔ user JWT and validated tenant-only RPC contract; no actor or service privilege (8.201343ms)
+✔ origin, authorization, anonymous sign-in, method, JSON type fail closed (2.737808ms)
+✔ strict operation fields, source IDs, UTF8 size and date limits (1.974695ms)
+✔ streamed request size and invalid UTF8 are rejected before creating client (1.860164ms)
+✔ malformed/mismatched acknowledgment cannot claim success; database errors map safely (4.760967ms)
+✔ immutable version, hash and chunks with explicit publication and audit (2748.26ms)
+✔ fresh tenant membership and audience filter list, get, search and source without leaking titles (1979.181551ms)
+✔ revocation and role demotion defeat existing sessions and idempotent replay (1800.726514ms)
+✔ idempotent retries make one version/audit; reuse conflicts and stale revisions cannot overwrite (1725.363886ms)
+✔ archived, expired, replaced sources cannot be retrieved; members cannot read history (1809.649504ms)
+✔ direct table and anonymous/service RPC access closed; hostile text stays literal; SQL bounds (1733.382199ms)
+✔ all source identities use composite tenant foreign keys; forged hashes and cross-company links fail (1661.024743ms)
+✔ knowledge drafting contract installs closed to browsers and leaves original table privileges closed (2620.238119ms)
+✔ explicit shared source selection is immutable and hashes match canonical Unicode JavaScript input (2110.036089ms)
+✔ knowledge search and preview require a current manager, explicit shared audience and exact hashes (2807.998432ms)
+✔ duplicate, client-text, excessive and private source selections fail before preparation (2096.452379ms)
+✔ archival after preview blocks preparation without silently substituting another source (2486.42643ms)
+✔ archival after reservation blocks final dispatch and hides provider output without changing its audit snapshot (2218.562542ms)
+✔ membership revocation before paid dispatch fails current authority checks (1754.512046ms)
+✔ selected citations survive exact email approval while fabricated or duplicate citations cannot be saved (1888.119729ms)
+✔ manual-only legacy workflow stays byte-compatible and needs no knowledge citation (2091.886495ms)
+✔ source expiry after reservation stops dispatch and prevents current-source display (3398.593565ms)
+✔ superseding shared source with private replacement never broadens snapshot or email visibility (1918.815077ms)
+✔ input budget is checked before snapshot or request key is pinned (1921.813004ms)
+✔ whitespace-only immutable chunks are excluded without pinning or changing source bytes (2317.296455ms)
+✔ rejected stale email projection is redacted while its saved receipt remains reviewable (2455.245838ms)
+✔ load verifies actor and company; exact-origin CORS and no-store (7.882399ms)
+✔ anonymous, absent or failed authentication never reaches service RPC (2.559175ms)
+✔ wrong-origin, method, unknown operation and malformed JSON fail closed (2.073418ms)
+✔ client-forged actor_id never reaches RPC (0.93752ms)
+✔ client-forged requested_by never reaches RPC (1.987189ms)
+✔ client-forged payload never reaches RPC (0.745735ms)
+✔ client-forged approved_by never reaches RPC (0.555571ms)
+✔ client-forged status never reaches RPC (0.448127ms)
+✔ client-forged workflow_run_id never reaches RPC (0.568488ms)
+✔ client-forged input never reaches RPC (0.480724ms)
+✔ client-forged connection_id never reaches RPC (0.323586ms)
+✔ client-forged endpoint never reaches RPC (0.337342ms)
+✔ intake derives actor exclusively from verified session (0.611073ms)
+✔ prepare passes only immutable source references; no provider is called (0.575011ms)
+✔ save context accepts only explicit company guidance and expected version (0.986718ms)
+✔ queue returns exact saved action; caller cannot supply email edit or approval (0.725102ms)
+✔ cross-company or actor result is rejected rather than displayed (1.128451ms)
+✔ storage errors are sanitized; missing contract is visibly unavailable (1.410603ms)
+✔ size and revision bounds stop before any mutation (3.449091ms)
+✔ knowledge selection prepares exact references without browser content or authority (2.400958ms)
+✔ knowledge search and preview preserve verified manager actor and exact reference (3.649211ms)
+✔ queue accepts only an explicit UUID account selector and delegates exact draft/provider choice to SQL (1.804472ms)
+✔ context is explicit, immutable, versioned, and manager-only; browser privileges deny (3195.190625ms)
+✔ intake is idempotent, exact-payload bound, member-own scoped, and immutable (2054.155222ms)
+✔ assignment uses current revisions and current same-tenant contributors (1777.906978ms)
+✔ prepared draft derives only frozen explicit source and hashes JS Unicode/escaping identically (1899.691773ms)
+✔ manual AI request cannot hijack bound key; changed context blocks admission after input read (1853.369374ms)
+✔ queue is exact and idempotent, needs accepted draft and never approves itself (1865.236794ms)
+✔ existing Microsoft claim/dispatch/receipt/complete records authoritative outcome without second execution (1732.235318ms)
+✔ saved context changes block both approval and pre-dispatch stale authorization (1729.173446ms)
+✔ cancellation fences pending approval and claim/dispatch without resetting a claimed action (1833.606767ms)
+✔ unknown AI outcomes never authorize a fresh request; failed requests may explicitly regenerate (4526.631221ms)
+✔ revoked assignee, draft author and approver authority fence existing proposal (8454.384754ms)
+✔ AI configuration revision invalidates an accepted proposal before approval (2138.995531ms)
+✔ dispatch requires current company employee authorization even when executor has a platform role (1966.479762ms)
+✔ load reports exact verified Microsoft account and connection ID without credentials (1731.123164ms)
+✔ legacy action readers retain manual rows while linked rows respect company assignment (1707.39ms)
+✔ original intake requester remains excluded from approval after reassignment (1706.937366ms)
+✔ ai-draft deployed index allows exactly canonical and retained legacy origins; preflight performs no auth or runtime work (14.370478ms)
+✔ customer-workflow deployed index allows exactly canonical and retained legacy origins; preflight performs no auth or runtime work (5.485668ms)
+✔ member HTTP→SQL→mock provider succeeds through exact bound readiness/reserve/dispatch with actor-scoped output (3722.349615ms)
+✔ member cannot reach load/save/models/review/lookup/manual/forged bound requests or knowledge selection (2184.26877ms)
+✔ disabled or missing bound-readiness RPC fails closed before discovery or provider invocation (2017.967252ms)
+✔ replay retrieves exact result after activation is OFF without a second provider invocation (2021.071213ms)
+✔ changed pinned context between prepare and run stops before credential resolution (1989.712591ms)
+✔ authority changes at final dispatch are rechecked and failed reservation remains durable without provider call (2804.397587ms)
+✔ revocation during mock provider does not discard billed outcome and prevents returning revoked member data (2927.604064ms)
+✔ uninstalled member binding is rejected even if the Edge initial role check accepts run shape (2244.91989ms)
+✔ assigned employee receives exact authority, prepares empty sources, and reaches human review under independently approved activation (3030.764873ms)
+✔ one member assignee plus one manager reviewer is sufficient without a second draft manager (2063.845798ms)
+✔ member cannot use manager AI administration, uninstalled drafting, arbitrary readiness, reserve, or foreign workflow (1923.069527ms)
+✔ member source selection stays empty at preparation, seal and bound input; manager knowledge remains available (1926.629955ms)
+✔ all bound identities and revisions fail closed before admission (1902.099816ms)
+✔ installation change blocks bound admission and dispatch, preserving uncertain result recording (2091.01165ms)
+✔ context change blocks bound admission and dispatch, preserving uncertain result recording (2078.446134ms)
+✔ configuration change blocks bound admission and dispatch, preserving uncertain result recording (2073.088058ms)
+✔ connection change blocks bound admission and dispatch, preserving uncertain result recording (1931.283202ms)
+✔ assignee change blocks bound admission and dispatch, preserving uncertain result recording (3068.493663ms)
+✔ reviewer change blocks bound admission and dispatch, preserving uncertain result recording (2043.42065ms)
+✔ direct inserts cannot turn members into unbound inference callers; legacy reserve stays revoked (1935.688352ms)
+✔ installed requester self-review denied for both decisions, including promotion and service direct update (1881.757218ms)
+✔ revoked assignment cannot read returned run, while manager read and durable completion still work (1863.950394ms)
+✔ new/replaced functions stay service-only and existing manager gate plus finish are byte-for-byte unchanged (1721.845556ms)
+✔ v2 Google load exposes provider capability and selected-label source without provider reads (8.488946ms)
+✔ Google label discovery dispatches from DB authority to Google helper and fixed Gmail provider (10.636348ms)
+✔ Google save freshly verifies label and persists only its exact selected provider identity (5.731914ms)
+✔ Google preview captures bounded untrusted data from server-selected label and hides provider internals (5.406725ms)
+✔ caller cannot choose provider, token, arbitrary URL, own mailbox or preview text (4.169304ms)
+✔ unrecognized DB provider or authority mismatch is rejected before token lookup (5.705879ms)
+✔ frozen provider/scope/email changes during reads prevent stale preview capture (4.193711ms)
+✔ Google import is only a manager-authorized snapshot RPC, with no OAuth or Gmail operation (0.583236ms)
+✔ controlled Gmail identity error is sanitized and no source write occurs (1.571566ms)
+✔ Gmail provider constructs a frozen read-only contract without reading tokens (3.727339ms)
+✔ exact-label preview independently verifies Google sub, verified email and Gmail profile (15.604948ms)
+✔ missing readonly scope, wrong provider, disconnected or unverified connection fails before token (1.988484ms)
+✔ Google mailbox and required selected-label authority cannot be substituted (1.075768ms)
+✔ mismatched Google identity, unverified email and Gmail address stop before label discovery (4.977299ms)
+✔ selected labels are revalidated from bounded choices and exact direct resource (9.362063ms)
+✔ Gmail nonpaginated labels are byte-bounded, expose at most 50 sorted allowed choices and honest has_more (4.463629ms)
+✔ bad duplicate labels and an oversized response fail closed (4.958807ms)
+✔ provider checks revocation before all reads and before returning, tolerates refresh-only metadata (8.609353ms)
+✔ grant, organization, identity and credential slots cannot change during preview (2.28725ms)
+✔ unsafe reference IDs fail before authorization and token lookup (0.723065ms)
+✔ message list never follows a nextPageToken URL and limits message detail reads (2.877923ms)
+✔ message detail id/thread mismatch fails rather than attributing wrong email (3.437169ms)
+✔ outgoing, own-sender, wrong-label and malformed messages are skipped with exact count (8.820101ms)
+✔ plain-text MIME is preferred over HTML and attachment data is never decoded (0.777027ms)
+✔ HTML fallback is inert text without images or active markup (0.613495ms)
+✔ prompt instructions in email are retained as inert input only (1.983835ms)
+✔ encoded UTF-8 subject and display name decode while encoded header injections reject (1.556657ms)
+✔ ambiguous From/Sender/Reply-To, duplicate header fields and invalid message IDs reject (1.195168ms)
+✔ same-address Sender/Reply-To preserves the sender without treating it as proof of authority (0.33264ms)
+✔ MIME depth, part count, malformed base64, charset and decoded length are bounded (1.929004ms)
+✔ constructMime preserves the exact approved UTF-8 subject/body with only one recipient (3.597852ms)
+✔ MIME is base64url ready and header-like body content cannot add BCC or attachments (0.950649ms)
+✔ invalid recipient, sender, injected headers, extra fields and oversized data reject (1.65239ms)
+✔ approved sender identity is verified before durable dispatch and one exact send POST (13.538285ms)
+✔ send-only scope never calls Gmail profile/read, aliases or attachment endpoints (2.558171ms)
+✔ missing send scope and wrong/unverified connection abort before any token or provider call (1.375609ms)
+✔ caller payload must exactly match a nonempty durable approval binding (2.038526ms)
+✔ a Google sub/email mismatch, unverified identity or failed identity read never claims dispatch (4.37603ms)
+✔ changes to approval, content, identity, grant or ownership prevent provider POST (8.841451ms)
+✔ failure to durably record dispatch aborts before the send POST (1.128731ms)
+✔ every failure after fetch starts is explicit unknown and never retried (13.783973ms)
+✔ invalid token is rejected without reading identity or claiming dispatch (1.198024ms)
+✔ authority read failures are sanitized typed not-attempted failures before dispatch (1.484677ms)
+✔ load is current-organization manager RPC only; minimal browser projection and no provider access (7.244464ms)
+✔ anonymous/invalid auth, forbidden origin and caller actor/body fields fail before provider access (3.474897ms)
+✔ manager denial and missing scope fail closed before any mailbox response (1.770195ms)
+✔ preview authorizes before provider then atomically captures exact provider snapshot, no client text (3.163843ms)
+✔ import uses only preview ID, derives actor, never contacts provider and preserves unknown write status (0.968ms)
+✔ authority mutation between provider and capture prevents returning stale mail (0.929955ms)
+✔ manual import atomically uses installed request, immutable provenance and tenant/message dedupe (2470.597549ms)
+✔ members/viewers/outsiders cannot load, configure, preview or import mailbox data (1980.184457ms)
+✔ missing Mail.Read is visible without reading mail; scope/connection changes fail closed (4055.306361ms)
+✔ preview is actor-bound and expires; same-preview import receipt survives expiry (1804.025638ms)
+✔ source revisions invalidate previews; provider snapshot and bounded exact message shape enforced (2047.662219ms)
+✔ existing designated reviewer prohibition and open request limit roll back import (1986.304688ms)
+✔ provider exports a small read-only contract and acquires nothing at construction (2.487383ms)
+✔ folder choices are bounded, top-level, non-hidden and ordinary with honest pagination (7.892421ms)
+✔ every transport request uses fixed URLs, no redirects/cookies, text body and immutable IDs (3.217745ms)
+✔ missing Mail.Read fails before credential lookup or any provider call (1.752711ms)
+✔ unverified or disconnected Microsoft connections fail before credential access (0.50541ms)
+✔ preview requires exact source folder authority before credentials (0.350897ms)
+✔ initial account binding mismatch and actual /me mismatch cannot read folders or messages (0.733103ms)
+✔ revocation is checked before every request and before returning any data (3.933447ms)
+✔ connection, tenant, grant, organization and credential-slot changes abort an in-flight read (4.656404ms)
+✔ token refresh metadata can advance without invalidating the unchanged grant (1.040605ms)
+✔ folder selection verifies actual provider identity and rejects hidden/search folders (2.51761ms)
+✔ arbitrary nested and beyond-first-page folder IDs are rejected before message or direct-folder reads (1.495712ms)
+✔ unsafe IDs are rejected before authority or credentials; opaque base64 IDs are preserved (0.677729ms)
+✔ normalization retains only exact-folder provenance and bounded plain-text inquiry fields (0.482952ms)
+✔ untrusted prompt-like email stays inert data and cannot create provider operations (1.260389ms)
+✔ HTML fallback removes scripts/styles/images, markup, bidi and control characters without rendering (0.6791ms)
+✔ oversize inquiry, subject, name and email are rejected, never sliced into accepted values (1.869386ms)
+✔ reply address changes, multiple recipients, injection and absent required provenance fail closed (0.776232ms)
+✔ preview skips malformed, oversize, outgoing, duplicate and cross-folder entries (3.13517ms)
+✔ provider list limits are enforced even when a server ignores $top (1.368387ms)
+✔ malformed list shapes, duplicate folder IDs and invalid pagination fail instead of claiming completeness (1.907072ms)
+✔ response reader rejects oversized declared and streaming bodies before parsing (1.565608ms)
+✔ response reader counts UTF-8 bytes, rejects malformed JSON/UTF-8 and never leaks raw body (2.685083ms)
+✔ exact response byte limit succeeds and multibyte characters survive split chunks (1.953065ms)
+✔ already-followed redirects and network exceptions cannot become mailbox results (0.700204ms)
+✔ provider failures and credential failures are sanitized and never retried (1.046542ms)
+PASS connect uses authenticated actor and PKCE frozen setup URL
+PASS connect refuses unauthenticated caller
+PASS connect rejects unsupported scope without provider or storage
+PASS connect returns failure when atomic begin fails
+PASS connect handles malformed JSON
+PASS callback token exchange uses frozen state credentials and verifies mailbox first
+PASS callback denial consumes state without reading credentials
+PASS callback rejected state makes no provider call
+PASS callback failed Graph cannot mark Connected
+PASS callback missing identity cannot mark Connected
+PASS callback missing principal cannot mark Connected
+PASS callback token malformed cannot mark Connected
+PASS callback missing refresh cannot mark Connected
+PASS callback missing scope cannot mark Connected
+PASS callback scope expansion cannot mark Connected
+PASS callback token timeout cannot mark Connected
+PASS callback provider non-JSON cannot mark Connected
+PASS callback missing expires cannot mark Connected
+PASS callback completion false is a failure
+PASS callback public redirect does not expose raw provider failure
+PASS refresh verifies same mailbox then commits exact CAS and binding
+PASS fresh access token requires live authority checks and no refresh
+PASS refresh mailbox substitution cannot reach commit
+PASS refresh CAS rejection never releases uncommitted token
+PASS refresh CAS false never releases uncommitted token
+PASS disabled connection stops before reading secrets or provider
+PASS cross-tenant integration response cannot match context
+PASS integration scope mismatch stops secret reads
+PASS provider granted scope prefixes normalize without adding authority
+PASS binding scopes are canonical and excludes token/health churn
+PASS execute valid health never writes Connected status
+PASS execute provider failure cannot mark or restore Connected
+PASS execute missing action scope makes no token or provider call
+PASS execute cannot introduce write action
+PASS execute approved workflow checks exact lineage twice
+PASS execute linked agent run cannot downgrade null lineage to manual
+PASS execute manual run rejects unexpected agent assertion
+PASS execute rejects workflow action substitution before credentials
+PASS execute rejects changed workflow revision before credentials
+PASS execute late agent revocation stops Graph after token lookup
+PASS execute rejects caller-supplied agent lineage fields
+{"passed":41,"failed":0}
+✔ backend/tests/oauth-routes.test.mjs (175.387975ms)
+✔ create uses validated user JWT and passes only company/email/role/token hash to atomic RPC (12.611791ms)
+✔ accept hashes token and returns canonical persisted company role, never a caller-supplied role/actor (2.4545ms)
+✔ invalid session cannot reach any invitation mutation (1.929277ms)
+✔ role escalation, malformed organization/token/body and unsupported operations fail before RPC (3.731376ms)
+✔ SQL denial/conflict is not converted to success; private errors remain sanitized (6.522754ms)
+✔ origin is exact matched, methods are bounded and preflight does not create a client (0.693551ms)
+✔ tokens contain 256 random bits; entrypoint pins SDK and never creates service-role credentials (3.318975ms)
+✔ owner assigns all company roles; changes return verified identity and audit in the same transaction (3144.848801ms)
+✔ fresh actor authorization rejects consultant/member/viewer, global staff and out-of-company actors (1869.689984ms)
+✔ admin only manages lower member/viewer targets and can never grant owner/admin/consultant/platform_admin (1746.389981ms)
+✔ self role changes/removal are denied for owners and admins (1639.751594ms)
+✔ expected role conflicts and null expectations cannot overwrite a newer decision; no-op is not audited (1618.493497ms)
+✔ revoked actor loses access immediately despite previously authorized session (1608.119713ms)
+✔ direct browser/service mutations and anonymous RPCs are closed; restored write grants still hit trigger protection (1604.521582ms)
+✔ last-owner invariant also covers privileged direct updates, multi-row deletes and auth-user cascades (1833.395675ms)
+✔ membership identity cannot move across companies; company bootstrap/cascade still work (2248.997672ms)
+✔ invitation creation matches owner/admin role matrix; no self/existing-member role update via re-invite (1775.497776ms)
+✔ admin cannot replace or revoke elevated invitation; revoke is company scoped and conflict checked (1674.547268ms)
+✔ invitation acceptance atomically inserts membership, consumes token and audits; replay cannot mutate (1904.637171ms)
+✔ acceptance uses fresh confirmed auth email, rejects wrong identity, expiry and unverified address (1793.673935ms)
+✔ legacy invitation acceptance preserves every existing member role including owners (2517.027051ms)
+✔ inviter downgrade/removal invalidates pending authority; later promotion cannot resurrect it (1692.627613ms)
+✔ removing someone also revokes old invitations addressed to them (1544.644389ms)
+✔ audit failure rolls back membership changes, invite consumption and invite revocation (1659.226222ms)
+✔ private implementations are hardened, public wrappers are invokers, actor IDs absent and contract idempotent (1618.590089ms)
+✔ all authority paths take the organization mutex before membership/invitation locks and use no spoofable bypass flag (1.611706ms)
+✔ normal auth-admin user deletion preserves owner invariants and clears accepted_by without corrupting invitation history (2651.399784ms)
+✔ browser roles cannot truncate audit history while trusted service maintenance is preserved (2501.145712ms)
+✔ readiness is exact, company scoped, read-only and verifies fresh owner/admin authority (2294.141866ms)
+✔ authenticated company creation under INSERT-only organization RLS still bootstraps its first owner (2035.439059ms)
+✔ HTTP→PostgreSQL→frontend verifier agrees on load/save/start and actor-scoped receipts (2424.724195ms)
+✔ full load with an independently active AI configuration remains verifiable without activating from installer (1905.402709ms)
+✔ auth token is verified and p_actor is derived exclusively from authenticated user (8.711704ms)
+✔ missing/anonymous/invalid auth never reaches RPC (2.229729ms)
+✔ origin/method/preflight/body-size limits run without writes (1.860531ms)
+✔ save passes an exact bounded spec, accepts nullable bindings, forbids optimistic readiness/execution (5.201485ms)
+✔ start requires immutable exact intake and returns verified durable provenance (4.690199ms)
+✔ load rejects cross-tenant/nested data and falsely active runtime rather than exposing it (3.140308ms)
+✔ explicit SQL transaction rejections differ from unknown delivery/storage errors (4.68767ms)
+✔ workspace preserves existing independent authorized inference readiness (0.685978ms)
+✔ new provider-neutral email binding passes without rewriting legacy or accepting both keys (0.945859ms)
+✔ catalog is immutable; missing bindings persist as setup_needed; all privileges service-only (2614.459334ms)
+✔ save is payload-and-actor idempotent, immutable revisions, current-revision validated (1835.579289ms)
+✔ save shape, references, recipe version and roles fail closed across tenants (1768.154042ms)
+✔ start calls guarded intake and assignment, stores revision provenance, and is idempotent (1951.493744ms)
+✔ assigned employee can start; reviewer, other members and viewers cannot; read scope is safe (2065.537128ms)
+✔ max_open_requests is serialized, includes older revisions, and frees only safe terminal state (2136.754371ms)
+✔ context/config/reconsent/authority changes fail closed at launch and preparation (10293.414397ms)
+✔ installation protects downstream assignee, source revision, and reviewer independence (1944.366973ms)
+✔ only designated reviewer can approve; changing connection blocks dispatch boundary (1780.255943ms)
+✔ start cannot adopt an existing uninstalled request key or mutate request provenance (1776.422469ms)
+✔ no independent draft manager yields an actionable configuration blocker (1763.404135ms)
+✔ optional current Company Knowledge works through existing guarded review and becomes stale on archive (1919.202389ms)
+✔ existing activation remains independent; changed installation fences model dispatch but not outcome recording (1929.788032ms)
+✔ changed installation is fenced at durable Microsoft receipt even after an earlier valid claim (1955.343807ms)
+✔ uninstalled customer workflow still follows its original guarded manual lifecycle (1887.571942ms)
+✔ live membership least privilege permits installation while membership writes stay denied (1731.597989ms)
+ℹ tests 632
+ℹ suites 0
+ℹ pass 632
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 527801.48619
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> kairo-command-center@0.1.0 test:ui
+> vitest run --config vitest.all.config.js
+
+
+ RUN  v3.2.4 /workspace/shared/kairo-company-email-20261011
+
+ ✓ tests/company-knowledge.test.jsx (17 tests) 898ms
+ ✓ tests/team-independent-review.test.jsx (30 tests) 1740ms
+ ✓ tests/billing-app.test.jsx (13 tests) 1657ms
+   ✓ opens a direct Billing link and scopes the lazy status view to the selected company and account  367ms
+   ✓ uses the existing section history for Back and Forward and rechecks when reopened  323ms
+ ✓ tests/customer-reply.test.jsx (121 tests) 8535ms
+   ✓ explicit Company Knowledge selection and pinned citations > never searches or selects automatically and sends only selected immutable refs when generating  304ms
+   ✓ explicit Company Knowledge selection and pinned citations > limits selection to five excerpts, including direct handler calls  771ms
+ ✓ tests/customer-setup-app.test.jsx (7 tests) 1279ms
+   ✓ opens and refreshes the direct Customer Setup route  469ms
+ ✓ tests/mailbox-intake.test.jsx (32 tests) 954ms
+ ✓ tests/safety-outcomes.test.jsx (50 tests) 1599ms
+ ✓ tests/ai-model-selection.test.jsx (17 tests) 807ms
+ ✓ tests/company-email-connections.test.jsx (31 tests) 1324ms
+ ✓ tests/safety-context.test.jsx (9 tests) 1119ms
+ ✓ tests/customer-app-context.test.jsx (7 tests) 1495ms
+   ✓ preserves draft on token refresh and resets on account change  304ms
+   ✓ preserves dirty customer work across cancelled browser Back and then allows confirmed navigation  359ms
+ ✓ tests/ai-activation-readiness.test.jsx (57 tests) 1088ms
+ ✓ tests/company-knowledge-app.test.jsx (7 tests) 1256ms
+   ✓ keeps active operations mounted and blocks company changes and sign out  425ms
+ ✓ tests/customer-setup.test.jsx (40 tests) 691ms
+ ✓ tests/team-roles.test.jsx (18 tests) 1050ms
+ ✓ tests/workflow-installations.test.jsx (14 tests) 661ms
+ ✓ tests/funding-navigation.test.jsx (11 tests) 845ms
+ ✓ tests/funding-ui.test.jsx (11 tests) 675ms
+ ✓ tests/team-app-context.test.jsx (4 tests) 789ms
+ ✓ tests/customer-reporting.test.jsx (48 tests) 1233ms
+   ✓ read-only operations workspace > discloses capped sample and keeps table filters separate from totals  308ms
+ ✓ tests/ai-request-lookup.test.jsx (8 tests) 680ms
+ ✓ tests/safety-help.test.jsx (4 tests) 619ms
+stderr | tests/billing-worker-ui.test.jsx > pinned SDK transport without network > sends a bodyless POST once and exposes HTTP 503
+Multiple GoTrueClient instances detected in the same browser context. It is not an error, but this should be avoided as it may produce undefined behavior when used concurrently under the same storage key.
+
+ ✓ tests/billing-worker-ui.test.jsx (55 tests) 710ms
+ ✓ tests/billing-status.test.jsx (64 tests) 622ms
+ ✓ tests/ai-setup.test.jsx (6 tests) 419ms
+ ✓ tests/password-recovery.test.jsx (22 tests) 2089ms
+   ✓ exposes the missing link, preserves email, clears the sign-in password, and returns to sign-in  680ms
+ ✓ tests/ai-independent-review.test.jsx (4 tests) 304ms
+ ✓ tests/funding-model.test.jsx (6 tests) 12ms
+ ✓ tests/auth-layout-snapshot.test.jsx (1 test) 288ms
+
+ Test Files  29 passed (29)
+      Tests  714 passed (714)
+   Start at  14:09:20
+   Duration  37.51s (transform 1.70s, setup 0ms, collect 8.55s, tests 35.43s, environment 16.88s, prepare 4.07s)
+
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> kairo-command-center@0.1.0 test:funding-db
+> node tests/funding-rls.mjs
+
+PASS anon has no select, insert, update or delete access
+PASS tenant cannot read or mutate private company rows
+PASS otherTenant cannot read or mutate private company rows
+PASS sales cannot read or mutate private company rows
+PASS inactive cannot read or mutate private company rows
+PASS active platform admin can read, insert, edit and close
+PASS stale edit returns zero rows and cannot overwrite newer version
+PASS admin cannot forge timestamps, actors, versions or delete
+PASS source, status and date constraints reject misleading data
+PASS staff revocation immediately removes access
+10 offline RLS tests passed
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> kairo-command-center@0.1.0 test:marketing
+> node --test tests/marketing-routing.test.mjs tests/app-routing.test.mjs
+
+✔ canonical Kairo entries load without navigation or loops at root and nested mounts (1.274415ms)
+✔ old app URLs replace history before auth loads and preserve every query/hash byte (1.364485ms)
+✔ future app routes are never redirected or loaded as Kairo, even with Kairo parameters (234.761551ms)
+✔ root callbacks and reporting bookmarks use the new app entry on the same origin (0.501663ms)
+✔ unknown-app fallback is safe to render repeatedly and does not expose the supplied path (5.12052ms)
+✔ all existing product sections retain their exact query and fragment (8.557545ms)
+✔ marketing pages, section anchors and UTM URLs remain public (0.762822ms)
+✔ invitations and full workflow links preserve all bytes (0.328226ms)
+✔ existing confirmation, PKCE and callback error URLs are forwarded intact (0.439075ms)
+✔ nested Webflow mounts remain relative to their own root (0.269621ms)
+✔ customer setup bookmarks enter the app with the selected company preserved (0.275184ms)
+✔ CerbTEK homepage stays public while all legacy callback entries remain intact (0.745709ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 731.117243
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> kairo-command-center@0.1.0 build
+> vite build
+
+vite v6.1.0 building for production...
+transforming...
+✓ 1714 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/app/index.html                                 0.77 kB │ gzip:   0.40 kB
+dist/app/kairo/index.html                           0.77 kB │ gzip:   0.40 kB
+dist/investors/index.html                           0.93 kB │ gzip:   0.52 kB
+dist/index.html                                     3.71 kB │ gzip:   1.19 kB
+dist/products/kairo/index.html                     13.42 kB │ gzip:   4.12 kB
+dist/assets/WorkflowInstallations-z8hkIXF5.css      1.78 kB │ gzip:   0.70 kB
+dist/assets/CustomerSetupJourney-6vRt8Wxa.css       1.93 kB │ gzip:   0.74 kB
+dist/assets/BillingStatus-Bn_fLdSu.css              2.10 kB │ gzip:   0.75 kB
+dist/assets/CompanyKnowledge-D-QfZ4Af.css           3.68 kB │ gzip:   1.18 kB
+dist/assets/marketing-qvfAoY-R.css                  5.37 kB │ gzip:   1.72 kB
+dist/assets/CustomerReplyWorkspace-B9005uam.css     9.61 kB │ gzip:   2.13 kB
+dist/assets/product-jKVykPer.css                   14.17 kB │ gzip:   3.62 kB
+dist/assets/main-DXlNGi-t.css                      32.27 kB │ gzip:   7.29 kB
+dist/assets/investment-CV4OzbkP.css                37.71 kB │ gzip:   7.87 kB
+dist/assets/modulepreload-polyfill-B5Qt9EMX.js      0.71 kB │ gzip:   0.40 kB
+dist/assets/app-entry-WwfRieID.js                   1.35 kB │ gzip:   0.80 kB
+dist/assets/app-routing-DKXIL_bq.js                 1.40 kB │ gzip:   0.75 kB
+dist/assets/marketing-D37s0SzT.js                   1.48 kB │ gzip:   0.74 kB
+dist/assets/company-knowledge-client-DNAOYJoJ.js    2.13 kB │ gzip:   1.11 kB
+dist/assets/CustomerOperationsReport-Dnrc8o3E.js    8.08 kB │ gzip:   2.86 kB
+dist/assets/investors-BR1EvSeI.js                   8.28 kB │ gzip:   2.66 kB
+dist/assets/CustomerRequestEvidence-Kg7TWia4.js    12.75 kB │ gzip:   4.17 kB
+dist/assets/customer-reply-model-BVnVqwsY.js       13.37 kB │ gzip:   4.11 kB
+dist/assets/BillingStatus-iF_4XbuL.js              14.57 kB │ gzip:   4.57 kB
+dist/assets/CustomerSetupJourney-CS8uwE8n.js       16.62 kB │ gzip:   5.68 kB
+dist/assets/CompanyKnowledge-DkK2cLUI.js           18.49 kB │ gzip:   5.79 kB
+dist/assets/WorkflowInstallations-B0Dv6rSq.js      37.06 kB │ gzip:  10.95 kB
+dist/assets/CustomerReplyWorkspace-VHF0QyVa.js     45.70 kB │ gzip:  12.80 kB
+dist/assets/investment-PCRkvdkS.js                144.08 kB │ gzip:  46.39 kB
+dist/assets/main-DbaFL6C-.js                      512.48 kB │ gzip: 144.69 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 10.38s
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> kairo-command-center@0.1.0 test:funding-build
+> node tests/funding-build.mjs
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert.ok(appSource.includes('APP_BASE}investors/'))
+
+    at file:///workspace/shared/kairo-company-email-20261011/tests/funding-build.mjs:11:8 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.19.0
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

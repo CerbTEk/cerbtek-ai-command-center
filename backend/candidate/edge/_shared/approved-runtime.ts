@@ -1,3 +1,4 @@
+import {emailProvider, emailSendGranted} from './email-runtime.ts';
 // Shared request boundary for manually initiated, human-approved workflows.
 export const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -33,7 +34,7 @@ export async function permissions(supabase: any, organizationId: string, userId:
   if (membership.error || staff.error) throw new BoundaryError("Authorization check unavailable", 503);
   const m = membership.data, s = staff.data;
   return {
-    contribute: !!m || s?.active === true,
+    contribute: !!(m && ["owner", "admin", "consultant", "member"].includes(m.role)) || s?.active === true,
     approve: !!(m && ["owner", "admin", "consultant"].includes(m.role)) || !!(s?.active === true && ["platform_admin", "consultant"].includes(s.role)),
   };
 }
@@ -48,13 +49,13 @@ export function stable(value: any): string {
   if (object(value)) return `{${Object.keys(value).sort().map(k => `${JSON.stringify(k)}:${stable(value[k])}`).join(",")}}`;
   return JSON.stringify(value);
 }
-export async function connectionFor(supabase: any, organizationId: string, connectionId?: string) {
-  let query = supabase.from("oauth_connections").select("*").eq("organization_id", organizationId).eq("provider", "microsoft");
+export async function connectionFor(supabase: any, organizationId: string, connectionId?: string, provider = 'microsoft') {
+  let query = supabase.from("oauth_connections").select("*").eq("organization_id", organizationId).eq("provider", provider);
   if (connectionId) query = query.eq("id", connectionId);
   const { data: c, error } = await query.single();
-  if (error || !c || c.organization_id !== organizationId || c.provider !== "microsoft" || c.status !== "Connected" || c.oauth_verified_version !== 1 || !c.external_account_id || !Array.isArray(c.scopes) || !c.scopes.includes("Mail.Send")) throw new BoundaryError("Verified Microsoft connection with Mail.Send required", 409);
+  if (error || !c || c.organization_id !== organizationId || !emailProvider(c.provider) || c.provider !== provider || c.status !== "Connected" || c.oauth_verified_version !== 1 || !c.external_account_id || !emailSendGranted(c)) throw new BoundaryError("Verified email account with sending permission required", 409);
   const { data: i, error: ie } = await supabase.from("integrations").select("*").eq("id", c.integration_id).eq("organization_id", organizationId).single();
-  if (ie || !i || i.organization_id !== organizationId || i.id !== c.integration_id || i.status !== "Connected" || i.provider !== "Microsoft" || i.integration_type !== "OAuth") throw new BoundaryError("Microsoft integration unavailable", 409);
+  if (ie || !i || i.organization_id !== organizationId || i.id !== c.integration_id || i.status !== "Connected" || i.provider !== (c.provider === "google" ? "Google" : "Microsoft") || i.integration_type !== "OAuth") throw new BoundaryError("Email integration unavailable", 409);
   return { connection: c, integration: i };
 }
 export async function bestEffort(operation: () => Promise<any>) {

@@ -154,7 +154,7 @@ describe('strict boundaries and safe rechecks', () => {
 describe('accessible resumable navigation', () => {
   it('links each task to its deployed screen and preserves modified link clicks', async () => {
     const f = fixture(); await mount(f)
-    const destinations = [['Open reply guidance', 'Customer Follow-up'], ['Open AI Setup', 'AI Setup'], ['Review Microsoft connection', 'Integrations'], ['Review Team & Roles', 'Team Access'], ['Open Company Knowledge', 'Company Knowledge']]
+    const destinations = [['Open reply guidance', 'Customer Follow-up'], ['Open AI Setup', 'AI Setup'], ['Review company email', 'Integrations'], ['Review Team & Roles', 'Team Access'], ['Open Company Knowledge', 'Company Knowledge']]
     for (const [name, target] of destinations) { const link = screen.getByRole('link', { name, exact: true }); expect(link.getAttribute('href')).toBe('#' + encodeURIComponent(target)); fireEvent.click(link); expect(f.props.onGo).toHaveBeenLastCalledWith(target) }
     f.props.onGo.mockClear(); fireEvent.click(screen.getByRole('link', { name: 'Open AI Setup', exact: true }), { ctrlKey: true }); expect(f.props.onGo).not.toHaveBeenCalled()
   })

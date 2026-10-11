@@ -2,12 +2,12 @@
 export const INTEGRATION_PROVIDERS = Object.freeze([
   {id:'microsoft', name:'Microsoft 365', auth:'Microsoft Entra OAuth', availability:'Connector implemented',
     summary:'Profile, inbox status and upcoming calendar actions are implemented. A connected account and matching permissions are required.',
-    next:'Review the existing Microsoft setup below with your administrator. Saving this plan does not connect an account.',
+    next:'Use Company email below to sign in through CerbTek and explicitly choose read or send access. Saving a plan does not connect an account.',
     cases:[{id:'profile',name:'Verify the connected profile'},{id:'inbox-status',name:'Review inbox status'},{id:'calendar-next',name:'Review upcoming calendar events'}]},
-  {id:'google', name:'Google Workspace', auth:'Google user OAuth', availability:'Planned · not available to connect',
-    summary:'Planned first actions: profile verification, selected Drive files, Gmail inbox status and upcoming Calendar events.',
-    next:'A Google OAuth connector, permission review and end-to-end validation are required before this plan can run. No Google access is requested here.',
-    cases:[{id:'profile',name:'Verify a Google Workspace profile'},{id:'drive-selected',name:'Read explicitly selected Drive files'},{id:'inbox-status',name:'Review Gmail inbox status'},{id:'calendar-next',name:'Review upcoming Google Calendar events'}]},
+  {id:'google', name:'Google Workspace', auth:'Google user OAuth', availability:'Email connector implemented · server setup required',
+    summary:'Connect company Gmail for manager-selected label intake and independently approved replies. Drive and Calendar integrations remain planned.',
+    next:'Use Company email below to sign in through CerbTek and choose read or send access. Availability requires configured server OAuth; the saved plan grants no access.',
+    cases:[{id:'profile',name:'Verify a Google Workspace profile'},{id:'drive-selected',name:'Plan selected Drive files (not available)'},{id:'inbox-status',name:'Review Gmail inbox status'},{id:'calendar-next',name:'Plan Google Calendar events (not available)'}]},
   {id:'aws', name:'AWS', auth:'Customer IAM role and temporary credentials', availability:'Planned · not available to connect',
     summary:'Planned first actions: verify the AWS account and role, read approved S3 locations and inspect CloudWatch metrics or alarms.',
     next:'An administrator-reviewed role trust policy, limited resource permissions and a tested AWS connector are required. Do not enter AWS access keys here.',
@@ -56,6 +56,7 @@ export function nextProviderPlan(data={}) {
   const microsoftConfigured=(Array.isArray(data.oauth)?data.oauth:[]).some(item=>item?.provider==='microsoft'&&item?.status!=='Disabled')
   const microsoftConnected=(Array.isArray(data.oauth)?data.oauth:[]).some(item=>item?.provider==='microsoft'&&item?.status==='Connected')
   if(hasMicrosoftWorkflow||microsoftConnected||microsoftConfigured) return 'microsoft'
+  if ((Array.isArray(data.oauth) ? data.oauth : []).some(item => item?.provider === 'google' && item?.status !== 'Disabled')) return 'google'
   // The oldest remaining plan is the resumable setup path; all plans stay visible.
   const first=[...plans].sort((a,b)=>String(a.row.created_at||'').localeCompare(String(b.row.created_at||''))||String(a.row.id||'').localeCompare(String(b.row.id||'')))[0]
   return first?.plan.provider||null

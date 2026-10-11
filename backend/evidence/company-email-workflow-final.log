@@ -1,0 +1,14 @@
+✔ Google installation freezes own account and performs inquiry > accepted draft > independently approved single dispatch (2903.200688ms)
+✔ legacy Microsoft installation retains its immutable binding and selected Microsoft sends when Google also exists (2040.502265ms)
+✔ Google disconnect, changed email, revoked send or changed integration blocks stale approval/dispatch (8039.024276ms)
+✔ Google selected-label source stays manager-only, matches frozen provider, deduplicates import and preserves untrusted input (1923.191695ms)
+✔ mixed provider binding keys, foreign accounts, unsafe company access and browser SQL privileges fail closed (1839.462546ms)
+✔ connecting manager demotion blocks readiness, claim and final dispatch without hiding the whole workspace (2026.99869ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18946.861882

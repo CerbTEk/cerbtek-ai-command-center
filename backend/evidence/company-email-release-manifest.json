@@ -1,0 +1,566 @@
+{
+  "prepared_at": "2026-10-11T18:25:23.643175+00:00",
+  "base_commit": "1a4f53fc88e12022e1a8ed2660974cf0937063b8",
+  "base_tree": "5358ed2a823779c70e0d474deff509e8bb7681d7",
+  "scope": "66 source/test/cleanup files,3docs,10evidencefiles; manifest added separately",
+  "file_count_excluding_manifest": 79,
+  "aggregate_sha256": "974a6c597cf9d8299b5ec2082ea08ae8dc4fe6438e81c7cf8883b15ab4577ee1",
+  "files": [
+    {
+      "path": "backend/candidate/edge/_shared/approved-runtime.ts",
+      "size": 5097,
+      "sha256": "d5f35de28c16dda0b0b5f07e6a3f3ebbec315dd45616d81834954d7de7ae5147",
+      "git_blob_sha": "527e7f396a98067e35c33cb3834531651128abfa"
+    },
+    {
+      "path": "backend/candidate/edge/_shared/company-email-oauth.ts",
+      "size": 8841,
+      "sha256": "6e6a75521e36dc9e117710366af667d05dc8e24e2dfaefb9edfcef8a95ec4e56",
+      "git_blob_sha": "87e060a8283b5a73ba42488fffae6baf0167c5cc"
+    },
+    {
+      "path": "backend/candidate/edge/_shared/email-runtime.ts",
+      "size": 1302,
+      "sha256": "d846ff84ed1d33ffbd0c58dcd8a783952020d71520ccaedfd0eafcaeef46bf56",
+      "git_blob_sha": "e8021b08bdb45bcfc13bf34e8514e5f958a0b75c"
+    },
+    {
+      "path": "backend/candidate/edge/_shared/gmail-send.mjs",
+      "size": 10538,
+      "sha256": "dbf6564a554c007edff0a25d00c8a7472f701a0aba4b5039846b29ebc60e16f5",
+      "git_blob_sha": "1c00559dce68020aad7770807f81cc7bfd911961"
+    },
+    {
+      "path": "backend/candidate/edge/_shared/google-connection.ts",
+      "size": 4695,
+      "sha256": "a7563895d2226d684de976e55b2cca68107e63483c8e29e9bb999a8f0a0d9162",
+      "git_blob_sha": "315533ba1748a09493521acad6a3d5fed09dbd12"
+    },
+    {
+      "path": "backend/candidate/edge/_shared/microsoft-connection.ts",
+      "size": 9349,
+      "sha256": "dd2275de9a185a15265e9ad267c624bc7c7726c557edf430efbfa16f1e5363ad",
+      "git_blob_sha": "969f9348b8ae00259f3ad1a8ad72f46a6808adc2"
+    },
+    {
+      "path": "backend/candidate/edge/company-email-connections/handler.ts",
+      "size": 3628,
+      "sha256": "b12abafa4e1eb84113048f1a768433fb54d70fd1b407a87a04721ebf19fb48c2",
+      "git_blob_sha": "85e41a8fc3d2871ad9c787258ca4b574c156ec79"
+    },
+    {
+      "path": "backend/candidate/edge/company-email-connections/index.ts",
+      "size": 676,
+      "sha256": "fbd6572e5d78153ea673841a55b76a8f0243e3a0efb4ead52b832ac864b9d145",
+      "git_blob_sha": "1346558768ab82bcaee569b280fcf31a7782fe25"
+    },
+    {
+      "path": "backend/candidate/edge/customer-workflow/handler.mjs",
+      "size": 7731,
+      "sha256": "ae3ebb5538fd750557a3510a4835533d562b1066c507dfea3ab66ba2ecf06925",
+      "git_blob_sha": "be02dd81aa7053d3611cdcfbb99acd5fefb86319"
+    },
+    {
+      "path": "backend/candidate/edge/google-connect/handler.ts",
+      "size": 288,
+      "sha256": "115456803f09e04aacddca9b9fd34c88055cd7e0ddd7e1e71fc7184df5bfb63c",
+      "git_blob_sha": "7dbb97e72cb14e25a4086bb6fa1a140ec8ed6df4"
+    },
+    {
+      "path": "backend/candidate/edge/google-connect/index.ts",
+      "size": 514,
+      "sha256": "e812dfdeb5acf1440342ef63ed770ee21656efec4b4ea3a42dc82472cdfe35c0",
+      "git_blob_sha": "2d1376413bef65cd1511bd8844f2f8771c90e08b"
+    },
+    {
+      "path": "backend/candidate/edge/google-oauth-callback/handler.ts",
+      "size": 291,
+      "sha256": "16e54bb54eca532c398235bb87791197f6bd4cf7a2233eb039d0e2fe29bb93f3",
+      "git_blob_sha": "8bbffe4dcd272958c44f389a03b96e300b78460e"
+    },
+    {
+      "path": "backend/candidate/edge/google-oauth-callback/index.ts",
+      "size": 388,
+      "sha256": "d8cf14ce0a74e1b8de7dc18bf1129a410e9f78f2426a80dc9dd1db34b56f24f2",
+      "git_blob_sha": "d56077d46d63b342e7a17eef068a8723e663f808"
+    },
+    {
+      "path": "backend/candidate/edge/mailbox-intake/gmail-provider.mjs",
+      "size": 15900,
+      "sha256": "c2599f0bec637e117ca9c868a8e04ac5a59489bf946f48aaf4c7b8e9d8c1be7c",
+      "git_blob_sha": "142b3e3c79e8b43ba5a44337050bcd353584bd3e"
+    },
+    {
+      "path": "backend/candidate/edge/mailbox-intake/handler.mjs",
+      "size": 9986,
+      "sha256": "5f021bc04edd463752388a5e3c62e4a4e56b2ed416bad124ddd4f116ce022d6c",
+      "git_blob_sha": "5e37548ada18ecdc9c87b759502350eaa7ec0c00"
+    },
+    {
+      "path": "backend/candidate/edge/mailbox-intake/index.ts",
+      "size": 841,
+      "sha256": "b667da4629e0c33069fb37497ca9284706364fb4853dae7b6badfe52353d6c2c",
+      "git_blob_sha": "bf736261df052a7bd766792caae393ba3091d856"
+    },
+    {
+      "path": "backend/candidate/edge/microsoft-action/handler.ts",
+      "size": 14866,
+      "sha256": "344f9337aa50d9b4e3c206470252b03019ed50a8829a8e581a92b79e304b4cc1",
+      "git_blob_sha": "5e5722c57c0a8c2cfece192769da00da00edfd2b"
+    },
+    {
+      "path": "backend/candidate/edge/microsoft-connect/handler.ts",
+      "size": 291,
+      "sha256": "48b0bd474df412c39e5258247b668d1d2f98a38a48263d9c03f82fe875655582",
+      "git_blob_sha": "2eaa6f4eb95053ecab72025aa27c0a22e132f864"
+    },
+    {
+      "path": "backend/candidate/edge/microsoft-connect/index.ts",
+      "size": 588,
+      "sha256": "c1473d8ff310910106db9dd29f0091b5bed4799e4336b7c5641d8659ae48c530",
+      "git_blob_sha": "441779fa3b546fd0c1ced61e0406be9fe0195101"
+    },
+    {
+      "path": "backend/candidate/edge/microsoft-execute/handler.ts",
+      "size": 11135,
+      "sha256": "5d39e7cc7a28b7297fe4eebed841868909a8a0681ac8151876f0b31b4cf0a733",
+      "git_blob_sha": "e7d1f3183f5217a9754b054fe9ad0d82ee546c17"
+    },
+    {
+      "path": "backend/candidate/edge/microsoft-oauth-callback/handler.ts",
+      "size": 294,
+      "sha256": "53e76c8536c3d6b3c245c517cefbd363efec8d5d59c644d7b9c83edfe2783a1b",
+      "git_blob_sha": "dd728d617ed4d9977c4317677b8d923563b13f1d"
+    },
+    {
+      "path": "backend/candidate/edge/workflow-installations/handler.mjs",
+      "size": 10490,
+      "sha256": "a41ea1bfb895e6c5e2481aa1a0fae8f37cae83d8df996a80e343ee77bbeb20e6",
+      "git_blob_sha": "fb2169de4f55d323a7c21bd8f2f254e268620941"
+    },
+    {
+      "path": "backend/candidate/sql/company-email-cleanup-schedule.sql",
+      "size": 1638,
+      "sha256": "832347cea46967d46fc0c679f07a1ffb5c99a172607242d49f104a793f93cc6d",
+      "git_blob_sha": "b3c2040195c48f3b70c80968fbb259ee66f3d1f0"
+    },
+    {
+      "path": "backend/candidate/sql/company-email-oauth-contract.sql",
+      "size": 34918,
+      "sha256": "90b8376d284a96c64f516d3b4e5ae44a3e12719d1018b2563baf6e27a9b0d8a7",
+      "git_blob_sha": "1629634a0d9c100084abb029c85df0b4e24eefe6"
+    },
+    {
+      "path": "backend/candidate/sql/company-email-workflow-contract.sql",
+      "size": 52698,
+      "sha256": "2c88be3d79de29ca9cff739725c08e67f03147037b2b792fddf595fb051f42e8",
+      "git_blob_sha": "a1209609e39291b75ec029843367fdfdd361a621"
+    },
+    {
+      "path": "backend/docs/company-email-oauth-candidate.md",
+      "size": 11155,
+      "sha256": "46293e81c0b896fad0a78233217305c36de4d65cb2d9de37b8de2846277df500",
+      "git_blob_sha": "0fc9b7c59e190ed032183d04654a28ed4ac164c6"
+    },
+    {
+      "path": "backend/docs/company-email-source-review.md",
+      "size": 8105,
+      "sha256": "48ab0d4ab0e5598df47b3aab9ff3f29c11f9791157078a07c24ad4643bed04d6",
+      "git_blob_sha": "8d56e4ae727a9a914e8aaa7b13d7e1ac87fdffaa"
+    },
+    {
+      "path": "backend/docs/gmail-provider-source-review.md",
+      "size": 5968,
+      "sha256": "c49de3b3e7af5a8c20e6d47ba7e6a38a5bb858a9088e6555f049503b12dbc1f4",
+      "git_blob_sha": "86e17f971a0ae549c3b86e644f4e3b19ff01132b"
+    },
+    {
+      "path": "backend/evidence/company-email-baseline-funding-build.log",
+      "size": 438,
+      "sha256": "ca451eef85825654e9f669f949223de0fa3e116add8cc0b830e2515ebaff46c5",
+      "git_blob_sha": "c1c7fbf23a29360cc3cf4a8960b9461f66165115"
+    },
+    {
+      "path": "backend/evidence/company-email-check-all.log",
+      "size": 75492,
+      "sha256": "4f8006c53e81d47b9cdd5e4b83cf4a9c6877b3182343ac79b74cee240bc10cdf",
+      "git_blob_sha": "3308746d8903a126206bfae8d00cd7f7f8ae9029"
+    },
+    {
+      "path": "backend/evidence/company-email-deployment-receipt.json",
+      "size": 4469,
+      "sha256": "e1efedc4930d6a41883722e0c3b88893083baa3694e4785eb2095c52098a0dfd",
+      "git_blob_sha": "fce2cbaf9fc7038c6cf5078b3726d5fd50743247"
+    },
+    {
+      "path": "backend/evidence/company-email-oauth-results.json",
+      "size": 4594,
+      "sha256": "8fbf39da72d1894a98e08b51095649c5f5ffbd49274362519813d119e6bb0e4e",
+      "git_blob_sha": "e9df25d544d30407182b02bf69a6dc5143da799d"
+    },
+    {
+      "path": "backend/evidence/company-email-public-edge-probes.json",
+      "size": 1944,
+      "sha256": "c9e23b42154eb94cd5e01dcd76f33f185baace69403c3a35c184643a458d9b9e",
+      "git_blob_sha": "d87d16f4aa0c6dafe6544648b4e97a73330454a8"
+    },
+    {
+      "path": "backend/evidence/company-email-release-summary.json",
+      "size": 2400,
+      "sha256": "ed285f6713888a0a8a3f7b056d313cabb2e00922a67ea6313e2f43ecc5b5e59c",
+      "git_blob_sha": "772005dc260bbc4f58ed9bad4685f1e577588e1d"
+    },
+    {
+      "path": "backend/evidence/company-email-remaining-build-checks.log",
+      "size": 1796,
+      "sha256": "def5610daca82df626550f2b48d51d491039b27bcef9f19e592a7a4f5503f01b",
+      "git_blob_sha": "b8cd6773e4c07d6a211cff158b912af21513b52c"
+    },
+    {
+      "path": "backend/evidence/company-email-sql-deployed-verification.json",
+      "size": 9270,
+      "sha256": "1742007e46ed8a4a3f217ef9a0fa4e4c65a4251c3b7f60caea148750f82937e1",
+      "git_blob_sha": "35033fd4528872360e1c1bae39042f457536c874"
+    },
+    {
+      "path": "backend/evidence/company-email-workflow-final.log",
+      "size": 907,
+      "sha256": "4aa997847b42cabcfbb0bcc88c2372ecc091324441e164ecbc97b31ad36cfca6",
+      "git_blob_sha": "fa7f0f9ec9e61e0a1468eb304e9f348f72312740"
+    },
+    {
+      "path": "backend/evidence/gmail-provider-source-tests.log",
+      "size": 7661,
+      "sha256": "d2e27774b70a05c83ae67c0774de51d0ef89ea88c9a1040b2786e281f2d328a6",
+      "git_blob_sha": "63ba4e74fa4955dfe2065f94a2918cc9ddf3d575"
+    },
+    {
+      "path": "backend/tests/action-workflow.test.mjs",
+      "size": 33476,
+      "sha256": "24b713ca2a35459382b11c73f2093b73d3cf694044f2147981e896fde4ccfbcb",
+      "git_blob_sha": "1eaddf28a6c893b13cc807ecfc1bc748cce8c441"
+    },
+    {
+      "path": "backend/tests/company-email-oauth-routes.test.mjs",
+      "size": 13908,
+      "sha256": "b5d4e81d0a8848719ba022a5686b049b5a98923402bca95e199a56218cac9c13",
+      "git_blob_sha": "ecc74607c200093f73c3d48be8c8d4c1e5dd2ddb"
+    },
+    {
+      "path": "backend/tests/company-email-oauth-sql.test.mjs",
+      "size": 15828,
+      "sha256": "327128d61efde0b172dd96e05639133723a65b09da84c04674e368c83dc891cf",
+      "git_blob_sha": "b7eabf919b27ef363fa4ae2c6329a827d4d98b1d"
+    },
+    {
+      "path": "backend/tests/company-email-read-routes.test.mjs",
+      "size": 3627,
+      "sha256": "7ec31ff5f640ee0eeac4bf5629155d0607f25ffe1b6974158d2efade90d4c03d",
+      "git_blob_sha": "8f05f71546185d24da537143c56877f73ce34741"
+    },
+    {
+      "path": "backend/tests/company-email-workflow-sql.test.mjs",
+      "size": 14288,
+      "sha256": "272d79cf4114becca2c2ebb036c15123493dabf16781d2ededa0e005a12f2ac4",
+      "git_blob_sha": "6ba789c026d2293351d374b8c1b722cb2fe4e40e"
+    },
+    {
+      "path": "backend/tests/customer-workflow-routes.test.mjs",
+      "size": 10431,
+      "sha256": "f25a05dd302a752727fde6d3da3e4c39c487884450ac4e9295dee7aaa307a277",
+      "git_blob_sha": "b0465ae95a5c9a84f09909f1aa917c6e688e6671"
+    },
+    {
+      "path": "backend/tests/fixtures/company-email-oauth-fixture.mjs",
+      "size": 6822,
+      "sha256": "46d4e7ebb1e832d2c3db467968221f29b0bee4747b0429572d00fe51f1ce5269",
+      "git_blob_sha": "1657c0037e7eb77b1dcf1c5ecbe8a5c11ca41f67"
+    },
+    {
+      "path": "backend/tests/gmail-intake-routes.test.mjs",
+      "size": 8946,
+      "sha256": "c427eeea7fc96fe9f301cd0ae86239a781eabd7c96020200cbb38e30072ea96a",
+      "git_blob_sha": "10e6831f2d6daea193c17570df604dc8820b2d9c"
+    },
+    {
+      "path": "backend/tests/gmail-provider.test.mjs",
+      "size": 15599,
+      "sha256": "3f5567ba682ec9ffc890a97d69b54bee40e94ca24ffc406b2cad78aa008bb72a",
+      "git_blob_sha": "bb5b4d85e50e99b8913b1d246a86b6da4685a190"
+    },
+    {
+      "path": "backend/tests/gmail-send.test.mjs",
+      "size": 10414,
+      "sha256": "62d653369b7517bda55ae28b0a25dc342fb9a72244023e4de4c1899beb647007",
+      "git_blob_sha": "5df4f8b5c720d333a391642f7feacd37c85e7ebc"
+    },
+    {
+      "path": "backend/tests/mailbox-intake-routes.test.mjs",
+      "size": 6576,
+      "sha256": "0eac2572298410c9105ca4c77bd6305c8ad04f16ac6dd9b190da0bf6559ee907",
+      "git_blob_sha": "8dae758bdf7ff219d018d1424d58dccb5ffd401b"
+    },
+    {
+      "path": "backend/tests/oauth-routes.test.mjs",
+      "size": 18402,
+      "sha256": "20f8871aa709b8df4ca979a4576698d851fd85d0d1b25a7099d2c94ccd4e0b15",
+      "git_blob_sha": "b2cb8a43c94e42db2d6d7ffc74951e229ab43c1f"
+    },
+    {
+      "path": "backend/tests/workflow-installations-routes.test.mjs",
+      "size": 9509,
+      "sha256": "bbd1076b519e0faf07cc96ead2646d58e135d58db7573a829bda996eb9bad68f",
+      "git_blob_sha": "a184d4d4b26031fcdb9b3e23f921f78faaf1a485"
+    },
+    {
+      "path": "src/CompanyEmailConnections.jsx",
+      "size": 16706,
+      "sha256": "e3431c56b672c5c29179b685ce86d5147202acddf020ed27ef53b0ebd4c9f3cd",
+      "git_blob_sha": "17f47785f28c1fa96d0b22b79ab499460ef02128"
+    },
+    {
+      "path": "src/CustomerOperationsReport.jsx",
+      "size": 8960,
+      "sha256": "4b0bebac469a145b76e6d8e0b4ceda9deea70ea9b1f69ca822ae9e494f46ab26",
+      "git_blob_sha": "096995fe80696678fb8ca71cce58fb2111a422cf"
+    },
+    {
+      "path": "src/CustomerReplyWorkspace.jsx",
+      "size": 51290,
+      "sha256": "a561cdc1b7148f7fd491626a091ba595d199b353fcffb3d35bfbb95432b4b83c",
+      "git_blob_sha": "1354f3ebad23d0650546bb9ccedd392b596bc807"
+    },
+    {
+      "path": "src/CustomerSetupJourney.jsx",
+      "size": 11529,
+      "sha256": "a64f888703d5fca69c81371a8528e3a12cadd57dabbe1244273e5b98dd471869",
+      "git_blob_sha": "998ab9a263d631056b0fdf0da4e95a50f7ef4614"
+    },
+    {
+      "path": "src/MailboxIntake.jsx",
+      "size": 15871,
+      "sha256": "e43cbaeacf22c6538bc1572dafab0b9108fc055d7a0f3e6bf60aa101c617eb1d",
+      "git_blob_sha": "44c0e23f4cf85a2070298b2e0fb1fb60e878ed3b"
+    },
+    {
+      "path": "src/WorkflowInstallations.jsx",
+      "size": 20298,
+      "sha256": "dda082e3fb32549ec2e54d84bfbb5071a12c0199efe4f166aea6081712bb3b7a",
+      "git_blob_sha": "cba88342f5663e2566fe5c08869a15403e3e0927"
+    },
+    {
+      "path": "src/company-email-callback.js",
+      "size": 6377,
+      "sha256": "43d739bf7ff4e6d67d013a5966fa2ce82e201025c7e73c4fc0688f2d81b71dd8",
+      "git_blob_sha": "3f42c113a8ef65ab287d78a07bbfc0420cfe552f"
+    },
+    {
+      "path": "src/company-email-model.js",
+      "size": 3631,
+      "sha256": "b47cf65de4a820d8396f1eb35fc656f36ab7a51430289c35fad99c1cabe34f42",
+      "git_blob_sha": "4a10f29650fc70aa10ab0539f565a09311d06952"
+    },
+    {
+      "path": "src/company-email.css",
+      "size": 1610,
+      "sha256": "2ae85242ffded790a2e27b5674d81c6d4fd9c50281871f086dfb490fc49bf2ef",
+      "git_blob_sha": "d822d58604ceffb789fba24291235b9f5e1e27a3"
+    },
+    {
+      "path": "src/customer-reply-model.js",
+      "size": 17773,
+      "sha256": "ee51cf9541c204bee560fd227471d84fca50cda7d6d242c814ab407eb0fc320e",
+      "git_blob_sha": "55880cb3b3f2acb5b07d94129c37f61cc6b79610"
+    },
+    {
+      "path": "src/customer-reporting-model.js",
+      "size": 10099,
+      "sha256": "152527fd859121f18d5ea7459e7faefccd9fbcd4b8a3d8c4acd436367ba058b3",
+      "git_blob_sha": "964d2abbc53d37de208dc0017b0f2afda8a02b77"
+    },
+    {
+      "path": "src/customer-setup-model.js",
+      "size": 7587,
+      "sha256": "b1a63a830b5b81d8d63e651ac74427ee15ba3aa88246092c2f4bdd41ab569f70",
+      "git_blob_sha": "1cbe125f31fd7d7e08d8ad62a64b7c9749ddf81a"
+    },
+    {
+      "path": "src/first-use-guidance.js",
+      "size": 8835,
+      "sha256": "e056a08126d581aca1931f4804ce594ac567d8e3189e43ae0500f1d691591b63",
+      "git_blob_sha": "304b1bf29e2f8c251485db3e2e8b2e49dbe51a0b"
+    },
+    {
+      "path": "src/integration-providers.js",
+      "size": 4994,
+      "sha256": "57a224ff2ba1eeeda2a7c85de60d32c5a054f68458f2a4f4fe3df3174af23048",
+      "git_blob_sha": "4d00f58e55ab08ae9a46bee93a4ec48ce1ff4ca4"
+    },
+    {
+      "path": "src/kairo-help-content.js",
+      "size": 26482,
+      "sha256": "50334ba2d4b8247fd4a26274536ac185f521697fbaae77d544cd916a6248b651",
+      "git_blob_sha": "cb515665bc896eb4ad42851a9c01713310370e50"
+    },
+    {
+      "path": "src/kairo-provider-guides.js",
+      "size": 6257,
+      "sha256": "7d4b1832dee0648d22a953079817283e05cc2bc026699e399b11bdf9b5e75814",
+      "git_blob_sha": "630b768a3cbf06a5a70d3335a85019656fb83922"
+    },
+    {
+      "path": "src/mailbox-intake-model.js",
+      "size": 6026,
+      "sha256": "204aa5529c76049e1f65c40c431ea556a4128e3b8a7f7e84605719af1178d07c",
+      "git_blob_sha": "8a1fee147875b4f26f2a25f725704cafccd86949"
+    },
+    {
+      "path": "src/main.jsx",
+      "size": 113219,
+      "sha256": "521ac960628c6c43f0438e04f71ea4e5892294914c19b157fea0c6cc2d314807",
+      "git_blob_sha": "642c8d6d78f97dccd37e79ddd6a708a9c2b9d0f3"
+    },
+    {
+      "path": "src/supabase.js",
+      "size": 803,
+      "sha256": "1be053c2bc3453a5948c3d5a4b4e173263c05aca111abd2143b357eaba1d2af7",
+      "git_blob_sha": "5d86f9d4a4e7ced3fad6c906d027c946d8e1e3e8"
+    },
+    {
+      "path": "src/use-safe-operation.js",
+      "size": 2780,
+      "sha256": "5c9d9365c9c2d0ba1ebb3e04428d673685711554db2a6b4491e89498d062ae25",
+      "git_blob_sha": "41f2fe3cc05c2acd7ec55f28dfe748578264b372"
+    },
+    {
+      "path": "src/workflow-installation-model.js",
+      "size": 4843,
+      "sha256": "11e332712a0f37eff0d147575d270496737423cd66f7ccd7d9db8cb7948d4f7a",
+      "git_blob_sha": "bb341fb0cc3636d80499325b34aa376a074784d2"
+    },
+    {
+      "path": "tests/company-email-connections.test.jsx",
+      "size": 20792,
+      "sha256": "1ba1db537136be16f9f3bfa2717a5230b2f6a5b7791f7944a65df0c53d6c6e27",
+      "git_blob_sha": "f888e59c48acedf132d68402a3d906b4016c9187"
+    },
+    {
+      "path": "tests/customer-reply.test.jsx",
+      "size": 66028,
+      "sha256": "9697f97a5c931c77756bba286828c67c0584e6b90435bf89b74280572ee38ed1",
+      "git_blob_sha": "b275bfae1ea359bd04dcd065e4610b097b0e2b18"
+    },
+    {
+      "path": "tests/customer-setup-app.test.jsx",
+      "size": 5842,
+      "sha256": "de8cc85df9e22853f111c42e1e41e3df6b7c2c2358f041b3f93850f364692a12",
+      "git_blob_sha": "a6a025f8da1a3a3483fb014a670691f21e7047e5"
+    },
+    {
+      "path": "tests/customer-setup.test.jsx",
+      "size": 16600,
+      "sha256": "2096c6c037b44d04f1f5ade0f293d53d827c7d659a63ece311ce462de0543d0e",
+      "git_blob_sha": "82d1ba2d5ea7f44a532b0b774cd23f5c34cc1f11"
+    },
+    {
+      "path": "tests/mailbox-intake.test.jsx",
+      "size": 27841,
+      "sha256": "95abe311b2c79ed2615a4c09b33acce82b7e2cfd6831216b58f3f2a5175a1ed0",
+      "git_blob_sha": "1679484073fab26951d178aafb01fa15e8aef9cc"
+    },
+    {
+      "path": "tests/safety-outcomes.test.jsx",
+      "size": 22838,
+      "sha256": "b9e25782ba79aaa2dd75f2c4d3390a6d1431bda93161100c27484c19cf79ce72",
+      "git_blob_sha": "ee4c9349facbd121551b8f49c3ca4a60f01b21e8"
+    },
+    {
+      "path": "tests/workflow-installations.test.jsx",
+      "size": 12298,
+      "sha256": "a404f119885c03355730001395f156ae46e99e41aca0d8fe9d6e1baf8c17ef9a",
+      "git_blob_sha": "cbb5494164fdd05ca3ebf08be541396c6d6c0b76"
+    }
+  ],
+  "publication_allowlist": [
+    "backend/candidate/edge/_shared/approved-runtime.ts",
+    "backend/candidate/edge/_shared/company-email-oauth.ts",
+    "backend/candidate/edge/_shared/email-runtime.ts",
+    "backend/candidate/edge/_shared/gmail-send.mjs",
+    "backend/candidate/edge/_shared/google-connection.ts",
+    "backend/candidate/edge/_shared/microsoft-connection.ts",
+    "backend/candidate/edge/company-email-connections/handler.ts",
+    "backend/candidate/edge/company-email-connections/index.ts",
+    "backend/candidate/edge/customer-workflow/handler.mjs",
+    "backend/candidate/edge/google-connect/handler.ts",
+    "backend/candidate/edge/google-connect/index.ts",
+    "backend/candidate/edge/google-oauth-callback/handler.ts",
+    "backend/candidate/edge/google-oauth-callback/index.ts",
+    "backend/candidate/edge/mailbox-intake/gmail-provider.mjs",
+    "backend/candidate/edge/mailbox-intake/handler.mjs",
+    "backend/candidate/edge/mailbox-intake/index.ts",
+    "backend/candidate/edge/microsoft-action/handler.ts",
+    "backend/candidate/edge/microsoft-connect/handler.ts",
+    "backend/candidate/edge/microsoft-connect/index.ts",
+    "backend/candidate/edge/microsoft-execute/handler.ts",
+    "backend/candidate/edge/microsoft-oauth-callback/handler.ts",
+    "backend/candidate/edge/workflow-installations/handler.mjs",
+    "backend/candidate/sql/company-email-cleanup-schedule.sql",
+    "backend/candidate/sql/company-email-oauth-contract.sql",
+    "backend/candidate/sql/company-email-workflow-contract.sql",
+    "backend/docs/company-email-oauth-candidate.md",
+    "backend/docs/company-email-source-review.md",
+    "backend/docs/gmail-provider-source-review.md",
+    "backend/evidence/company-email-baseline-funding-build.log",
+    "backend/evidence/company-email-check-all.log",
+    "backend/evidence/company-email-deployment-receipt.json",
+    "backend/evidence/company-email-oauth-results.json",
+    "backend/evidence/company-email-public-edge-probes.json",
+    "backend/evidence/company-email-release-summary.json",
+    "backend/evidence/company-email-remaining-build-checks.log",
+    "backend/evidence/company-email-sql-deployed-verification.json",
+    "backend/evidence/company-email-workflow-final.log",
+    "backend/evidence/gmail-provider-source-tests.log",
+    "backend/tests/action-workflow.test.mjs",
+    "backend/tests/company-email-oauth-routes.test.mjs",
+    "backend/tests/company-email-oauth-sql.test.mjs",
+    "backend/tests/company-email-read-routes.test.mjs",
+    "backend/tests/company-email-workflow-sql.test.mjs",
+    "backend/tests/customer-workflow-routes.test.mjs",
+    "backend/tests/fixtures/company-email-oauth-fixture.mjs",
+    "backend/tests/gmail-intake-routes.test.mjs",
+    "backend/tests/gmail-provider.test.mjs",
+    "backend/tests/gmail-send.test.mjs",
+    "backend/tests/mailbox-intake-routes.test.mjs",
+    "backend/tests/oauth-routes.test.mjs",
+    "backend/tests/workflow-installations-routes.test.mjs",
+    "src/CompanyEmailConnections.jsx",
+    "src/CustomerOperationsReport.jsx",
+    "src/CustomerReplyWorkspace.jsx",
+    "src/CustomerSetupJourney.jsx",
+    "src/MailboxIntake.jsx",
+    "src/WorkflowInstallations.jsx",
+    "src/company-email-callback.js",
+    "src/company-email-model.js",
+    "src/company-email.css",
+    "src/customer-reply-model.js",
+    "src/customer-reporting-model.js",
+    "src/customer-setup-model.js",
+    "src/first-use-guidance.js",
+    "src/integration-providers.js",
+    "src/kairo-help-content.js",
+    "src/kairo-provider-guides.js",
+    "src/mailbox-intake-model.js",
+    "src/main.jsx",
+    "src/supabase.js",
+    "src/use-safe-operation.js",
+    "src/workflow-installation-model.js",
+    "tests/company-email-connections.test.jsx",
+    "tests/customer-reply.test.jsx",
+    "tests/customer-setup-app.test.jsx",
+    "tests/customer-setup.test.jsx",
+    "tests/mailbox-intake.test.jsx",
+    "tests/safety-outcomes.test.jsx",
+    "tests/workflow-installations.test.jsx",
+    "backend/evidence/company-email-release-manifest.json"
+  ]
+}

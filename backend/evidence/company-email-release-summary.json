@@ -1,0 +1,48 @@
+{
+  "prepared_at": "2026-10-11T18:24:25.660535+00:00",
+  "base_commit": "1a4f53fc88e12022e1a8ed2660974cf0937063b8",
+  "scope": "Company-owned Microsoft/Google OAuth onboarding and Gmail inquiry-to-approved-reply; no provider credentials, grants, mailbox operations or paid inference",
+  "tests": {
+    "backend_passed": 632,
+    "ui_passed": 714,
+    "ui_files_passed": 29,
+    "funding_database": "passed",
+    "routing_marketing": "passed",
+    "production_build": "passed",
+    "remaining_build_checks": [
+      "marketing",
+      "knowledge",
+      "setup",
+      "reporting",
+      "billing"
+    ],
+    "aggregate_result": "Inherited funding-build static assertion failure; identical baseline reproduction. All other invoked checks passed.",
+    "inherited_failure": "tests/funding-build.mjs line 11 expects APP_BASE}investors/ in baseline main.jsx; no unrelated change made",
+    "pixel_browser_qa": "not performed",
+    "real_provider_qa": "not performed"
+  },
+  "review": "Independent source/security review passed; production schema compatibility independently checked. Final trigger ACL narrowing and bounded cleanup source reviewed.",
+  "production": {
+    "project_id": "suohuogalotxhsnkumvy",
+    "sql_functions_exact_body_match": 36,
+    "edge_functions_exact_source_match": 13,
+    "security_advisor_warning_error_count": 0,
+    "expected_private_rls_info_count": 25,
+    "provider_connections_observed": 0,
+    "provider_setup_records_observed": 0
+  },
+  "remaining_prerequisites": [
+    "Separately approved secure installation of CerbTek provider app credentials if absent",
+    "Provider callback registration, Gmail API enablement, app consent/verification and any tenant admin policy/security assessment",
+    "Each company manager explicitly chooses an account and read/send scope consent",
+    "Approved real-account staging including actual Vault write/clear, refresh, denial, reconnect and exact approved dispatch"
+  ],
+  "support_limits": [
+    "Microsoft organizational own mailbox; no personal Outlook/shared or delegated mailbox claims",
+    "One own-mailbox connection per provider per company",
+    "Manual bounded label/folder intake; no automatic sync or attachment download",
+    "Gmail label is an app intake filter, not a restricted OAuth read scope",
+    "No automatic retry after uncertain send"
+  ],
+  "canonical_app_url": "https://www.cerbtek.com/app/kairo"
+}

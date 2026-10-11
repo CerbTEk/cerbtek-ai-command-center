@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHandler} from '../candidate/edge/mailbox-intake/handler.mjs';
 const org='00000000-0000-4000-8000-000000000001',installation='00000000-0000-4000-8000-000000000002',actor='10000000-0000-4000-8000-000000000001',connection='50000000-0000-4000-8000-000000000002',preview='20000000-0000-4000-8000-000000000001',workflow='30000000-0000-4000-8000-000000000001';
 const source={id:preview,revision:1,organization_id:org,installation_id:installation,installation_revision:1,connection_id:connection,mailbox_id:'own-mailbox',folder_id:'folder-1',folder_name:'Inquiries',saved_by:actor,saved_at:'2026-10-11T00:00:00Z'};
-const authority={connection_id:connection,mailbox_id:'own-mailbox',connection_fingerprint:'a'.repeat(64),mail_read:true,source};
+const authority={provider:'microsoft',connection_id:connection,mailbox_id:'own-mailbox',connection_fingerprint:'a'.repeat(64),mail_read:true,source};
 const msg={message_id:'immutable-1',thread_id:'conversation',internet_message_id:'<inquiry@example.test>',folder_id:'folder-1',received_at:'2026-10-11T00:00:00Z',has_attachments:false,intake:{customer_email:'fixture@example.test',customer_name:'Fixture',subject:'Inquiry',message:'Untrusted content'}};
 function setup({rpcError=null,roleDenied=false,authUser={id:actor},onRPC=null}={}){
  const calls=[],providers=[];
@@ -12,12 +12,12 @@ function setup({rpcError=null,roleDenied=false,authUser={id:actor},onRPC=null}={
   if(roleDenied)return {error:{code:'P0001',message:'Manager authorization required'}};
   if(rpcError)return {error:rpcError};
   if(name==='mailbox_intake_authorize')return {data:structuredClone(authority)};
-  if(name==='mailbox_intake_load')return {data:{source,capabilities:{mail_read:true,mailbox_id:'own-mailbox',account_name:'Connected Microsoft account'},imports:[]}};
+  if(name==='mailbox_intake_load')return {data:{source,capabilities:{provider:'microsoft',connection_id:connection,mail_read:true,mailbox_id:'own-mailbox',account_name:'Connected Microsoft account'},imports:[]}};
   if(name==='mailbox_intake_save')return {data:{...source,revision:2}};
   if(name==='mailbox_intake_capture')return {data:[{...msg,id:preview,expires_at:'2026-10-11T00:15:00Z'}]};
   if(name==='mailbox_intake_import')return {data:{workflow_id:workflow,replayed:false}};
   throw Error('Unexpected RPC');
- },from:()=>({select:()=>({eq:()=>({eq:()=>({single:async()=>({data:{id:connection,organization_id:org,external_account_id:'own-mailbox',scopes:['Mail.Read']}})})})})})};
+ },from:()=>({select:()=>({eq:()=>({eq:()=>({single:async()=>({data:{id:connection,organization_id:org,provider:'microsoft',external_account_id:'own-mailbox',scopes:['Mail.Read']}})})})})})};
  const handler=createHandler({supabase,getAccessToken:async()=>{throw Error('mock should not read secrets')},allowedOrigins:['https://www.cerbtek.com'],providerFactory:({authorize})=>({
   folders:async()=>{await authorize();providers.push('folders');return {folders:[{id:'folder-1',name:'Inquiries'}],has_more:false}},
   folder:async id=>{await authorize();providers.push('folder');return {id,name:'Inquiries'}},

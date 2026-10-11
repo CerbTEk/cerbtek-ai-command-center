@@ -4,6 +4,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 
 const api=vi.hoisted(()=>({invoke:vi.fn(),from:vi.fn()}))
 vi.mock('../src/supabase',()=>({supabase:{functions:{invoke:api.invoke},from:api.from}}))
+// Company email onboarding has a separate lifecycle and contract suite.
+vi.mock('../src/CompanyEmailConnections', () => ({ default: () => null }))
 import { Agents, Integrations, Workflows } from '../src/main'
 
 let serial=0
@@ -16,9 +18,9 @@ function fixture(){
   const agent={id:'agent',name:'Edited live agent',status:'Active',human_control_mode:'Autonomous'}
   const workflow={id:'workflow',name:'Edited live workflow',status:'Active',steps:[{type:'approval.email',to:'edited@example.test',message:'Changed live message'}]}
   const request={id:'request',organization_id:org.id,agent_id:'agent',workflow_id:'workflow',status:'Approved',requested_by:'requester',approved_by:session.user.id,execution_snapshot:snapshot,created_at:'2026-10-08T00:00:00Z'}
-  const email={id:'email',action_type:'send_email',status:'Approved',requested_by:'requester',approved_by:session.user.id,payload:{to:'recipient@example.test',subject:'Test subject',message:'Test message'},created_at:request.created_at}
+  const email={id:'email',organization_id:org.id,provider:'microsoft',connection_id:'connection',approved_connection_binding:{id:'connection',organization_id:org.id,external_account_id:'saved-account'},action_type:'send_email',status:'Approved',requested_by:'requester',approved_by:session.user.id,payload:{to:'recipient@example.test',subject:'Test subject',message:'Test message'},created_at:request.created_at}
   const reload=vi.fn()
-  return {org,session,request,email,snapshot,agentProps:{org,session,rows:[agent],integrations:[],workflows:[workflow],mappings:[{agent_id:'agent',workflow_id:'workflow',active:true,execution_mode:'Execute'}],requests:[request],runs:[],reload},integrationProps:{org,session,systems:[],rows:[],oauth:[{provider:'microsoft',status:'Connected',oauth_verified_version:1,scopes:['User.Read','Mail.Send']}],runs:[],requests:[email],reload},workflowProps:{org,session,rows:[],definitions:[workflow],runs:[],approvalPolicies:[],schedules:[],reload},reload}
+  return {org,session,request,email,snapshot,agentProps:{org,session,rows:[agent],integrations:[],workflows:[workflow],mappings:[{agent_id:'agent',workflow_id:'workflow',active:true,execution_mode:'Execute'}],requests:[request],runs:[],reload},integrationProps:{org,session,actorRole:'admin',systems:[],rows:[],oauth:[{id:'connection',external_account_id:'saved-account',provider:'microsoft',status:'Connected',oauth_verified_version:1,scopes:['User.Read','Mail.Send']}],runs:[],requests:[email],reload},workflowProps:{org,session,rows:[],definitions:[workflow],runs:[],approvalPolicies:[],schedules:[],reload},reload}
 }
 afterEach(()=>{cleanup();vi.restoreAllMocks();window.sessionStorage.clear()})
 beforeEach(()=>{api.invoke.mockReset();api.from.mockReset()})
@@ -149,7 +151,7 @@ describe('agent outcomes, repeat clicks and interrupted contexts',()=>{
   })
 })
 
-describe('Microsoft accepted and uncertain sends',()=>{
+describe('Microsoft 365 accepted and uncertain sends',()=>{
   it.each(['unknown','provider_accepted_needs_reconciliation','not_dispatched_needs_reconciliation'])('shows 202 %s as needs review without offering resend',async outcome=>{
     const f=fixture();api.invoke.mockResolvedValue({data:{ok:false,status:'Executing',outcome,retryable:false},error:null})
     render(<Integrations {...f.integrationProps}/> );click('Send approved email')
@@ -157,14 +159,14 @@ describe('Microsoft accepted and uncertain sends',()=>{
     expect(message()).toContain('needs review')
     expect(message()).toContain('Do not resend')
     expect(screen.getByRole('button',{name:'Send approved email'}).disabled).toBe(true)
-    expect(screen.queryByText('Microsoft accepted. Delivery is not confirmed.')).toBeNull()
+    expect(screen.queryByText('Microsoft 365 accepted. Delivery is not confirmed.')).toBeNull()
     click('Send approved email');expect(api.invoke).toHaveBeenCalledTimes(1)
   })
   it('shows provider acceptance without claiming delivery and preserves workflow review',async()=>{
     const f=fixture();api.invoke.mockResolvedValue({data:{ok:true,status:'Executed',outcome:'provider_accepted',delivered:false,workflow_status:'Needs review',summary:'Email delivered!'},error:null})
     render(<Integrations {...f.integrationProps}/> );click('Send approved email')
     await waitFor(()=>expect(f.reload).toHaveBeenCalled())
-    expect(message()).toContain('Microsoft accepted')
+    expect(message()).toContain('Microsoft 365 accepted')
     expect(message()).toContain('Delivery is not confirmed')
     expect(message()).toContain('linked workflow needs review')
     expect(screen.queryByText('Email delivered!')).toBeNull()
@@ -173,7 +175,7 @@ describe('Microsoft accepted and uncertain sends',()=>{
     const f=fixture();api.invoke.mockResolvedValue({data,error:null});render(<Integrations {...f.integrationProps}/> );click('Send approved email')
     await waitFor(()=>expect(f.reload).toHaveBeenCalled())
     expect(message()).toContain('outcome needs review')
-    expect(screen.queryByText('Microsoft accepted. Delivery is not confirmed.')).toBeNull()
+    expect(screen.queryByText('Microsoft 365 accepted. Delivery is not confirmed.')).toBeNull()
   })
   it('blocks rapid duplicate sends and persists a lost acknowledgement on remount',async()=>{
     const f=fixture();const response=pending();api.invoke.mockReturnValue(response.promise)
@@ -207,7 +209,7 @@ describe('Microsoft accepted and uncertain sends',()=>{
     fireEvent.change(screen.getByLabelText('Message'),{target:{value:'New message'}})
     click('Submit for approval');await waitFor(()=>expect(f.reload).toHaveBeenCalled())
     expect(api.invoke).toHaveBeenCalledTimes(1)
-    expect(api.invoke).toHaveBeenCalledWith('microsoft-action',{body:{op:'queue-email',organization_id:f.org.id,to:'new@example.test',subject:'New subject',message:'New message'}})
+    expect(api.invoke).toHaveBeenCalledWith('microsoft-action',{body:{op:'queue-email',organization_id:f.org.id,provider:'microsoft',connection_id:'connection',to:'new@example.test',subject:'New subject',message:'New message'}})
     expect(message()).toContain('queued for human approval')
   })
   it.each(['account','organization'])('ignores late send acknowledgement after an %s switch',async kind=>{
@@ -215,10 +217,11 @@ describe('Microsoft accepted and uncertain sends',()=>{
     const view=render(<Integrations key="old" {...f.integrationProps}/> );click('Send approved email')
     const next={...f.integrationProps,...(kind==='account'?{session:{user:{id:'another-user'}}}:{org:{id:'another-org'}})}
     view.rerender(<Integrations key="new" {...next}/> )
-    expect(screen.getByRole('button',{name:'Send approved email'}).disabled).toBe(false)
+    if(kind==='organization') expect(screen.queryByRole('button',{name:'Send approved email'})).toBeNull()
+    else expect(screen.getByRole('button',{name:'Send approved email'}).disabled).toBe(false)
     await act(async()=>response.resolve({data:{ok:true,status:'Executed',outcome:'provider_accepted'},error:null}))
     expect(f.reload).not.toHaveBeenCalled()
-    expect(message()).not.toContain('Microsoft accepted')
+    expect(message()).not.toContain('Microsoft 365 accepted')
   })
 })
 
@@ -257,9 +260,7 @@ describe('renewed Microsoft authorization',()=>{
   it.each([undefined,0])('offers renewed setup for unverified Connected version %s and hides live reads and sends',version=>{
     const f=fixture();f.integrationProps.oauth[0].oauth_verified_version=version
     render(<Integrations {...f.integrationProps}/> )
-    expect(screen.getByText(/needs renewed authorization/)).toBeTruthy()
-    expect(screen.getByRole('button',{name:'Connect Microsoft 365'})).toBeTruthy()
-    expect(screen.queryByRole('button',{name:'Health check'})).toBeNull()
+    expect(screen.queryByRole('button',{name:'Health check: Microsoft 365'})).toBeNull()
     expect(screen.queryByRole('button',{name:'Send approved email'})).toBeNull()
   })
   it('does not retain a local unknown warning after the saved request confirms acceptance',async()=>{
@@ -268,7 +269,7 @@ describe('renewed Microsoft authorization',()=>{
     await waitFor(()=>expect(message()).toContain('outcome needs review'))
     f.email.status='Executed';view.rerender(<Integrations {...f.integrationProps}/> )
     expect(screen.queryByText('Email outcome needs review. Do not resend.')).toBeNull()
-    expect(screen.getByText('Microsoft accepted. Delivery is not confirmed.')).toBeTruthy()
+    expect(screen.getByText('Microsoft 365 accepted. Delivery is not confirmed.')).toBeTruthy()
   })
 })
 
@@ -298,4 +299,25 @@ describe('invalid saved plans fail closed',()=>{
     expect(screen.getByRole('button',{name:'Execute',exact:true}).disabled).toBe(true)
     expect(screen.getByText(/saved plan is unavailable or incompatible/)).toBeTruthy()
   })
+})
+
+
+describe('company email role and sender boundaries',()=>{
+ it('does not allow a viewer to submit a proposal through a direct form event',()=>{
+  const f=fixture();f.integrationProps.actorRole='viewer';render(<Integrations {...f.integrationProps}/>)
+  expect(screen.getByRole('button',{name:'Submit for approval'}).disabled).toBe(true)
+  fireEvent.submit(screen.getByRole('button',{name:'Submit for approval'}).closest('form'))
+  expect(api.invoke).not.toHaveBeenCalled()
+ })
+ it('requires the exact OAuth revision even when a reconnect uses the same email identity',()=>{
+  const f=fixture();f.integrationProps.oauth[0].oauth_revision='new-revision';f.email.approved_connection_binding.oauth_revision='old-revision'
+  render(<Integrations {...f.integrationProps}/>)
+  expect(screen.queryByRole('button',{name:'Send approved email'})).toBeNull()
+  expect(api.invoke).not.toHaveBeenCalled()
+ })
+ it('shows the verified email address ahead of a mutable display name',()=>{
+  const f=fixture();f.integrationProps.oauth[0].external_account_email='verified@example.test';f.integrationProps.oauth[0].external_account_name='Display name'
+  render(<Integrations {...f.integrationProps}/>)
+  expect(screen.getByRole('option',{name:/Microsoft 365 · verified@example.test/})).toBeTruthy()
+ })
 })

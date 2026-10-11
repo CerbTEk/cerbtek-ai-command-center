@@ -41,7 +41,7 @@ describe('strict workspace and record boundaries', () => {
     const f = fixture(); f.client.functions.invoke.mockResolvedValue({ data: { ok: false, error: 'customer_workflow_not_installed' } }); await mount(f)
     expect(screen.getByRole('alert').textContent).toContain('backend update must be installed')
     expect(screen.getByRole('button', { name: 'New request' }).disabled).toBe(true)
-    expect(screen.getByRole('link', { name: 'Microsoft connection' }).getAttribute('href')).toBe('#Integrations')
+    expect(screen.getByRole('link', { name: 'Company email connections' }).getAttribute('href')).toBe('#Integrations')
   })
   it.each(['version', 'company', 'actor', 'nested_source', 'nested_run', 'duplicate'])('rejects mismatched %s load responses', async kind => {
     const f = fixture({ status: 'draft_ready' })
@@ -175,7 +175,7 @@ describe('pinned AI requests and exact reviewed email', () => {
       Object.assign(f.workflow, { revision: 2, status: 'awaiting_approval', action_request_id: 'action-1', action_request: { id: 'action-1', organization_id: f.props.org.id, customer_workflow_id: f.workflow.id, status: 'Pending', provider: 'microsoft', action_type: 'send_email', requested_by: f.actorId, connection_id: 'connection-1', payload: { to: f.workflow.customer_email, subject: f.workflow.ai_run.draft.title, message: f.workflow.ai_run.draft.body } } })
       return f.envelope({ workflow: clone(f.workflow), request: clone(f.workflow.action_request) })
     })
-    fireEvent.click(screen.getByLabelText('I checked this recipient, subject, and message.'))
+    fireEvent.click(screen.getByLabelText('I checked this provider, account, recipient, subject, and message.'))
     const queue = screen.getByRole('button', { name: 'Queue exact email for approval' }); act(() => { directClick(queue); directClick(queue) })
     await screen.findByText('Exact email queued for a different authorized reviewer. It has not been sent.')
     expect(operations(f)).toHaveLength(1); expect(operations(f)[0][1].body).toEqual({ organization_id: f.props.org.id, operation: 'queue', workflow_id: f.workflow.id, expected_revision: 1 })
@@ -204,22 +204,22 @@ describe('pinned AI requests and exact reviewed email', () => {
   })
   it('persists a no-resend lock after a lost response and remount', async () => {
     const f = fixture({ status: 'draft_accepted', actionStatus: 'Approved' }); const view = await mount(f); click(new RegExp(f.workflow.subject))
-    fireEvent.click(screen.getByLabelText('I checked the approved email and Microsoft account.')); f.client.functions.invoke.mockRejectedValueOnce(new Error('Lost response')); const send = screen.getByRole('button', { name: 'Send approved email' }); act(() => { directClick(send); directClick(send) })
+    fireEvent.click(screen.getByLabelText('I checked the approved email, provider, and account.')); f.client.functions.invoke.mockRejectedValueOnce(new Error('Lost response')); const send = screen.getByRole('button', { name: 'Send approved email' }); act(() => { directClick(send); directClick(send) })
     await screen.findByText(/Email outcome needs review\. Do not resend/); expect(operations(f)).toHaveLength(1)
     view.unmount(); await select(f); expect(screen.getByRole('button', { name: 'Send approved email' }).disabled).toBe(true); expect(screen.queryByRole('button', { name: 'Cancel request' })).toBeNull()
   })
   it('an accepted response for a different email never becomes a confirmed result', async () => {
     const f = fixture({ status: 'draft_accepted', actionStatus: 'Approved' }); await select(f)
-    fireEvent.click(screen.getByLabelText('I checked the approved email and Microsoft account.')); f.client.functions.invoke.mockResolvedValueOnce({ data: { ok: true, status: 'Executed', outcome: 'provider_accepted', request_id: 'other-action' } }); click('Send approved email')
-    await screen.findByText(/Email outcome needs review\. Do not resend/); expect(screen.queryByText('Microsoft accepted the approved email. Delivery is not confirmed.')).toBeNull(); expect(screen.getByRole('button', { name: 'Send approved email' }).disabled).toBe(true)
+    fireEvent.click(screen.getByLabelText('I checked the approved email, provider, and account.')); f.client.functions.invoke.mockResolvedValueOnce({ data: { ok: true, status: 'Executed', outcome: 'provider_accepted', request_id: 'other-action' } }); click('Send approved email')
+    await screen.findByText(/Email outcome needs review\. Do not resend/); expect(screen.queryByText('Microsoft 365 accepted the approved email. Delivery is not confirmed.')).toBeNull(); expect(screen.getByRole('button', { name: 'Send approved email' }).disabled).toBe(true)
   })
   it('missing saved source cannot be reviewed or queued even with a valid AI draft', async () => {
     const f = fixture({ status: 'draft_accepted' }); f.workflow.context_version = null; await select(f)
-    fireEvent.click(screen.getByLabelText('I checked this recipient, subject, and message.')); const queue = screen.getByRole('button', { name: 'Queue exact email for approval' }); expect(queue.disabled).toBe(true); act(() => { directClick(queue) }); expect(operations(f)).toHaveLength(0)
+    fireEvent.click(screen.getByLabelText('I checked this provider, account, recipient, subject, and message.')); const queue = screen.getByRole('button', { name: 'Queue exact email for approval' }); expect(queue.disabled).toBe(true); act(() => { directClick(queue) }); expect(operations(f)).toHaveLength(0)
   })
   it('explains a missing uninvolved reviewer even when generic company readiness is true', async () => {
     const f = fixture({ status: 'draft_accepted' }); f.data.people = [{ user_id: f.requester, role: 'owner' }, { user_id: f.actorId, role: 'admin' }]; await select(f)
-    fireEvent.click(screen.getByLabelText('I checked this recipient, subject, and message.')); const queue = screen.getByRole('button', { name: 'Queue exact email for approval' }); expect(queue.disabled).toBe(true); act(() => { directClick(queue) })
+    fireEvent.click(screen.getByLabelText('I checked this provider, account, recipient, subject, and message.')); const queue = screen.getByRole('button', { name: 'Queue exact email for approval' }); expect(queue.disabled).toBe(true); act(() => { directClick(queue) })
     expect(screen.getByText(/This reply needs another authorized owner, admin, or consultant/)).toBeTruthy(); expect(operations(f)).toHaveLength(0)
     expect(eligibleReviewers(f.workflow, f.data.people, f.actorId)).toEqual([])
   })
@@ -233,8 +233,8 @@ describe('pinned AI requests and exact reviewed email', () => {
   it('reports Microsoft acceptance separately from delivery and does not offer another send', async () => {
     const f = fixture({ status: 'draft_accepted', actionStatus: 'Approved' }); await select(f)
     f.client.functions.invoke.mockImplementation(async (name) => { if (name === 'customer-workflow') return { data: clone(f.data) }; f.workflow.action_request.status = 'Executed'; f.workflow.receipt = { phase: 'ProviderAccepted' }; return { data: { ok: true, status: 'Executed', outcome: 'provider_accepted', request_id: 'action-1', delivered: false } } })
-    fireEvent.click(screen.getByLabelText('I checked the approved email and Microsoft account.')); click('Send approved email'); await waitFor(() => expect(screen.queryByRole('button', { name: 'Send approved email' })).toBeNull())
-    expect(screen.getAllByText('Microsoft accepted the approved email. Delivery is not confirmed.')).toHaveLength(1); expect(operations(f)).toHaveLength(1)
+    fireEvent.click(screen.getByLabelText('I checked the approved email, provider, and account.')); click('Send approved email'); await waitFor(() => expect(screen.queryByRole('button', { name: 'Send approved email' })).toBeNull())
+    expect(screen.getAllByText('Microsoft 365 accepted the approved email. Delivery is not confirmed.')).toHaveLength(1); expect(operations(f)).toHaveLength(1)
   })
   it.each(['Pending', 'Approved', 'Executing'])('cancels a pre-dispatch %s workflow while preserving action history', async status => {
     const f = fixture({ status: 'draft_accepted', actionStatus: status }); await select(f)
@@ -616,6 +616,65 @@ describe('installed employee draft delegation', () => {
     await select(f)
     expect(screen.queryByRole('button', { name: 'Accept draft for use' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Reject AI draft' })).toBeNull()
+    expect(operations(f)).toHaveLength(0)
+  })
+})
+
+
+function useGoogle(f, withMicrosoft = false) {
+  const google = { id: 'google-connection', provider: 'google', external_account_id: 'google-subject', account_name: 'support@example.test', mail_read: true, mail_send: true, oauth_revision: 'google-revision' }
+  f.data.readiness.email_ready = true
+  f.data.readiness.email_connections = [google, ...(withMicrosoft ? [{ id: 'connection-1', provider: 'microsoft', external_account_id: 'microsoft-account-1', account_name: 'microsoft-support@example.test', mail_read: true, mail_send: true, oauth_revision: 'microsoft-revision' }] : [])]
+  if (f.workflow.action_request) Object.assign(f.workflow.action_request, { provider: 'google', connection_id: google.id, approved_connection_binding: f.workflow.action_request.status === 'Pending' ? null : { id: google.id, provider: 'google', external_account_id: google.external_account_id, organization_id: f.props.org.id, oauth_revision: google.oauth_revision } })
+  return google
+}
+describe('Google customer replies use the same immutable approval and send controls', () => {
+  it('shows exact Google provider and account before review', async () => {
+    const f = fixture({ status: 'draft_accepted', actionStatus: 'Pending' }); useGoogle(f); await select(f)
+    expect(screen.getByRole('region', { name: 'Exact email preview' }).textContent).toContain('Google / Gmail')
+    expect(screen.getByRole('region', { name: 'Exact email preview' }).textContent).toContain('google-subject')
+    expect(screen.getByRole('button', { name: 'Approve exact email' }).disabled).toBe(true)
+    fireEvent.click(screen.getByLabelText('I reviewed the exact email and its sources.'))
+    expect(screen.getByRole('button', { name: 'Approve exact email' }).disabled).toBe(false)
+  })
+  it.each(['provider', 'account', 'revision'])('blocks Google sends after saved %s binding changes', async kind => {
+    const f = fixture({ status: 'draft_accepted', actionStatus: 'Approved' }); useGoogle(f)
+    f.workflow.action_request.approved_connection_binding[kind === 'provider' ? 'provider' : kind === 'account' ? 'external_account_id' : 'oauth_revision'] = 'changed'
+    await select(f)
+    expect(screen.getByText(/saved provider and account binding does not match/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Send approved email' }).disabled).toBe(true)
+    act(() => directClick(screen.getByRole('button', { name: 'Send approved email' })))
+    expect(operations(f)).toHaveLength(0)
+  })
+  it('requires an explicit provider/account choice before queueing when both are connected', async () => {
+    const f = fixture({ status: 'draft_accepted' }), google = useGoogle(f, true); await select(f)
+    expect(screen.getByLabelText('Sending provider and account').value).toBe('')
+    fireEvent.click(screen.getByLabelText('I checked this provider, account, recipient, subject, and message.'))
+    expect(screen.getByRole('button', { name: 'Queue exact email for approval' }).disabled).toBe(true)
+    fireEvent.change(screen.getByLabelText('Sending provider and account'), { target: { value: google.id } })
+    expect(screen.getByLabelText('I checked this provider, account, recipient, subject, and message.').checked).toBe(false)
+    fireEvent.click(screen.getByLabelText('I checked this provider, account, recipient, subject, and message.'))
+    f.client.functions.invoke.mockImplementation(async (route, { body }) => {
+      if (body.operation === 'load') return { data: clone(f.data) }
+      expect(body.connection_id).toBe(google.id)
+      f.workflow.revision++; f.workflow.status = 'awaiting_approval'; f.workflow.action_request_id = 'google-action'; f.workflow.action_request = { id: 'google-action', organization_id: f.props.org.id, customer_workflow_id: f.workflow.id, status: 'Pending', provider: 'google', connection_id: google.id, action_type: 'send_email', requested_by: f.actorId, payload: { to: f.workflow.customer_email, subject: f.workflow.ai_run.draft.title, message: f.workflow.ai_run.draft.body } }
+      return f.envelope({ workflow: clone(f.workflow) })
+    })
+    click('Queue exact email for approval'); await screen.findByText(/Exact email queued for a different authorized reviewer/)
+    expect(operations(f)[0][1].body).toEqual({ operation: 'queue', organization_id: f.props.org.id, workflow_id: f.workflow.id, expected_revision: 1, connection_id: google.id })
+  })
+  it('persists a no-resend lock for a dropped Google acknowledgement across remounts', async () => {
+    const f = fixture({ status: 'draft_accepted', actionStatus: 'Approved' }); useGoogle(f); await select(f)
+    f.client.functions.invoke.mockImplementation(async (route, { body }) => { if (body.operation === 'load') return { data: clone(f.data) }; throw new Error('Dropped acknowledgement') })
+    fireEvent.click(screen.getByLabelText('I checked the approved email, provider, and account.')); click('Send approved email'); await screen.findByText(/Email outcome needs review. Do not resend./)
+    expect(operations(f)).toEqual([['microsoft-action', { body: { op: 'execute', request_id: f.workflow.action_request_id } }]])
+    cleanup(); await select(f)
+    expect(screen.getByRole('button', { name: 'Send approved email' }).disabled).toBe(true)
+    expect(operations(f)).toHaveLength(1)
+  })
+  it('retains context-stale blocking for a valid Google connection', async () => {
+    const f = fixture({ status: 'draft_accepted', actionStatus: 'Approved' }); useGoogle(f); f.workflow.context_stale = true; await select(f)
+    expect(screen.getByRole('button', { name: 'Send approved email' }).disabled).toBe(true)
     expect(operations(f)).toHaveLength(0)
   })
 })

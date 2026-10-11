@@ -18,7 +18,7 @@ function validInstallation(value, org) {
   return object(value) && value.organization_id === org && uuid(value.id) && value.installation_id === value.id
     && Number.isSafeInteger(value.revision) && value.revision > 0
     && value.recipe_key === 'customer_followup' && value.recipe_version === 1
-    && exact(value.bindings, bindingKeys) && bindingKeys.every(key => value.bindings[key] === null || uuid(value.bindings[key]))
+    && (exact(value.bindings, bindingKeys) || exact(value.bindings, bindingKeys.map(key => key === 'microsoft_connection_id' ? 'email_connection_id' : key))) && Object.values(value.bindings).every(value => value === null || uuid(value))
     && object(value.readiness) && Array.isArray(value.readiness.reasons) && value.readiness.reasons.every(reason => typeof reason === 'string')
     && typeof value.readiness.configured === 'boolean' && typeof value.readiness.can_start === 'boolean'
     && value.readiness.live_inference_enabled === false && value.readiness.automatic_execution_enabled === false
@@ -61,7 +61,8 @@ export function createHandler({ supabase, allowedOrigins = [] }) {
       if (body.operation === 'save') {
         if (body.recipe_key !== 'customer_followup' || body.recipe_version !== 1) throw new InstallationError('unsupported_recipe');
         if (typeof body.name !== 'string' || body.name.trim().length < 1 || body.name.trim().length > 120 || typeof body.outcome !== 'string' || body.outcome.trim().length < 10 || body.outcome.trim().length > 1000) throw new InstallationError('invalid_installation');
-        if (!exact(body.bindings, bindingKeys) || !bindingKeys.every(key => body.bindings[key] === null || uuid(body.bindings[key]))) throw new InstallationError('invalid_bindings');
+        const requestBindingKeys = Object.hasOwn(body.bindings || {}, 'email_connection_id') ? bindingKeys.map(key => key === 'microsoft_connection_id' ? 'email_connection_id' : key) : bindingKeys;
+        if (!exact(body.bindings, requestBindingKeys) || !requestBindingKeys.every(key => body.bindings[key] === null || uuid(body.bindings[key]))) throw new InstallationError('invalid_bindings');
         if (!exact(body.limits, ['max_open_requests']) || !Number.isSafeInteger(body.limits.max_open_requests) || body.limits.max_open_requests < 1 || body.limits.max_open_requests > 100) throw new InstallationError('invalid_limits');
         args.p_spec = Object.fromEntries(['recipe_key', 'recipe_version', 'name', 'outcome', 'bindings', 'limits'].map(key => [key, body[key]]));
       } else if (body.operation === 'start') {

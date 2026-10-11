@@ -33,12 +33,13 @@ export function deriveNextStep(data) {
   const context={opportunity}
   const providerId=nextProviderPlan(data)
   if(!providerId) return result('provider','Choose the tools this workflow needs','Review Microsoft 365, Google Workspace and AWS, then save a plan for the provider and first use case your team needs. Current connector availability is shown separately.','Integrations','Next: choose an integration path',context)
-  if(providerId!=='microsoft') {
+  if(!['microsoft','google'].includes(providerId)) {
     const provider=integrationProvider(providerId)
     return result('provider-planned','Review your '+provider.name+' integration plan',provider.next,'Integrations','Next: review integration plan',{...context,blocked:provider.name+' is planned, but its connector is not available yet. Your plan is saved; no workflow has been run.'})
   }
+  if(providerId==='google') return result('email-setup','Review Google company email','Use Company email to sign in and explicitly choose read or send access. Then select the provider and account in Customer Setup, and choose a Gmail label for manual intake. Google Drive and Calendar actions are still planned.','Integrations','Next: company email setup',context)
   const microsoft=(data.oauth||[]).find(c=>c.provider==='microsoft')
-  if(microsoft?.status!=='Connected') return result('microsoft','Prepare Microsoft 365 access','Review your business case, then ask your Microsoft 365 administrator for the approved app registration details. The existing setup requires a tenant/domain, application ID, and client secret.','Integrations','Next: Microsoft administrator setup',{...context,blocked:'Microsoft 365 is not connected. No workflow has been run by this guide.'})
+  if(microsoft?.status!=='Connected') return result('microsoft','Prepare Microsoft 365 access','Review your business case, then sign in through CerbTek in Company email and explicitly choose read or send access. Your company may require administrator approval; no developer credentials are entered here.','Integrations','Next: company email sign-in',{...context,blocked:'Microsoft 365 is not connected. No workflow has been run by this guide.'})
 
   const definitions=(Array.isArray(data.workflowDefinitions)?data.workflowDefinitions:[]).filter(Boolean)
   const active=definitions.find(w=>w.status==='Active')

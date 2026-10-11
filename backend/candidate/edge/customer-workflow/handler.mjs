@@ -26,10 +26,11 @@ export function createHandler({supabase,allowedOrigins=[]}){
    if(authError||!session?.user?.id||session.user.is_anonymous===true)throw new WorkflowError('sign_in_required',401);
    const raw=await request.text();if(new TextEncoder().encode(raw).length>45000)throw new WorkflowError('request_too_large',413);
    let body;try{body=JSON.parse(raw)}catch{throw new WorkflowError('invalid_request')}
+   const optionalConnection=object(body)&&body.operation==='queue'&&Object.hasOwn(body,'connection_id');
    const optionalSources=object(body)&&body.operation==='prepare_draft'&&Object.hasOwn(body,'knowledge_sources');
-   if(!object(body)||!Object.hasOwn(operations,body.operation)||!exact(body,['operation','organization_id',...operations[body.operation],...(optionalSources?['knowledge_sources']:[])]))throw new WorkflowError('unsupported_request_fields');
+   if(!object(body)||!Object.hasOwn(operations,body.operation)||!exact(body,['operation','organization_id',...operations[body.operation],...(optionalSources?['knowledge_sources']:[]),...(optionalConnection?['connection_id']:[])]))throw new WorkflowError('unsupported_request_fields');
    if(!uuid(body.organization_id))throw new WorkflowError('invalid_organization');
-   for(const field of ['workflow_id','request_key','configuration_id','assigned_to'])if(field in body&&!uuid(body[field]))throw new WorkflowError('invalid_reference');
+   for(const field of ['workflow_id','request_key','configuration_id','assigned_to','connection_id'])if(field in body&&!uuid(body[field]))throw new WorkflowError('invalid_reference');
    if('expected_revision' in body&&(!Number.isSafeInteger(body.expected_revision)||body.expected_revision<1))throw new WorkflowError('invalid_revision');
    if('expected_version' in body&&(!Number.isSafeInteger(body.expected_version)||body.expected_version<0))throw new WorkflowError('invalid_version');
    const referenceKeys=['document_id','version_id','chunk_id','content_sha256','version_sha256'];
@@ -54,7 +55,8 @@ export function createHandler({supabase,allowedOrigins=[]}){
     if(body.operation==='prepare_draft')Object.assign(args,{p_config:body.configuration_id,p_request_key:body.request_key});
    }
    if(optionalSources)args.p_sources=body.knowledge_sources;
-   const result=await supabase.rpc(`customer_workflow_${optionalSources?'prepare_sources':body.operation}`,args);
+   if(optionalConnection)args.p_connection=body.connection_id;
+   const result=await supabase.rpc(`customer_workflow_${optionalSources?'prepare_sources':optionalConnection?'queue_email':body.operation}`,args);
    if(result.error){
     const code=result.error.code;
     if(['42P01','42883','3F000'].includes(code))throw new WorkflowError('customer_workflow_not_installed',503);

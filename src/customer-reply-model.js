@@ -1,3 +1,4 @@
+import { EMAIL_PROVIDERS, emailBindingMatches, emailProviderName, validEmailConnection } from './company-email-model'
 import { activationMessages } from './ai-activation-readiness'
 
 // The workspace only displays saved, tenant-bound records. Availability is never
@@ -64,15 +65,12 @@ export function eligibleReviewers(workflow, people = [], queueActor) {
   const excluded = new Set([queueActor, workflow?.requested_by, workflow?.action_request?.requested_by, workflow?.draft_requested_by, workflow?.assigned_to].filter(Boolean))
   return people.filter(person => REVIEW_ROLES.includes(person.role) && nonempty(person.user_id) && !excluded.has(person.user_id))
 }
-export function microsoftBindingMatches(workflow, readiness) {
-  const action = workflow?.action_request, binding = action?.approved_connection_binding
-  if (!action || readiness?.microsoft_ready !== true || !nonempty(readiness.microsoft_account) || !nonempty(readiness.microsoft_connection_id) || action.connection_id !== readiness.microsoft_connection_id) return false
-  if (action.status === 'Pending') return true
-  return Boolean(binding?.id === action.connection_id && binding.organization_id === workflow.organization_id && binding.external_account_id === readiness.microsoft_account)
-}
+// Compatibility export for existing callers; both providers use exact bindings.
+export const microsoftBindingMatches = emailBindingMatches
 
 export function verifyWorkspace(data, organizationId, userId) {
   if (data?.ok !== true || data.contract_version !== CUSTOMER_WORKFLOW_CONTRACT || data.organization_id !== organizationId || data.actor?.id !== userId || !['owner', 'admin', 'consultant', 'member', 'viewer'].includes(data.actor.role) || !Array.isArray(data.workflows) || !data.workflows.every(item => validWorkflow(item, organizationId))) throw new Error('workspace_unverified')
+  if (data.readiness?.email_connections !== undefined && (!Array.isArray(data.readiness.email_connections) || !data.readiness.email_connections.every(validEmailConnection) || new Set(data.readiness.email_connections.map(row => row.id)).size !== data.readiness.email_connections.length)) throw new Error('workspace_unverified')
   if (new Set(data.workflows.map(item => item.id)).size !== data.workflows.length || data.context != null && (!validContext(data.context) || data.context.organization_id !== organizationId)) throw new Error('workspace_unverified')
   if (data.configuration && data.configuration.organization_id !== organizationId) throw new Error('workspace_unverified')
   if (data.knowledge_contract_version != null && data.knowledge_contract_version !== KNOWLEDGE_DRAFT_CONTRACT) throw new Error('workspace_unverified')
@@ -90,7 +88,7 @@ export function verifyWorkspace(data, organizationId, userId) {
 
 export function emailMatchesDraft(workflow) {
   const request = workflow?.action_request, draft = workflow?.ai_run?.draft
-  return Boolean(sourceMatchesWorkflow(workflow) && request && request.id === workflow.action_request_id && request.customer_workflow_id === workflow.id && request.organization_id === workflow.organization_id && request.provider === 'microsoft' && request.action_type === 'send_email' && nonempty(request.requested_by) && nonempty(request.connection_id) && validDraft(draft, workflow.knowledge_sources || []) && request.payload?.to === workflow.customer_email && request.payload?.subject === draft.title && request.payload?.message === draft.body && Object.keys(request.payload).sort().join(',') === 'message,subject,to')
+  return Boolean(sourceMatchesWorkflow(workflow) && request && request.id === workflow.action_request_id && request.customer_workflow_id === workflow.id && request.organization_id === workflow.organization_id && EMAIL_PROVIDERS.includes(request.provider) && request.action_type === 'send_email' && nonempty(request.requested_by) && nonempty(request.connection_id) && validDraft(draft, workflow.knowledge_sources || []) && request.payload?.to === workflow.customer_email && request.payload?.subject === draft.title && request.payload?.message === draft.body && Object.keys(request.payload).sort().join(',') === 'message,subject,to')
 }
 
 export function sourceMatchesWorkflow(workflow) {
@@ -100,10 +98,10 @@ export function sourceMatchesWorkflow(workflow) {
 export function workflowState(workflow) {
   if (workflow?.status === 'cancelled') return { key: 'closed', label: 'Cancelled', tone: 'muted', detail: 'This request was cancelled. Its saved history remains available.' }
   const action = workflow?.action_request
-  if (action?.status === 'Executed') return { key: 'accepted', label: 'Microsoft accepted', tone: 'success', detail: 'Microsoft accepted the email. Delivery is not confirmed.' }
+  if (action?.status === 'Executed') return { key: 'accepted', label: `${emailProviderName(action.provider)} accepted`, tone: 'success', detail: `${emailProviderName(action.provider)} accepted the email. Delivery is not confirmed.` }
   if (action?.status === 'Approved') return { key: 'approved', label: 'Approved · not sent', tone: 'ready', detail: 'The exact email is approved. Sending is a separate action.' }
   if (action?.status === 'Pending') return { key: 'review', label: 'Awaiting review', tone: 'pending', detail: 'A different authorized person must review this email.' }
-  if (['Executing', 'Failed'].includes(action?.status)) return { key: 'exception', label: 'Email outcome needs review', tone: 'error', detail: 'Check the saved request and Microsoft account. Do not resend.' }
+  if (['Executing', 'Failed'].includes(action?.status)) return { key: 'exception', label: 'Email outcome needs review', tone: 'error', detail: 'Check the saved request and email account. Do not resend.' }
   if (action?.status === 'Rejected') return { key: 'exception', label: 'Email rejected', tone: 'error', detail: 'The reviewer rejected this email. It has not been approved for sending.' }
   const states = {
     intake: { key: 'pending', label: 'Ready for a draft', tone: 'pending', detail: 'The customer request is saved. Review its company context before generating.' },

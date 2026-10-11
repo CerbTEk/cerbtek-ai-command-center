@@ -47,3 +47,9 @@ test('explicit SQL transaction rejections differ from unknown delivery/storage e
 });
 
 test('workspace preserves existing independent authorized inference readiness',async()=>{const data=structuredClone(loadBody);data.workspace.readiness.live_inference_enabled=true;const r=await call(fixture({data}));assert.equal(r.status,200);assert.equal(r.body.workspace.readiness.live_inference_enabled,true);assert.equal(r.body.installations[0].readiness.live_inference_enabled,false)});
+
+test('new provider-neutral email binding passes without rewriting legacy or accepting both keys',async()=>{
+ const neutral={...bindings,email_connection_id:bindings.microsoft_connection_id};delete neutral.microsoft_connection_id;
+ const f=fixture({data:{...installation,bindings:neutral}});const r=await call(f,{...saveBody,bindings:neutral});assert.equal(r.status,200);assert.deepEqual(f.calls[1][1].p_spec.bindings,neutral);
+ const ambiguous=fixture();assert.equal((await call(ambiguous,{...saveBody,bindings:{...neutral,microsoft_connection_id:null}})).status,400);assert.equal(ambiguous.calls.length,1);
+});

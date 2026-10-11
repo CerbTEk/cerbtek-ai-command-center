@@ -1,6 +1,6 @@
 import { validEmail } from './customer-reply-model'
 
-export const MAILBOX_INTAKE_CONTRACT = 1
+export const MAILBOX_INTAKE_CONTRACT = 2
 export const PREVIEW_LIFETIME_MS = 15 * 60 * 1000
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 const keys = (value, expected) => object(value) && Object.keys(value).sort().join(',') === [...expected].sort().join(',')
@@ -26,7 +26,7 @@ export function verifyMailboxResponse(value, operation, context) {
   if (!fields || !keys(value, [...envelope, ...fields]) || value.ok !== true || value.contract_version !== MAILBOX_INTAKE_CONTRACT || value.organization_id !== context.organizationId || value.installation_id !== context.installationId || value.installation_revision !== context.installationRevision) invalid()
   if (operation === 'load') {
     const capability = value.capabilities
-    if (!keys(capability, ['mail_read', 'mailbox_id', 'account_name']) || typeof capability.mail_read !== 'boolean' || !providerId(capability.mailbox_id) || !text(capability.account_name) || value.source !== null && !validMailboxSource(value.source, capability.mailbox_id) || !list(value.imports, 20, row => keys(row, ['preview_id', 'workflow_id', 'message_id']) && uuid(row.preview_id) && uuid(row.workflow_id) && providerId(row.message_id)) || !unique(value.imports, 'preview_id')) invalid()
+    if (!keys(capability, ['mail_read', 'mailbox_id', 'account_name', 'provider', 'connection_id']) || !['microsoft', 'google'].includes(capability.provider) || !uuid(capability.connection_id) || context.connectionId && capability.connection_id !== context.connectionId || context.provider && capability.provider !== context.provider || typeof capability.mail_read !== 'boolean' || !providerId(capability.mailbox_id) || !text(capability.account_name) || value.source !== null && !validMailboxSource(value.source, capability.mailbox_id) || !list(value.imports, 20, row => keys(row, ['preview_id', 'workflow_id', 'message_id']) && uuid(row.preview_id) && uuid(row.workflow_id) && providerId(row.message_id)) || !unique(value.imports, 'preview_id')) invalid()
   } else if (operation === 'folders') {
     if (!list(value.folders, 50, row => keys(row, ['id', 'name']) && providerId(row.id) && text(row.name, 200)) || !unique(value.folders, 'id') || typeof value.has_more !== 'boolean') invalid()
   } else if (operation === 'save') {
@@ -38,12 +38,12 @@ export function verifyMailboxResponse(value, operation, context) {
 }
 export function mailboxError(error) {
   return ({
-    mail_read_required: 'The connected Microsoft account is missing Mail.Read permission. An authorized manager must arrange a separately approved Microsoft reconsent, then refresh intake status. This screen cannot grant access.',
+    mail_read_required: 'The connected email account is missing read permission. A company manager can review and explicitly grant read access in Connections, then refresh intake status. This screen cannot grant access.',
     mailbox_intake_not_installed: 'Mailbox intake is not available in this environment. Ask an authorized administrator to review deployment status. No mailbox access has been enabled.',
     organization_access_denied: 'Your company access could not be verified. Close mailbox intake and ask an authorized company manager to review your current access.',
     mailbox_source_changed_or_not_ready: 'The mailbox source or workflow setup changed or is not ready. Refresh intake status, or close this screen and refresh workflows to review the current setup.',
-    mailbox_connection_unavailable: 'The workflow’s Microsoft connection is unavailable. Review the connection in Connections, then reopen mailbox intake.',
-    source_changed: 'The saved mailbox folder changed. Refresh intake status and review the current source before continuing.',
+    mailbox_connection_unavailable: 'The workflow’s email connection is unavailable. Review the connection in Connections, then reopen mailbox intake.',
+    source_changed: 'The saved mailbox source changed. Refresh intake status and review the current source before continuing.',
     installation_changed: 'This workflow setup changed. Close mailbox intake and refresh workflows before continuing.',
     preview_expired: 'This preview expired. Explicitly preview messages again and review the new preview before importing.',
   })[error?.code] || 'Mailbox intake could not be verified. Refresh intake status before continuing.'

@@ -11,11 +11,11 @@ const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const org = { id: id(1), name: 'Fixture business' }, session = { user: { id: id(2) } }
 const installation = { ...emptyInstallation(), id: id(3), organization_id: org.id, revision: 4, name: 'Customer help', outcome: 'Reviewed customer replies', status: 'configured', readiness: { live_inference_enabled: false, automatic_execution_enabled: false, can_start: true, reasons: [], start_blocker: null } }
 const context = { organizationId: org.id, installationId: installation.id, installationRevision: installation.revision }
-const envelope = (extra = {}) => ({ ok: true, contract_version: 1, organization_id: org.id, installation_id: installation.id, installation_revision: installation.revision, ...extra })
+const envelope = (extra = {}) => ({ ok: true, contract_version: 2, organization_id: org.id, installation_id: installation.id, installation_revision: installation.revision, ...extra })
 const source = { id: id(4), revision: 1, folder_id: 'folder-inbox', folder_name: 'Customer requests', mailbox_id: 'mailbox-own' }
 const preview = (extra = {}) => ({ id: id(5), expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), message_id: 'message-immutable', thread_id: 'conversation-1', received_at: '2026-01-01T12:00:00Z', has_attachments: false, intake: { customer_name: 'Fixture customer', customer_email: 'customer@example.test', subject: 'Service question', message: 'Please help with my request.' }, ...extra })
 function fixture(options = {}) {
-  const data = envelope({ source: options.source === undefined ? source : options.source, capabilities: { mail_read: options.mailRead !== false, mailbox_id: source.mailbox_id, account_name: 'Connected Microsoft account' }, imports: options.imports || [] })
+  const data = envelope({ source: options.source === undefined ? source : options.source, capabilities: { provider: options.provider || 'microsoft', connection_id: id(8), mail_read: options.mailRead !== false, mailbox_id: source.mailbox_id, account_name: 'Connected Microsoft account' }, imports: options.imports || [] })
   const previews = options.previews || [preview()]
   const client = { functions: { invoke: vi.fn(async (route, { body }) => {
     if (route !== 'mailbox-intake') throw new Error('Unexpected route')
@@ -41,7 +41,7 @@ describe('mailbox response contract', () => {
   it('requires the exact tenant, installation, revision and contract on every operation', () => {
     const f = fixture()
     expect(verifyMailboxResponse(f.data, 'load', context)).toBe(f.data)
-    for (const patch of [{ organization_id: id(90) }, { installation_id: id(90) }, { installation_revision: 3 }, { contract_version: 2 }, { ok: false }, { unexpected: true }]) expect(() => verifyMailboxResponse({ ...f.data, ...patch }, 'load', context)).toThrow()
+    for (const patch of [{ organization_id: id(90) }, { installation_id: id(90) }, { installation_revision: 3 }, { contract_version: 3 }, { ok: false }, { unexpected: true }]) expect(() => verifyMailboxResponse({ ...f.data, ...patch }, 'load', context)).toThrow()
   })
   it('fails closed on mismatched mailbox, malformed capabilities and receipts', () => {
     const f = fixture()
@@ -107,7 +107,7 @@ describe('explicit manager mailbox intake', () => {
     const f = fixture({ previews: [p] }); const view = render(<MailboxIntake {...props(f)}/>); await showPreview(f)
     expect(screen.getByText(text)).toBeTruthy()
     expect(view.container.querySelector('img, script, iframe')).toBeNull()
-    expect(screen.getByText(/Microsoft mailbox source/)).toBeTruthy()
+    expect(screen.getByText(/Microsoft 365 mailbox source/)).toBeTruthy()
     expect(screen.getByText(/contents are not retrieved or imported/)).toBeTruthy()
   })
   it('rejects unverified previews without rendering their message text', async () => {
@@ -258,5 +258,47 @@ describe('installation integration', () => {
     await screen.findByText('Customer help')
     expect(screen.queryByRole('button', { name: 'Mailbox intake: Customer help' })).toBeNull()
     expect(f.client.functions.invoke.mock.calls.every(([route]) => route === 'workflow-installations')).toBe(true)
+  })
+})
+
+
+describe('Google own-account label intake', () => {
+  it('labels the selected source honestly and preserves explicit preview/import operations', async () => {
+    const f = fixture({ provider: 'google', source: null }); render(<MailboxIntake {...props(f)}/>);
+    await screen.findByText('Connected Microsoft account') // Synthetic display name never changes provider authority.
+    expect(screen.getByText(/Connected Google \/ Gmail account/)).toBeTruthy()
+    expect(screen.getByText(/selecting a label does not narrow that permission/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'List available labels' }))
+    fireEvent.change(await screen.findByLabelText('Available Gmail label'), { target: { value: source.folder_id } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save label' })); await screen.findByText(/Mailbox label saved/)
+    fireEvent.click(screen.getByRole('button', { name: 'Preview messages' })); await screen.findByRole('article', { name: 'Preview: Service question' })
+    expect(screen.getByText(/Google \/ Gmail mailbox source/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(screen.getByRole('button', { name: 'Import this message' }))
+    await screen.findByText(/Message imported as an assigned customer request/)
+    expect(operations(f)).toEqual(['load', 'folders', 'save', 'preview', 'import'])
+    expect(callFor(f, 'save')[0][1].body.folder_id).toBe(source.folder_id)
+  })
+  it('never offers Gmail preview without separately granted read capability', async () => {
+    const f = fixture({ provider: 'google', mailRead: false }); render(<MailboxIntake {...props(f)}/>);
+    await screen.findByText(/Gmail read permission is missing/)
+    expect(screen.getByRole('button', { name: 'List available labels' }).disabled).toBe(true)
+    expect(screen.getByRole('button', { name: 'Preview messages' }).disabled).toBe(true)
+    expect(operations(f)).toEqual(['load'])
+  })
+  it('requires the declared provider and installation-bound connection on metadata load', () => {
+    const f = fixture({ provider: 'google' })
+    expect(verifyMailboxResponse(f.data, 'load', { ...context, provider: 'google', connectionId: id(8) })).toBe(f.data)
+    for (const patch of [{ provider: 'microsoft' }, { connectionId: id(9) }]) expect(() => verifyMailboxResponse(f.data, 'load', { ...context, provider: 'google', connectionId: id(8), ...patch })).toThrow()
+    expect(() => verifyMailboxResponse({ ...f.data, contract_version: 1 }, 'load', context)).toThrow()
+  })
+  it('retains the same Google preview identity after an unknown import and blocks replacement preview', async () => {
+    const f = fixture({ provider: 'google' }), original = f.client.functions.invoke.getMockImplementation()
+    f.client.functions.invoke.mockImplementation((route, args) => args.body.operation === 'import' ? Promise.reject(new Error('Lost response')) : original(route, args))
+    render(<MailboxIntake {...props(f)}/>); await showPreview(f)
+    fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(screen.getByRole('button', { name: 'Import this message' })); await screen.findByText(/import outcome is unconfirmed/)
+    expect(screen.getByRole('button', { name: 'Close mailbox intake' }).disabled).toBe(true)
+    expect(screen.getByRole('button', { name: 'Preview messages' }).disabled).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Retry this import safely' })); await waitFor(() => expect(callFor(f, 'import')).toHaveLength(2))
+    expect(callFor(f, 'import')[0][1].body).toEqual(callFor(f, 'import')[1][1].body)
   })
 })

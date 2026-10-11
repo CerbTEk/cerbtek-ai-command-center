@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { emailProviderName } from './company-email-model'
 import { verifyMailboxResponse, mailboxError } from './mailbox-intake-model'
 import './workflow-installations.css'
 
@@ -15,7 +16,7 @@ function Intake({ org, client, installation, onClose, onImported, onBusyChange }
   const [needsReload, setNeedsReload] = useState(false), [uncertain, setUncertain] = useState(null), [now, setNow] = useState(Date.now())
   const mounted = useRef(true), lock = useRef(null), pending = useRef(null), activeClient = useRef(client), busyCallback = useRef(onBusyChange)
   activeClient.current = client; busyCallback.current = onBusyChange
-  const context = { organizationId: org.id, installationId: installation.id, installationRevision: installation.revision }
+  const context = { organizationId: org.id, installationId: installation.id, installationRevision: installation.revision, connectionId: installation.bindings?.email_connection_id || installation.bindings?.microsoft_connection_id, provider: data?.capabilities.provider }
   const dirty = Boolean(folderId && folderId !== data?.source?.folder_id || previews?.previews.length || uncertain)
   useEffect(() => { busyCallback.current?.(busy) }, [busy])
   useEffect(() => () => busyCallback.current?.(false), [])
@@ -90,6 +91,7 @@ function Intake({ org, client, installation, onClose, onImported, onBusyChange }
     load()
     return () => { mounted.current = false; lock.current = null }
   }, [client])
+  const provider = data?.capabilities.provider, providerName = emailProviderName(provider), sourceKind = provider === 'google' ? 'label' : 'folder'
   const canRead = data?.capabilities.mail_read === true && !needsReload && !uncertain
   async function listFolders() {
     if (!canRead) return
@@ -103,7 +105,7 @@ function Intake({ org, client, installation, onClose, onImported, onBusyChange }
       const value = await call('save', { expected_source_revision: source?.revision || 0, folder_id: folderId }, { mailboxId: data.capabilities.mailbox_id, sourceRevision: source?.revision || 0, folderId, sourceId: source?.id })
       if (!current()) return
       setData(previous => ({ ...previous, source: value.source })); setPreviews(null); setChecked({})
-      setMessage('Mailbox folder saved. Preview messages when you are ready; no messages have been imported.')
+      setMessage(`Mailbox ${sourceKind} saved. Preview messages when you are ready; no messages have been imported.`)
     })
   }
   async function previewMessages() {
@@ -128,26 +130,26 @@ function Intake({ org, client, installation, onClose, onImported, onBusyChange }
     if (!dirty || window.confirm('Discard the unsaved folder selection and in-memory message previews?')) onClose?.()
   }
   return <section className="wi-panel" aria-label="Manager mailbox intake">
-    <p className="eyebrow">MANAGER MAILBOX INTAKE</p><h2>Import a customer request from Microsoft</h2>
+    <p className="eyebrow">MANAGER MAILBOX INTAKE</p><h2>Import a customer request from email</h2>
     <p><b>{installation.name}</b> · workflow setup revision {installation.revision}</p>
-    <p>Choose a visible ordinary top-level folder in the connected account’s own mailbox. Shared mailboxes, nested folders, and hidden or search folders are unavailable.</p>
+    <p>{provider === 'google' ? 'Choose a supported Gmail label in the connected account’s own mailbox.' : 'Choose a visible ordinary top-level folder in the connected account’s own mailbox. Shared mailboxes, nested folders, and hidden or search folders are unavailable.'}</p><p>Source selection limits application import. Provider read consent covers the mailbox; selecting a {sourceKind} does not narrow that permission.</p>
     <p>Each action is manual. There is no background sync, attachment retrieval, draft generation, or email sending. Preview text is shown only to authorized managers and temporarily stored for import; import access expires after 15 minutes.</p>
-    <p>Fixed mapping: Microsoft sender name and email → customer; subject → request subject; plain-text message → customer request. Review whether the content is appropriate for this company before importing it.</p>
+    <p>Fixed mapping: message sender name and email → customer; subject → request subject; plain-text message → customer request. Review whether the content is appropriate for this company before importing it.</p>
     {busy && <p role="status">Checking mailbox intake…</p>}
     {message && <p role={failed ? 'alert' : 'status'}>{message}</p>}
     <div className="wi-actions"><button type="button" className="secondary" disabled={busy} onClick={load}>Refresh intake status</button><button type="button" className="secondary" disabled={busy || Boolean(uncertain)} onClick={close}>Close mailbox intake</button></div>
     {data && <>
-      <p>Connected Microsoft account: <b>{data.capabilities.account_name}</b>. Only its own mailbox is supported.</p>
-      {!data.capabilities.mail_read && <p role="alert">Mail.Read permission is missing. An authorized manager must arrange a separately approved Microsoft reconsent, then refresh intake status. This screen cannot grant mailbox access.</p>}
-      {data.source ? <p>Saved folder: <b>{data.source.folder_name}</b> · source revision {data.source.revision}</p> : <p>No mailbox folder is saved for this workflow.</p>}
-      <div className="wi-actions"><button type="button" className="secondary" disabled={busy || !canRead} onClick={listFolders}>List available folders</button></div>
-      {folders && <form className="wi-form" onSubmit={saveFolder}><fieldset disabled={busy || !canRead}><legend>Mailbox source folder</legend>
-        <label>Available top-level folder<select value={folderId} onChange={event => { setFolderId(event.target.value); setPreviews(null); setChecked({}) }}><option value="">Choose a folder</option>{data.source && !folders.folders.some(row => row.id === data.source.folder_id) && <option value={data.source.folder_id} disabled>Saved folder unavailable in this list</option>}{folders.folders.map(folder => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select></label>
-        {!folders.folders.length && <p>No supported visible folders were returned.</p>}
-        {folders.has_more && <p>Only the first 50 visible ordinary top-level folders are shown. Additional folders are outside this version’s supported selection.</p>}
-        <button className="primary" type="submit" disabled={!folderId || folderId === data.source?.folder_id || !folders.folders.some(row => row.id === folderId)}>Save folder</button>
+      <p>Connected {providerName} account: <b>{data.capabilities.account_name}</b>. Only its own mailbox is supported.</p>
+      {!data.capabilities.mail_read && <p role="alert">{provider === 'google' ? 'Gmail read' : 'Mail.Read'} permission is missing. A company manager can review and explicitly grant read access in Connections, then refresh intake status. This screen cannot grant mailbox access.</p>}
+      {data.source ? <p>Saved {sourceKind}: <b>{data.source.folder_name}</b> · source revision {data.source.revision}</p> : <p>No mailbox {sourceKind} is saved for this workflow.</p>}
+      <div className="wi-actions"><button type="button" className="secondary" disabled={busy || !canRead} onClick={listFolders}>List available {sourceKind}s</button></div>
+      {folders && <form className="wi-form" onSubmit={saveFolder}><fieldset disabled={busy || !canRead}><legend>Mailbox source {sourceKind}</legend>
+        <label>{provider === 'google' ? 'Available Gmail label' : 'Available top-level folder'}<select value={folderId} onChange={event => { setFolderId(event.target.value); setPreviews(null); setChecked({}) }}><option value="">Choose a {sourceKind}</option>{data.source && !folders.folders.some(row => row.id === data.source.folder_id) && <option value={data.source.folder_id} disabled>Saved {sourceKind} unavailable in this list</option>}{folders.folders.map(folder => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select></label>
+        {!folders.folders.length && <p>No supported visible {sourceKind}s were returned.</p>}
+        {folders.has_more && <p>Only the first 50 supported {sourceKind}s are shown. Additional sources are outside this version’s supported selection.</p>}
+        <button className="primary" type="submit" disabled={!folderId || folderId === data.source?.folder_id || !folders.folders.some(row => row.id === folderId)}>Save {sourceKind}</button>
       </fieldset></form>}
-      {folderId && data.source && folderId !== data.source.folder_id && <p>Save this folder selection before previewing messages.</p>}
+      {folderId && data.source && folderId !== data.source.folder_id && <p>Save this {sourceKind} selection before previewing messages.</p>}
       <div className="wi-actions"><button type="button" className="primary" disabled={busy || !canRead || !data.source || folderId !== data.source.folder_id} onClick={previewMessages}>Preview messages</button></div>
       {previews && <div aria-label="Message previews">
         <p>{previews.previews.length} message preview{previews.previews.length === 1 ? '' : 's'} · {previews.skipped} skipped. {previews.has_more ? 'More messages exist; this preview is limited to 10 messages.' : ''}</p>
@@ -155,7 +157,7 @@ function Intake({ org, client, installation, onClose, onImported, onBusyChange }
         {previews.previews.map(preview => {
           const expired = Date.parse(preview.expires_at) <= now, retry = uncertain?.previewId === preview.id
           return <article className="wi-record wi-form" key={preview.id} aria-label={`Preview: ${preview.intake.subject}`}>
-            <h3>{preview.intake.subject}</h3><p>Microsoft mailbox source · {previews.source.folder_name} · source revision {previews.source.revision}</p>
+            <h3>{preview.intake.subject}</h3><p>{providerName} mailbox source · {previews.source.folder_name} · source revision {previews.source.revision}</p>
             <dl><dt>Customer</dt><dd>{preview.intake.customer_name}</dd><dt>Email</dt><dd>{preview.intake.customer_email}</dd><dt>Received</dt><dd>{new Date(preview.received_at).toLocaleString()}</dd><dt>Message ID</dt><dd>{preview.message_id}</dd>{preview.thread_id && <><dt>Thread ID</dt><dd>{preview.thread_id}</dd></>}</dl>
             <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{preview.intake.message}</p>
             {preview.has_attachments && <p>Attachments are present. Their contents are not retrieved or imported.</p>}
@@ -165,7 +167,7 @@ function Intake({ org, client, installation, onClose, onImported, onBusyChange }
           </article>
         })}
       </div>}
-      {data.imports.length > 0 && <div aria-label="Recent mailbox imports"><h3>Recent imports</h3><p>Saved workflow references for this manager. Original mailbox provenance remains attached to each imported request.</p><ul>{data.imports.map(receipt => <li key={receipt.preview_id}>Workflow {receipt.workflow_id} · Microsoft message {receipt.message_id}</li>)}</ul></div>}
+      {data.imports.length > 0 && <div aria-label="Recent mailbox imports"><h3>Recent imports</h3><p>Saved workflow references for this manager. Original mailbox provenance remains attached to each imported request.</p><ul>{data.imports.map(receipt => <li key={receipt.preview_id}>Workflow {receipt.workflow_id} · {providerName} message {receipt.message_id}</li>)}</ul></div>}
     </>}
   </section>
 }

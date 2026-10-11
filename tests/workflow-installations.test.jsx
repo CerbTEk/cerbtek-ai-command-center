@@ -27,3 +27,25 @@ describe('workflow installation boundary',()=>{
  it('reconciles only a verified actor-scoped receipt after remount',async()=>{const f=fixture();const key=Object.keys(window.sessionStorage).find(key=>key.includes(':installation:pending'));expect(key).toBeTruthy();const pending=JSON.parse(window.sessionStorage.getItem(key));f.data.operation_receipts=[{operation:pending.operation,request_key:pending.key,installation_id:f.row.id,installation_revision:1,workflow_id:null}];render(<WorkflowInstallations org={org} session={session} client={f.client}/>);await screen.findByText(/earlier saved operation has been reconciled/);expect(screen.getByRole('button',{name:'Set up a workflow'}).disabled).toBe(false)})
 
 })
+
+
+describe('provider-neutral workflow connection selection', () => {
+ it('saves exactly the chosen Google connection with no legacy provider field', async () => {
+  const f=fixture(); f.data.installations=[]
+  f.data.workspace.readiness.email_connections=[{id:id(8),provider:'microsoft',account_name:'Microsoft support',account_email:'microsoft@example.test',external_account_id:'entra-id',mail_read:true,mail_send:true},{id:id(9),provider:'google',account_name:'Google support',account_email:'google@example.test',external_account_id:'google-sub',mail_read:true,mail_send:true}]
+  f.client.functions.invoke.mockImplementation(async(route,{body})=>body.operation==='save'?{data:{ok:true,contract_version:1,organization_id:org.id,installation:{...f.row,status:'setup_needed',name:body.name,outcome:body.outcome,bindings:body.bindings,limits:body.limits}}}:{data:f.data})
+  render(<WorkflowInstallations org={org} session={session} client={f.client}/>);fireEvent.click(await screen.findByRole('button',{name:'Set up a workflow'}))
+  expect(screen.getByLabelText('Sending provider and account').value).toBe('')
+  expect(screen.getByRole('option',{name:/Google \/ Gmail · google@example.test/})).toBeTruthy()
+  fireEvent.change(screen.getByLabelText('What business result do you need?'),{target:{value:'Reviewed Google service replies'}})
+  fireEvent.change(screen.getByLabelText('Sending provider and account'),{target:{value:id(9)}})
+  fireEvent.click(screen.getByRole('button',{name:'Save workflow setup'}));await screen.findByText(/Workflow setup saved/)
+  const saved=f.client.functions.invoke.mock.calls.find(([,args])=>args.body.operation==='save')[1].body
+  expect(saved.bindings.email_connection_id).toBe(id(9));expect(saved.bindings).not.toHaveProperty('microsoft_connection_id')
+ })
+ it('keeps legacy Microsoft installations readable and normalizes edits to the neutral binding', async () => {
+  const f=fixture();render(<WorkflowInstallations org={org} session={session} client={f.client}/>);fireEvent.click(await screen.findByRole('button',{name:'Review setup: Service replies'}))
+  expect(screen.getByLabelText('Sending provider and account').value).toBe(id(8))
+  expect(screen.getByRole('option',{name:/Previously bound connection/})).toBeTruthy()
+ })
+})
