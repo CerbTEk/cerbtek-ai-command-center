@@ -3,6 +3,7 @@ import { MANAGERS, RECIPE_KEY, RECIPE_VERSION, emptyInstallation, installationFo
 import { validWorkflow, validEmail, employeeName } from './customer-reply-model'
 import './workflow-installations.css'
 import { useExecutionAttempts } from './use-safe-operation'
+import MailboxIntake from './MailboxIntake'
 
 function Link({ section, onGo, children }) { return <button type="button" className="secondary" onClick={() => onGo?.(section)}>{children}</button> }
 const emptyIntake = () => ({ customer_name: '', customer_email: '', subject: '', message: '' })
@@ -12,14 +13,15 @@ export default function WorkflowInstallations(props) {
 }
 function Installations({ org, session, client, onGo, employee = false, onStarted, onDirtyChange, onBusyChange }) {
   const [data, setData] = useState(null), [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [failed, setFailed] = useState(false)
+  const [mailbox, setMailbox] = useState(null), [mailboxBusy, setMailboxBusy] = useState(false)
   const [form, setForm] = useState(null), [selected, setSelected] = useState(null), [intake, setIntake] = useState(emptyIntake), [checked, setChecked] = useState(false)
   const lock = useRef(false), epoch = useRef(0), mounted = useRef(true), pending = useRef(null)
   const attempts = useExecutionAttempts(`${session.user.id}:${org.id}:installation`)
   const unresolved = attempts.get('pending')
-  const dirty = Boolean(form || selected && Object.values(intake).some(Boolean))
+  const dirty = Boolean(mailbox || form || selected && Object.values(intake).some(Boolean))
   useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false) }, [dirty, onDirtyChange])
-  useEffect(() => { onBusyChange?.(busy); return () => onBusyChange?.(false) }, [busy, onBusyChange])
-  useEffect(() => { const protect = event => { if (dirty || busy) { event.preventDefault(); event.returnValue = '' } }; window.addEventListener('beforeunload', protect); return () => window.removeEventListener('beforeunload', protect) }, [dirty, busy])
+  useEffect(() => { onBusyChange?.(busy || mailboxBusy); return () => onBusyChange?.(false) }, [busy, mailboxBusy, onBusyChange])
+  useEffect(() => { const protect = event => { if (dirty || busy || mailboxBusy) { event.preventDefault(); event.returnValue = '' } }; window.addEventListener('beforeunload', protect); return () => window.removeEventListener('beforeunload', protect) }, [dirty, busy, mailboxBusy])
   async function call(body) {
     const result = await client.functions.invoke('workflow-installations', { body: { organization_id: org.id, ...body } })
     if (result.error || result.data?.error || result.data?.ok !== true || result.data.contract_version !== 1 || result.data.organization_id !== org.id) {
@@ -85,6 +87,7 @@ function Installations({ org, session, client, onGo, employee = false, onStarted
   }
   const workspace = data?.workspace, managers = workspace?.people.filter(person => MANAGERS.includes(person.role)) || [], people = workspace?.people.filter(person => [...MANAGERS, 'member'].includes(person.role)) || []
   const manager = MANAGERS.includes(data?.actor.role)
+  if (mailbox && manager && !employee) return <section className="panel wi-panel"><MailboxIntake key={`${org.id}:${session.user.id}:${mailbox.id}:${mailbox.revision}`} org={org} session={session} client={client} installation={mailbox} onClose={() => { if (!mailboxBusy) setMailbox(null) }} onBusyChange={setMailboxBusy} onImported={onStarted}/></section>
   return <section className="panel wi-panel" aria-label={employee ? 'Configured workflow entry points' : 'Install a reusable workflow'}>
     <p className="eyebrow">{employee ? 'YOUR TEAM’S WORKFLOWS' : 'BUSINESS NEED → WORKFLOW SETUP'}</p>
     <h2>{employee ? 'Start from your saved workflow' : 'Set up customer follow-up'}</h2>
@@ -103,7 +106,7 @@ function Installations({ org, session, client, onGo, employee = false, onStarted
       {Array.isArray(row.readiness?.reasons) && row.readiness.reasons.length > 0 && <ul aria-label="Missing workflow setup">{row.readiness.reasons.map(reason => <li key={reason}>{String(reason).replaceAll('_', ' ')}</li>)}</ul>}
       {row.status !== 'configured' && <p role="status">One or more bindings are missing or have changed. A manager must review and save current company guidance, AI configuration, Microsoft connection, and team assignments.</p>}
       {employee && row.readiness?.start_blocker && <p>Before starting: {row.readiness.start_blocker.replaceAll('_',' ')}.</p>}
-      <div className="wi-actions">{manager && !employee && <button type="button" className="secondary" disabled={busy || Boolean(unresolved)} onClick={() => edit(row)}>Review setup: {row.name}</button>}{employee && canStartInstallation(row, data.actor) && <button type="button" className="primary" disabled={busy || Boolean(unresolved)} onClick={() => { setSelected(row.id); setMessage('') }}>New request: {row.name}</button>}</div>
+      <div className="wi-actions">{manager && !employee && <><button type="button" className="secondary" disabled={busy || Boolean(unresolved)} onClick={() => edit(row)}>Review setup: {row.name}</button><button type="button" className="secondary" disabled={busy || Boolean(unresolved)} onClick={() => { if (!lock.current && !dirty) setMailbox(row) }}>Mailbox intake: {row.name}</button></>}{employee && canStartInstallation(row, data.actor) && <button type="button" className="primary" disabled={busy || Boolean(unresolved)} onClick={() => { setSelected(row.id); setMessage('') }}>New request: {row.name}</button>}</div>
     </article>)}
     {form && <form className="wi-form" onSubmit={save}>
       <fieldset disabled={busy}><legend>Customer follow-up · version {RECIPE_VERSION}</legend>
