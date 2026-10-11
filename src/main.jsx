@@ -9,6 +9,7 @@ import {
   ServerCog, ShieldCheck, Sparkles, Trash2, Users, Workflow
 } from 'lucide-react'
 import { supabase } from './supabase'
+import PasswordRecoveryGate, { ForgotPassword } from './PasswordRecovery'
 import { assessmentComplete, deriveNextStep, onboardingComplete } from './first-use-guidance'
 import { useSectionNavigation } from './use-section-navigation'
 import KairoHelp from './KairoHelp'
@@ -46,6 +47,10 @@ const baseNav = [
 ]
 
 export function App() {
+  return <PasswordRecoveryGate><WorkspaceApp /></PasswordRecoveryGate>
+}
+
+function WorkspaceApp() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [fundingDirty, setFundingDirty] = useState(false)
@@ -344,6 +349,7 @@ function Auth() {
     if (res.error) setMessage(res.error.message)
     else if (mode === 'signup') setMessage('Account created. Check your email if confirmation is enabled.')
   }
+  if (mode === 'forgot') return <div className="auth-shell"><div className="auth-card"><ForgotPassword initialEmail={email} onBack={() => { setMode('signin'); setPassword(''); setMessage('') }}/></div></div>
   return <div className="auth-shell"><div className="auth-card">
     <div className="auth-brand"><img className="brand-banner" src={`${APP_BASE}kairo-banner.png`} alt="Kairo — AI Enablement by CerbTEK LLC. Connect, Automate, Empower." width="2048" height="683" /></div>
     <h1>{mode === 'signin' ? 'Sign in' : 'Create account'}</h1>
@@ -354,6 +360,7 @@ function Auth() {
       <button className="primary">{mode === 'signin' ? 'Sign in' : 'Create account'}</button>
     </form>
     {message && <div className="message">{message}</div>}
+    {mode === 'signin' && <button type="button" className="link" onClick={() => { setPassword(''); setMessage(''); setMode('forgot') }}>Forgot password?</button>}
     <button className="link" onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}>
       {mode === 'signin' ? 'Need an account? Create one' : 'Already have an account? Sign in'}
     </button>
