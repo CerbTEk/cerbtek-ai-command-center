@@ -5,5 +5,5 @@ import {createHandler} from './handler.mjs';
 // AI draft and Microsoft action boundaries retain their deployment gates and controls.
 Deno.serve(createHandler({
  supabase:createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}}),
- allowedOrigins:['https://cerbtek-ai-command-center.webflow.io'],
+ allowedOrigins:['https://cerbtek-ai-command-center.webflow.io','https://www.cerbtek.com'],
 }));

@@ -25,5 +25,5 @@ Deno.serve(createHandler({
   return {organizationId,provider,apiKey,accountReference,credentialFingerprint};
  },
  // Verified existing Kairo Webflow Cloud origin; retain exact-match CORS and mandatory JWT auth.
- allowedOrigins:['https://cerbtek-ai-command-center.webflow.io']
+ allowedOrigins:['https://cerbtek-ai-command-center.webflow.io','https://www.cerbtek.com']
 }));
