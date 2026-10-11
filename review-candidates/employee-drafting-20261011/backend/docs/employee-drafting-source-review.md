@@ -64,3 +64,7 @@ New trigger: installed_draft_review_guard BEFORE UPDATE ON public.ai_draft_runs,
 - Updated existing role-boundary expectation: backend/tests/ai-customer-workflow.test.mjs
 
 The new fixture composes the existing workflow-installation-fixture.mjs with knowledge and activation enabled, then installs the follow-on SQL in disposable PGlite only. Synthetic provider outputs are in-memory stubs. PGlite exercises real function/trigger/grant behavior but does not verify production concurrent-transaction scheduling or a deployed Edge runtime. Production installation and live-provider validation remain outside this source-only task.
+
+## Final local test result
+
+23/23 focused tests and 37/37 targeted existing regressions passed. See employee-drafting-rollout-review.md for the fresh read-only compatibility snapshot, exact rollback scope, production hold, and operational caveats.

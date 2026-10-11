@@ -59,8 +59,8 @@
     },
     {
       "path": "backend/docs/employee-drafting-source-review.md",
-      "sha256": "e6692e657337f6dcc8448af298a8d9ff1b263d2d22f9a8d67271fefc92dd28ef",
-      "bytes": 6160
+      "sha256": "fe8d6b55ca413f514489ed88f3c77f0bdad92fbb7e7b71dcde9539fdb83d6138",
+      "bytes": 6409
     },
     {
       "path": "docs/employee-drafting-candidate.md",
@@ -71,6 +71,36 @@
       "path": "REVIEW-README.md",
       "sha256": "e5262feaef98b67a87ff6a68ff89b6441f124b6600e2fc15bbdedb9c93ef094b",
       "bytes": 1448
+    },
+    {
+      "path": "backend/docs/employee-drafting-rollout-review.md",
+      "sha256": "3b6dbd63b2c19682cb733ebd81b7f0a535b00895c106ace8ee2fe3e45d1162a3",
+      "bytes": 6188
+    },
+    {
+      "path": "backend/deployment/employee-drafting-rollback-source.sql",
+      "sha256": "8f48c1d8871a4160f6350c23630ac637af0cd9838219ee85b1ab2bfee4d603bf",
+      "bytes": 34736
+    },
+    {
+      "path": "backend/deployment/rollback-edge/ai-draft/index.ts",
+      "sha256": "66c1fcbf0ed8163e91e4763106da3fcdf91a884af21adfc2e8e27a713d11c4cf",
+      "bytes": 2052
+    },
+    {
+      "path": "backend/deployment/rollback-edge/ai-draft/handler.mjs",
+      "sha256": "2981257f69020c68db658fc33fecd072b7f6048ca23fe80cda176850226e6113",
+      "bytes": 14540
+    },
+    {
+      "path": "backend/deployment/rollback-edge/ai-draft/activation.mjs",
+      "sha256": "c95345d6622ef929bca3645bcbcf46d3e9bd44c6397b7f268a10f03cbfedc276",
+      "bytes": 2621
+    },
+    {
+      "path": "backend/deployment/rollback-edge/ai-draft/core.mjs",
+      "sha256": "079aceb13fa3c80dfe9d433244c75287810fb7735fe857fe0a92eb274c3a7eb7",
+      "bytes": 20936
     }
   ],
   "checks": {
@@ -82,5 +112,6 @@
     "backend_focused_tests": 23,
     "backend_targeted_regressions": 37,
     "independent_review": "passed"
-  }
+  },
+  "read_only_preflight": "2026-10-11T01:30:53Z: 11 function bodies, grants and Edge v8 match baseline; new functions and trigger absent"
 }
